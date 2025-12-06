@@ -911,8 +911,13 @@ export async function registerRoutes(
         logoUrl: req.body.logoUrl || null,
         themeColor: req.body.themeColor,
         textColor: req.body.textColor,
+        pixKey: req.body.pixKey || null,
         pagseguroToken: req.body.pagseguroToken || null,
+        pagseguroEmail: req.body.pagseguroEmail || null,
+        pagseguroSandbox: req.body.pagseguroSandbox !== undefined ? req.body.pagseguroSandbox : true,
         pagseguroApiUrl: req.body.pagseguroApiUrl || null,
+        supportEmail: req.body.supportEmail || null,
+        whatsappContact: req.body.whatsappContact || null,
       });
       res.json(settings);
     } catch (error) {

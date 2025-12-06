@@ -25,7 +25,19 @@ export default function AdminSettings() {
   });
 
   const { data: settings, isLoading } = useQuery<Settings>({
-    queryKey: ["/api/settings"],
+    queryKey: ["/api/admin/settings"],
+    queryFn: async () => {
+      const token = localStorage.getItem("admin_token");
+      const response = await fetch("/api/admin/settings", {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error("Erro ao carregar configurações");
+      }
+      return response.json();
+    },
   });
 
   useEffect(() => {
@@ -49,13 +61,18 @@ export default function AdminSettings() {
   const updateMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const token = localStorage.getItem("admin_token");
-      const response = await fetch("/api/settings", {
-        method: "POST",
+      const response = await fetch("/api/admin/settings", {
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`,
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          pagseguroApiUrl: data.pagseguroSandbox 
+            ? "https://sandbox.api.pagseguro.com" 
+            : "https://api.pagseguro.com",
+        }),
       });
 
       if (!response.ok) {
@@ -65,6 +82,7 @@ export default function AdminSettings() {
       return response.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/settings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
       toast({ title: "Configurações salvas com sucesso!" });
     },
