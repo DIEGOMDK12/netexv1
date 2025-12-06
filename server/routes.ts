@@ -1998,7 +1998,6 @@ export async function registerRoutes(
             expiration_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
           },
         ],
-        notification_urls: [`${appBaseUrl}/api/pagseguro/subscription-webhook`],
       };
 
       const axios = (await import("axios")).default;
