@@ -138,7 +138,11 @@ export async function createPixPayment(params: CreatePixPaymentParams): Promise<
 
   const amountInCents = Math.round(amount * 100);
 
-  const billingPayload = {
+  const baseUrl = process.env.REPLIT_DOMAINS?.split(',')[0] 
+    ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` 
+    : '';
+
+  const billingPayload: Record<string, any> = {
     frequency: "ONE_TIME",
     methods: ["PIX"],
     products: [
@@ -152,15 +156,16 @@ export async function createPixPayment(params: CreatePixPaymentParams): Promise<
     metadata: {
       orderId: String(orderId),
     },
-    customer: {
+    returnUrl: baseUrl ? `${baseUrl}/order-success?orderId=${orderId}` : undefined,
+    completionUrl: baseUrl ? `${baseUrl}/order-success?orderId=${orderId}` : undefined,
+  };
+
+  if (email) {
+    billingPayload.customer = {
       email: email,
       name: customerName || email.split("@")[0] || "Cliente",
-      cellphone: "",
-      taxId: "",
-    },
-    returnUrl: `${process.env.REPLIT_DOMAINS?.split(',')[0] ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` : ''}/order-success?orderId=${orderId}`,
-    completionUrl: `${process.env.REPLIT_DOMAINS?.split(',')[0] ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` : ''}/order-success?orderId=${orderId}`,
-  };
+    };
+  }
 
   console.log(`[AbacatePay] Creating PIX payment for order ${orderId}`, {
     amount: amountInCents,
