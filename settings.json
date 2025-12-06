@@ -8,7 +8,7 @@
   "resellerPixKey": "",
   "pagseguroToken": "F290CB6C499E4AD1A1796D67E49C24C1",
   "pagseguroEmail": "Diego.marinho.foda@gmail.com",
-  "pagseguroSandbox": true,
+  "pagseguroSandbox": false,
   "pagseguroApiUrl": "",
   "supportEmail": "suport@midiastore",
   "whatsappContact": "5585988007000",
