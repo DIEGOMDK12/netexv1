@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Copy, Loader2, Package } from "lucide-react";
+import { X, Copy, Loader2, Package, Plus, Minus, Trash2, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +16,7 @@ interface CheckoutModalProps {
 }
 
 export function CheckoutModal({ open, onClose, themeColor, textColor }: CheckoutModalProps) {
-  const { cart, cartTotal, clearCart } = useStore();
+  const { cart, cartTotal, clearCart, updateQuantity, removeFromCart } = useStore();
   const { toast } = useToast();
   const [settings, setSettings] = useState<any>(null);
 
@@ -264,6 +264,25 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
         style={{ backgroundColor: "#1E1E1E", borderColor: "rgba(255,255,255,0.1)" }}
       >
         <DialogHeader className="p-4 border-b" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
+          {settings?.storeName && (
+            <div className="flex items-center gap-2 mb-2">
+              {settings?.logoUrl ? (
+                <img 
+                  src={settings.logoUrl} 
+                  alt={settings.storeName} 
+                  className="w-8 h-8 rounded-lg object-cover"
+                />
+              ) : (
+                <div 
+                  className="w-8 h-8 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: themeColor || "#a855f7" }}
+                >
+                  <Store className="w-4 h-4 text-white" />
+                </div>
+              )}
+              <span className="font-bold text-white text-sm">{settings.storeName}</span>
+            </div>
+          )}
           <DialogTitle style={{ color: textColor || "#FFFFFF" }}>
             {order ? "Pagamento PIX" : "Finalizar Compra"}
           </DialogTitle>
@@ -276,20 +295,80 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
                 {cart.map((item) => (
                   <div
                     key={item.product.id}
-                    className="flex justify-between items-center py-2"
-                    style={{ color: textColor || "#FFFFFF" }}
+                    className="flex gap-3 p-3 rounded-lg"
+                    style={{ backgroundColor: "#242424" }}
                     data-testid={`cart-item-${item.product.id}`}
                   >
-                    <div className="flex items-start gap-2 flex-1 min-w-0">
-                      <Package className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                      <div className="flex-1 min-w-0">
-                        <p className="truncate text-sm">{item.product.name}</p>
-                        <p className="text-xs opacity-60">Qtd: {item.quantity}</p>
+                    <div className="w-14 h-14 rounded-md overflow-hidden flex-shrink-0">
+                      {item.product.imageUrl ? (
+                        <img
+                          src={item.product.imageUrl}
+                          alt={item.product.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-purple-900/30 to-pink-900/30 flex items-center justify-center">
+                          <Package className="w-6 h-6 text-purple-400/50" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <h4
+                        className="font-medium text-sm truncate"
+                        style={{ color: textColor || "#FFFFFF" }}
+                      >
+                        {item.product.name}
+                      </h4>
+                      <p
+                        className="text-sm font-semibold mt-1"
+                        style={{ color: themeColor || "#a855f7" }}
+                      >
+                        R$ {Number(item.product.currentPrice).toFixed(2)}
+                      </p>
+
+                      <div className="flex items-center gap-2 mt-2">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 border border-purple-500/30"
+                          onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                          data-testid={`button-decrease-${item.product.id}`}
+                        >
+                          <Minus className="w-3.5 h-3.5 text-purple-400" />
+                        </Button>
+                        <span
+                          className="w-8 text-center text-sm font-medium"
+                          style={{ color: textColor || "#FFFFFF" }}
+                        >
+                          {item.quantity}
+                        </span>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 border border-purple-500/30"
+                          onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                          data-testid={`button-increase-${item.product.id}`}
+                        >
+                          <Plus className="w-3.5 h-3.5 text-purple-400" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 ml-auto text-red-500"
+                          onClick={() => removeFromCart(item.product.id)}
+                          data-testid={`button-remove-${item.product.id}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                        <span
+                          className="text-sm font-medium"
+                          style={{ color: textColor || "#FFFFFF" }}
+                        >
+                          R$ {(Number(item.product.currentPrice) * item.quantity).toFixed(2)}
+                        </span>
                       </div>
                     </div>
-                    <p className="text-sm font-medium ml-2">
-                      R$ {(Number(item.product.currentPrice) * item.quantity).toFixed(2)}
-                    </p>
                   </div>
                 ))}
               </div>
