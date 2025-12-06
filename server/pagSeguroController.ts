@@ -1,5 +1,6 @@
 import axios from "axios";
-import { storage } from "./storage";
+import fs from "fs";
+import path from "path";
 
 interface CreatePixPaymentParams {
   orderId: number;
@@ -39,14 +40,28 @@ interface PagSeguroOrderResponse {
   qr_codes?: PagSeguroQRCode[];
 }
 
+interface SettingsJson {
+  pagseguroToken?: string;
+  pagseguroEmail?: string;
+  pagseguroSandbox?: boolean;
+  [key: string]: any;
+}
+
+function readSettingsFromFile(): SettingsJson {
+  const SETTINGS_FILE = path.join(process.cwd(), "settings.json");
+  try {
+    const data = fs.readFileSync(SETTINGS_FILE, "utf-8");
+    return JSON.parse(data);
+  } catch (error) {
+    console.error("[PagSeguro] Error reading settings file:", error);
+    return {};
+  }
+}
+
 export async function createPixPayment(params: CreatePixPaymentParams) {
   const { orderId, amount, email, description } = params;
 
-  const settings = await storage.getSettings();
-
-  if (!settings) {
-    throw new Error("Configurações não encontradas no banco de dados");
-  }
+  const settings = readSettingsFromFile();
 
   const { pagseguroToken, pagseguroEmail, pagseguroSandbox } = settings;
 
@@ -91,6 +106,7 @@ export async function createPixPayment(params: CreatePixPaymentParams) {
     amount: amountInCents,
     sandbox: isSandbox,
     baseUrl,
+    tokenLength: pagseguroToken.length,
   });
 
   try {
@@ -152,9 +168,9 @@ export async function createPixPayment(params: CreatePixPaymentParams) {
 }
 
 export async function checkPaymentStatus(pagseguroOrderId: string) {
-  const settings = await storage.getSettings();
+  const settings = readSettingsFromFile();
 
-  if (!settings || !settings.pagseguroToken) {
+  if (!settings.pagseguroToken) {
     throw new Error("Configurações do PagSeguro não encontradas");
   }
 

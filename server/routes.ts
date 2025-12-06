@@ -645,62 +645,6 @@ export async function registerRoutes(
     }
   });
 
-  // Stripe Checkout Session - Create payment session for card/pix in BRL
-  app.post("/api/create-checkout-session", async (req, res) => {
-    try {
-      const { orderId, amount, email, productName, successUrl, cancelUrl } = req.body;
-
-      if (!orderId || !amount || !email) {
-        return res.status(400).json({ error: "Missing required fields: orderId, amount, email" });
-      }
-
-      const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-      if (!stripeSecretKey) {
-        console.error("[Stripe Checkout] STRIPE_SECRET_KEY not configured");
-        return res.status(500).json({ error: "Stripe not configured" });
-      }
-
-      const { getStripeClient } = await import('./stripeClient');
-      const stripe = getStripeClient();
-
-      // Amount should be in centavos (BRL smallest unit)
-      const amountInCentavos = Math.round(amount * 100);
-
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card', 'pix'],
-        line_items: [
-          {
-            price_data: {
-              currency: 'brl',
-              product_data: {
-                name: productName || `Pedido #${orderId}`,
-              },
-              unit_amount: amountInCentavos,
-            },
-            quantity: 1,
-          },
-        ],
-        mode: 'payment',
-        success_url: successUrl || `${process.env.APP_URL || 'http://localhost:3000'}/order/${orderId}/success`,
-        cancel_url: cancelUrl || `${process.env.APP_URL || 'http://localhost:3000'}/order/${orderId}/cancel`,
-        customer_email: email,
-        metadata: {
-          orderId: orderId.toString(),
-        },
-      });
-
-      console.log(`[Stripe Checkout] Session created: ${session.id} for order ${orderId}`);
-      
-      res.json({
-        sessionId: session.id,
-        url: session.url,
-      });
-    } catch (error: any) {
-      console.error("[Stripe Checkout] Error creating session:", error.message);
-      res.status(500).json({ error: "Failed to create checkout session", details: error.message });
-    }
-  });
-
   app.post("/api/admin/login", (req, res) => {
     const { username, password } = req.body;
 
@@ -1948,114 +1892,6 @@ export async function registerRoutes(
     }
   });
 
-  // Stripe: Get publishable key for frontend
-  app.get("/api/stripe/publishable-key", async (req, res) => {
-    try {
-      const { getStripePublishableKey } = await import("./stripeClient");
-      const publishableKey = await getStripePublishableKey();
-      res.json({ publishableKey });
-    } catch (error: any) {
-      console.error("[Stripe] Error getting publishable key:", error);
-      res.status(500).json({ error: "Failed to get Stripe key" });
-    }
-  });
-
-  // Stripe: Create subscription checkout session for vendor
-  app.post("/api/stripe/create-subscription-checkout", async (req, res) => {
-    const token = req.headers.authorization?.replace("Bearer ", "");
-    
-    if (!token || !tokenToVendor.has(token)) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    const vendorId = tokenToVendor.get(token);
-
-    try {
-      const { getUncachableStripeClient } = await import("./stripeClient");
-      const stripe = await getUncachableStripeClient();
-      
-      const vendor = await storage.getReseller(vendorId!);
-      if (!vendor) {
-        return res.status(404).json({ error: "Vendor not found" });
-      }
-
-      const baseUrl = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
-      
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card', 'pix'],
-        line_items: [
-          {
-            price_data: {
-              currency: 'brl',
-              product_data: {
-                name: 'Assinatura Mensal NexStore',
-                description: 'Plano mensal para revendedores - Acesso completo ao painel',
-              },
-              unit_amount: 1000, // R$ 10,00 in centavos
-              recurring: {
-                interval: 'month',
-              },
-            },
-            quantity: 1,
-          },
-        ],
-        mode: 'subscription',
-        success_url: `${baseUrl}/subscription-success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${baseUrl}/subscription-payment`,
-        customer_email: vendor.email,
-        metadata: {
-          vendorId: String(vendorId),
-        },
-      });
-
-      console.log(`[Stripe] Checkout session created for vendor ${vendorId}: ${session.id}`);
-      res.json({ url: session.url, sessionId: session.id });
-    } catch (error: any) {
-      console.error("[Stripe] Error creating checkout session:", error);
-      res.status(500).json({ error: "Failed to create checkout session" });
-    }
-  });
-
-  // Stripe: Verify subscription and activate vendor
-  app.post("/api/stripe/verify-subscription", async (req, res) => {
-    const { sessionId } = req.body;
-    
-    if (!sessionId) {
-      return res.status(400).json({ error: "Missing sessionId" });
-    }
-
-    try {
-      const { getUncachableStripeClient } = await import("./stripeClient");
-      const stripe = await getUncachableStripeClient();
-      
-      const session = await stripe.checkout.sessions.retrieve(sessionId);
-      
-      if (session.payment_status === 'paid') {
-        const vendorId = parseInt(session.metadata?.vendorId || '0');
-        
-        if (vendorId > 0) {
-          const expiresDate = new Date();
-          expiresDate.setDate(expiresDate.getDate() + 30);
-          
-          await storage.updateReseller(vendorId, {
-            subscriptionStatus: "active",
-            subscriptionExpiresAt: expiresDate,
-          });
-          
-          console.log(`[Stripe] Subscription activated for vendor ${vendorId}`);
-          res.json({ success: true, status: 'active' });
-        } else {
-          res.status(400).json({ error: "Invalid vendor ID" });
-        }
-      } else {
-        res.json({ success: false, status: session.payment_status });
-      }
-    } catch (error: any) {
-      console.error("[Stripe] Error verifying subscription:", error);
-      res.status(500).json({ error: "Failed to verify subscription" });
-    }
-  });
-
   // PagSeguro: Create subscription checkout for vendor
   app.post("/api/pagseguro/create-subscription-checkout", async (req, res) => {
     const token = req.headers.authorization?.replace("Bearer ", "");
@@ -2072,7 +1908,7 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Vendor not found" });
       }
 
-      const settings = await storage.getSettings();
+      const settings = readSettings();
       if (!settings || !settings.pagseguroToken) {
         return res.status(500).json({ error: "PagSeguro not configured" });
       }
@@ -2185,7 +2021,7 @@ export async function registerRoutes(
     }
 
     try {
-      const settings = await storage.getSettings();
+      const settings = readSettings();
       if (!settings || !settings.pagseguroToken) {
         return res.status(500).json({ error: "PagSeguro not configured" });
       }

@@ -2,9 +2,6 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
-import { getStripeClient } from './stripeClient';
-import { WebhookHandlers } from './webhookHandlers';
-import Stripe from 'stripe';
 
 const app = express();
 const httpServer = createServer(app);
@@ -14,65 +11,6 @@ declare module "http" {
     rawBody: unknown;
   }
 }
-
-function initStripe() {
-  try {
-    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-    
-    if (!stripeSecretKey) {
-      console.log('[Stripe] No STRIPE_SECRET_KEY - skipping Stripe initialization');
-      return false;
-    }
-    
-    console.log('[Stripe] Initializing with standard Stripe SDK...');
-    getStripeClient();
-    console.log('[Stripe] Client initialized successfully');
-    return true;
-  } catch (error) {
-    console.error('[Stripe] Failed to initialize:', error);
-    return false;
-  }
-}
-
-app.post(
-  '/webhook',
-  express.raw({ type: 'application/json' }),
-  async (req, res) => {
-    const signature = req.headers['stripe-signature'];
-
-    if (!signature) {
-      console.error('[Stripe Webhook] Missing stripe-signature header');
-      return res.status(400).json({ error: 'Missing stripe-signature' });
-    }
-
-    try {
-      const sig = Array.isArray(signature) ? signature[0] : signature;
-
-      if (!Buffer.isBuffer(req.body)) {
-        console.error('[Stripe Webhook] req.body is not a Buffer');
-        return res.status(500).json({ error: 'Webhook processing error' });
-      }
-
-      const event = await WebhookHandlers.processWebhook(req.body as Buffer, sig);
-      
-      console.log('[Stripe Webhook] Event type:', event.type);
-
-      switch (event.type) {
-        case 'checkout.session.completed':
-          const session = event.data.object as Stripe.Checkout.Session;
-          await WebhookHandlers.handleCheckoutSessionCompleted(session);
-          break;
-        default:
-          console.log(`[Stripe Webhook] Unhandled event type: ${event.type}`);
-      }
-
-      res.status(200).json({ received: true });
-    } catch (error: any) {
-      console.error('[Stripe Webhook] Error:', error.message);
-      res.status(400).json({ error: 'Webhook processing error' });
-    }
-  }
-);
 
 app.use(
   express.json({
@@ -126,7 +64,6 @@ async function cleanupExpiredOrders() {
     const { storage } = await import("./storage");
     const { db } = await import("./db");
     const { orders } = await import("../shared/schema");
-    const { sql } = await import("drizzle-orm");
     const { eq, and, lt } = await import("drizzle-orm");
 
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -174,7 +111,6 @@ async function cleanupExpiredOrders() {
 }
 
 (async () => {
-  initStripe();
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
