@@ -138,9 +138,11 @@ export async function createPixPayment(params: CreatePixPaymentParams): Promise<
 
   const amountInCents = Math.round(amount * 100);
 
-  const baseUrl = process.env.REPLIT_DOMAINS?.split(',')[0] 
-    ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` 
-    : '';
+  // Support APP_URL for Render/external deployments, fallback to REPLIT_DOMAINS
+  const baseUrl = process.env.APP_URL 
+    || (process.env.REPLIT_DOMAINS?.split(',')[0] 
+        ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` 
+        : 'https://example.com');
 
   const billingPayload: Record<string, any> = {
     frequency: "ONE_TIME",
@@ -156,8 +158,8 @@ export async function createPixPayment(params: CreatePixPaymentParams): Promise<
     metadata: {
       orderId: String(orderId),
     },
-    returnUrl: baseUrl ? `${baseUrl}/order-success?orderId=${orderId}` : undefined,
-    completionUrl: baseUrl ? `${baseUrl}/order-success?orderId=${orderId}` : undefined,
+    returnUrl: `${baseUrl}/order-success?orderId=${orderId}`,
+    completionUrl: `${baseUrl}/order-success?orderId=${orderId}`,
   };
 
   if (email) {
