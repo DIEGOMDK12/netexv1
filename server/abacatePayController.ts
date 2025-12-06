@@ -164,6 +164,7 @@ export async function createPixPayment(params: CreatePixPaymentParams): Promise<
     billingPayload.customer = {
       email: email,
       name: customerName || email.split("@")[0] || "Cliente",
+      cellphone: "11999999999",
     };
   }
 
