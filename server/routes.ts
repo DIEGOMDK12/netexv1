@@ -2097,7 +2097,132 @@ export async function registerRoutes(
     }
   });
 
-  // PagSeguro: Create subscription checkout for vendor
+  // AbacatePay: Create subscription checkout for vendor
+  app.post("/api/abacatepay/create-subscription-checkout", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    
+    if (!token || !tokenToVendor.has(token)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const vendorId = tokenToVendor.get(token);
+
+    try {
+      const vendor = await storage.getReseller(vendorId!);
+      if (!vendor) {
+        return res.status(404).json({ error: "Vendor not found" });
+      }
+
+      const { createPixPayment } = await import("./abacatePayController");
+      
+      const result = await createPixPayment({
+        orderId: vendorId!,
+        amount: 10.00,
+        email: vendor.email,
+        description: "Assinatura Mensal NexStore",
+        customerName: vendor.name || vendor.email.split("@")[0],
+      });
+
+      console.log(`[AbacatePay] Subscription checkout created for vendor ${vendorId}: ${result.billingId}`);
+      
+      res.json({
+        success: true,
+        billingId: result.billingId,
+        pixCode: result.pixCode,
+        checkoutUrl: result.checkoutUrl,
+        amount: 10.00,
+        vendorId: vendorId,
+      });
+    } catch (error: any) {
+      console.error("[AbacatePay] Error creating subscription checkout:", error.message);
+      res.status(500).json({ error: error.message || "Failed to create AbacatePay checkout" });
+    }
+  });
+
+  // AbacatePay: Verify subscription payment status
+  app.post("/api/abacatepay/verify-subscription", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    
+    if (!token || !tokenToVendor.has(token)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const authenticatedVendorId = tokenToVendor.get(token);
+    const { billingId } = req.body;
+    
+    if (!billingId) {
+      return res.status(400).json({ error: "Missing billingId" });
+    }
+
+    try {
+      const { checkPaymentStatus } = await import("./abacatePayController");
+      const result = await checkPaymentStatus(billingId);
+
+      if (result.isPaid && authenticatedVendorId) {
+        const expiresDate = new Date();
+        expiresDate.setDate(expiresDate.getDate() + 30);
+        
+        await storage.updateReseller(authenticatedVendorId, {
+          subscriptionStatus: "active",
+          subscriptionExpiresAt: expiresDate,
+        });
+        
+        console.log(`[AbacatePay] Subscription activated for vendor ${authenticatedVendorId}`);
+      }
+
+      res.json({
+        success: result.isPaid,
+        status: result.status,
+        isPaid: result.isPaid,
+      });
+    } catch (error: any) {
+      console.error("[AbacatePay] Error verifying subscription:", error.message);
+      res.status(500).json({ error: "Failed to verify subscription" });
+    }
+  });
+
+  // AbacatePay: Webhook for subscription notifications
+  app.post("/api/abacatepay/subscription-webhook", async (req, res) => {
+    try {
+      const signature = req.headers["x-webhook-signature"] as string || 
+                        req.headers["x-abacatepay-signature"] as string || "";
+      
+      const rawBody = (req as any).rawBody || JSON.stringify(req.body);
+      
+      console.log("[AbacatePay Subscription Webhook] Received event:", req.body.event);
+      
+      const { verifyAbacateSignature, parseWebhookPayload } = await import("./abacatePayController");
+      const isValid = verifyAbacateSignature(rawBody, signature);
+      if (!isValid) {
+        console.error("[AbacatePay Subscription Webhook] Invalid signature");
+        return res.status(401).json({ error: "Invalid webhook signature" });
+      }
+
+      const webhookData = parseWebhookPayload(req.body);
+      
+      if (webhookData.isPaid && webhookData.orderId) {
+        const vendorId = parseInt(webhookData.orderId);
+        if (!isNaN(vendorId)) {
+          const expiresDate = new Date();
+          expiresDate.setDate(expiresDate.getDate() + 30);
+          
+          await storage.updateReseller(vendorId, {
+            subscriptionStatus: "active",
+            subscriptionExpiresAt: expiresDate,
+          });
+          
+          console.log(`[AbacatePay Subscription Webhook] Subscription activated for vendor ${vendorId}`);
+        }
+      }
+      
+      res.status(200).json({ received: true });
+    } catch (error: any) {
+      console.error("[AbacatePay Subscription Webhook] Error:", error);
+      res.status(500).json({ error: "Webhook processing failed" });
+    }
+  });
+
+  // PagSeguro: Create subscription checkout for vendor (Legacy - kept for compatibility)
   app.post("/api/pagseguro/create-subscription-checkout", async (req, res) => {
     const token = req.headers.authorization?.replace("Bearer ", "");
     

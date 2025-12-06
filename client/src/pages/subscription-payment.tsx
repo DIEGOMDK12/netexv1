@@ -2,18 +2,16 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, CreditCard, Loader2, QrCode, CheckCircle, Copy, RefreshCw } from "lucide-react";
+import { AlertCircle, Loader2, QrCode, CheckCircle, Copy, RefreshCw, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { useMutation } from "@tanstack/react-query";
+import { QRCodeSVG } from "qrcode.react";
 
-interface PagSeguroCheckoutData {
+interface AbacatePayCheckoutData {
   success: boolean;
-  pagseguroOrderId: string;
-  referenceId: string;
+  billingId: string;
   pixCode: string;
-  qrCodeBase64: string | null;
-  qrCodeImageUrl: string | null;
+  checkoutUrl: string;
   amount: number;
   vendorId: number;
 }
@@ -21,21 +19,17 @@ interface PagSeguroCheckoutData {
 export default function SubscriptionPaymentPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [pixData, setPixData] = useState<PagSeguroCheckoutData | null>(null);
+  const [pixData, setPixData] = useState<AbacatePayCheckoutData | null>(null);
   const [copied, setCopied] = useState(false);
   const [checkingPayment, setCheckingPayment] = useState(false);
 
-  const { data: settings } = useQuery({
-    queryKey: ["/api/settings"],
-  });
-
-  const pagSeguroCheckoutMutation = useMutation({
+  const abacatePayCheckoutMutation = useMutation({
     mutationFn: async () => {
       const vendorToken = localStorage.getItem("vendor_token");
       if (!vendorToken) {
         throw new Error("Token de revendedor não encontrado. Faça login novamente.");
       }
-      const response = await fetch("/api/pagseguro/create-subscription-checkout", {
+      const response = await fetch("/api/abacatepay/create-subscription-checkout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -48,7 +42,7 @@ export default function SubscriptionPaymentPage() {
       }
       return response.json();
     },
-    onSuccess: (data: PagSeguroCheckoutData) => {
+    onSuccess: (data: AbacatePayCheckoutData) => {
       if (data.success) {
         setPixData(data);
         toast({
@@ -66,7 +60,7 @@ export default function SubscriptionPaymentPage() {
     onError: (error: any) => {
       toast({
         title: "Erro",
-        description: "Falha ao iniciar pagamento. Verifique se o PagSeguro esta configurado.",
+        description: error.message || "Falha ao iniciar pagamento",
         variant: "destructive",
       });
     },
@@ -79,15 +73,14 @@ export default function SubscriptionPaymentPage() {
       if (!vendorToken) {
         throw new Error("Token de revendedor não encontrado");
       }
-      const response = await fetch("/api/pagseguro/verify-subscription", {
+      const response = await fetch("/api/abacatepay/verify-subscription", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${vendorToken}`,
         },
         body: JSON.stringify({
-          pagseguroOrderId: pixData.pagseguroOrderId,
-          vendorId: pixData.vendorId,
+          billingId: pixData.billingId,
         }),
       });
       if (!response.ok) {
@@ -119,8 +112,8 @@ export default function SubscriptionPaymentPage() {
     },
   });
 
-  const handlePagSeguroCheckout = () => {
-    pagSeguroCheckoutMutation.mutate();
+  const handleAbacatePayCheckout = () => {
+    abacatePayCheckoutMutation.mutate();
   };
 
   const handleCopyPixCode = async () => {
@@ -147,6 +140,12 @@ export default function SubscriptionPaymentPage() {
     setCheckingPayment(true);
     verifyPaymentMutation.mutate();
     setTimeout(() => setCheckingPayment(false), 2000);
+  };
+
+  const handleOpenCheckout = () => {
+    if (pixData?.checkoutUrl) {
+      window.open(pixData.checkoutUrl, "_blank");
+    }
   };
 
   useEffect(() => {
@@ -192,17 +191,17 @@ export default function SubscriptionPaymentPage() {
             <div className="space-y-4">
               <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
                 <p className="text-gray-300 text-sm">
-                  Pagamento seguro via PagSeguro. Pague com PIX e libere seu acesso imediatamente.
+                  Pagamento seguro via AbacatePay. Pague com PIX e libere seu acesso imediatamente.
                 </p>
               </div>
               
               <Button
-                onClick={handlePagSeguroCheckout}
-                disabled={pagSeguroCheckoutMutation.isPending}
+                onClick={handleAbacatePayCheckout}
+                disabled={abacatePayCheckoutMutation.isPending}
                 className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white gap-2"
-                data-testid="button-pagseguro-checkout"
+                data-testid="button-abacatepay-checkout"
               >
-                {pagSeguroCheckoutMutation.isPending ? (
+                {abacatePayCheckoutMutation.isPending ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Gerando PIX...
@@ -210,7 +209,7 @@ export default function SubscriptionPaymentPage() {
                 ) : (
                   <>
                     <QrCode className="w-4 h-4" />
-                    Pagar com PIX (PagSeguro)
+                    Pagar com PIX
                   </>
                 )}
               </Button>
@@ -222,14 +221,15 @@ export default function SubscriptionPaymentPage() {
                   Escaneie o QR Code abaixo ou copie o codigo PIX
                 </p>
                 
-                {pixData.qrCodeBase64 && (
+                {pixData.pixCode && (
                   <div className="flex justify-center mb-4">
-                    <img 
-                      src={pixData.qrCodeBase64} 
-                      alt="QR Code PIX" 
-                      className="w-48 h-48 bg-white p-2 rounded-lg"
-                      data-testid="img-qrcode-pix"
-                    />
+                    <div className="bg-white p-3 rounded-lg">
+                      <QRCodeSVG 
+                        value={pixData.pixCode} 
+                        size={180}
+                        data-testid="img-qrcode-pix"
+                      />
+                    </div>
                   </div>
                 )}
 
@@ -259,6 +259,18 @@ export default function SubscriptionPaymentPage() {
                   )}
                 </Button>
 
+                {pixData.checkoutUrl && (
+                  <Button
+                    onClick={handleOpenCheckout}
+                    variant="outline"
+                    className="w-full text-white border-blue-500 hover:bg-blue-500/20 gap-2 mb-3"
+                    data-testid="button-open-checkout"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Abrir Pagina de Pagamento
+                  </Button>
+                )}
+
                 <Button
                   onClick={handleVerifyPayment}
                   disabled={verifyPaymentMutation.isPending || checkingPayment}
@@ -279,7 +291,7 @@ export default function SubscriptionPaymentPage() {
                 </Button>
 
                 <p className="text-xs text-gray-500 mt-3">
-                  O pagamento e verificado automaticamente a cada 10 segundos
+                  O pagamento e verificado automaticamente a cada 15 segundos
                 </p>
               </div>
 
