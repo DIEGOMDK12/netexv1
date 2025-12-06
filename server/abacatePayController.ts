@@ -93,15 +93,14 @@ export function verifyAbacateSignature(rawBody: string | Buffer, signatureFromHe
   try {
     const webhookSecret = getWebhookSecret();
     
-    // In dev mode (no dedicated webhook secret), accept requests without signature
-    // This is safe because AbacatePay dev mode doesn't always send signatures
-    if (!process.env.ABACATEPAY_WEBHOOK_SECRET) {
-      console.log("[AbacatePay] Dev mode: accepting webhook without strict signature verification");
-      return true;
+    // If no webhook secret is configured, require signature using API key as fallback
+    if (!webhookSecret) {
+      console.warn("[AbacatePay] No webhook secret configured - rejecting webhook for security");
+      return false;
     }
     
     if (!signatureFromHeader) {
-      console.warn("[AbacatePay] No signature provided in production mode");
+      console.warn("[AbacatePay] No signature provided in webhook request");
       return false;
     }
     
