@@ -2051,6 +2051,229 @@ export async function registerRoutes(
     }
   });
 
+  // PagSeguro: Create subscription checkout for vendor
+  app.post("/api/pagseguro/create-subscription-checkout", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    
+    if (!token || !tokenToVendor.has(token)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const vendorId = tokenToVendor.get(token);
+
+    try {
+      const vendor = await storage.getReseller(vendorId!);
+      if (!vendor) {
+        return res.status(404).json({ error: "Vendor not found" });
+      }
+
+      const settings = await storage.getSettings();
+      if (!settings || !settings.pagseguroToken) {
+        return res.status(500).json({ error: "PagSeguro not configured" });
+      }
+
+      const { pagseguroToken, pagseguroSandbox } = settings;
+      const isSandbox = pagseguroSandbox ?? true;
+      const baseUrl = isSandbox 
+        ? "https://sandbox.api.pagseguro.com" 
+        : "https://api.pagseguro.com";
+
+      const amountInCents = 1000; // R$ 10,00
+      const referenceId = `subscription-vendor-${vendorId}-${Date.now()}`;
+      const appBaseUrl = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
+
+      const orderPayload = {
+        reference_id: referenceId,
+        customer: {
+          name: vendor.name || vendor.email.split("@")[0],
+          email: vendor.email,
+          tax_id: vendor.cpf || "12345678909",
+        },
+        items: [
+          {
+            reference_id: `subscription-item-${vendorId}`,
+            name: "Assinatura Mensal NexStore",
+            quantity: 1,
+            unit_amount: amountInCents,
+          },
+        ],
+        qr_codes: [
+          {
+            amount: {
+              value: amountInCents,
+            },
+            expiration_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          },
+        ],
+        notification_urls: [`${appBaseUrl}/api/pagseguro/subscription-webhook`],
+      };
+
+      const axios = (await import("axios")).default;
+      const response = await axios.post(
+        `${baseUrl}/orders`,
+        orderPayload,
+        {
+          headers: {
+            "Authorization": `Bearer ${pagseguroToken}`,
+            "Content-Type": "application/json",
+            "x-api-version": "4.0",
+          },
+        }
+      );
+
+      const orderData = response.data;
+      const qrCode = orderData.qr_codes?.[0];
+
+      if (!qrCode) {
+        throw new Error("QR Code not returned by PagSeguro");
+      }
+
+      const qrCodeImageLink = qrCode.links?.find((link: any) => link.media === "image/png");
+
+      let qrCodeBase64: string | null = null;
+      if (qrCodeImageLink?.href) {
+        try {
+          const imageResponse = await axios.get(qrCodeImageLink.href, {
+            responseType: "arraybuffer",
+          });
+          qrCodeBase64 = `data:image/png;base64,${Buffer.from(imageResponse.data).toString("base64")}`;
+        } catch (imageError) {
+          console.error("[PagSeguro] Error fetching QR code image:", imageError);
+        }
+      }
+
+      console.log(`[PagSeguro] Subscription checkout created for vendor ${vendorId}: ${orderData.id}`);
+      
+      res.json({
+        success: true,
+        pagseguroOrderId: orderData.id,
+        referenceId: referenceId,
+        pixCode: qrCode.text,
+        qrCodeBase64: qrCodeBase64,
+        qrCodeImageUrl: qrCodeImageLink?.href || null,
+        amount: 10.00,
+        vendorId: vendorId,
+      });
+    } catch (error: any) {
+      console.error("[PagSeguro] Error creating subscription checkout:", error.response?.data || error.message);
+      res.status(500).json({ error: "Failed to create PagSeguro checkout" });
+    }
+  });
+
+  // PagSeguro: Verify subscription payment status (authenticated)
+  app.post("/api/pagseguro/verify-subscription", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    
+    if (!token || !tokenToVendor.has(token)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const authenticatedVendorId = tokenToVendor.get(token);
+    const { pagseguroOrderId, vendorId } = req.body;
+    
+    if (!pagseguroOrderId) {
+      return res.status(400).json({ error: "Missing pagseguroOrderId" });
+    }
+
+    if (vendorId && parseInt(vendorId) !== authenticatedVendorId) {
+      return res.status(403).json({ error: "Vendor ID mismatch" });
+    }
+
+    try {
+      const settings = await storage.getSettings();
+      if (!settings || !settings.pagseguroToken) {
+        return res.status(500).json({ error: "PagSeguro not configured" });
+      }
+
+      const { pagseguroToken, pagseguroSandbox } = settings;
+      const isSandbox = pagseguroSandbox ?? true;
+      const baseUrl = isSandbox 
+        ? "https://sandbox.api.pagseguro.com" 
+        : "https://api.pagseguro.com";
+
+      const axios = (await import("axios")).default;
+      const response = await axios.get(
+        `${baseUrl}/orders/${pagseguroOrderId}`,
+        {
+          headers: {
+            "Authorization": `Bearer ${pagseguroToken}`,
+            "Content-Type": "application/json",
+            "x-api-version": "4.0",
+          },
+        }
+      );
+
+      const orderData = response.data;
+      const charge = orderData.charges?.[0];
+      const isPaid = charge?.status === "PAID";
+
+      const referenceId = orderData.reference_id || "";
+      const expectedVendorPattern = `subscription-vendor-${authenticatedVendorId}`;
+      if (!referenceId.startsWith(expectedVendorPattern)) {
+        return res.status(403).json({ error: "Order does not belong to this vendor" });
+      }
+
+      const paidAmount = charge?.amount?.value || 0;
+      const expectedAmount = 1000;
+      if (isPaid && paidAmount < expectedAmount) {
+        return res.status(400).json({ error: "Payment amount mismatch" });
+      }
+
+      if (isPaid && authenticatedVendorId) {
+        const expiresDate = new Date();
+        expiresDate.setDate(expiresDate.getDate() + 30);
+        
+        await storage.updateReseller(authenticatedVendorId, {
+          subscriptionStatus: "active",
+          subscriptionExpiresAt: expiresDate,
+        });
+        
+        console.log(`[PagSeguro] Subscription activated for vendor ${authenticatedVendorId}`);
+      }
+
+      res.json({
+        success: isPaid,
+        status: charge?.status || "WAITING",
+        isPaid: isPaid,
+      });
+    } catch (error: any) {
+      console.error("[PagSeguro] Error verifying subscription:", error.response?.data || error.message);
+      res.status(500).json({ error: "Failed to verify subscription" });
+    }
+  });
+
+  // PagSeguro: Webhook for subscription notifications
+  app.post("/api/pagseguro/subscription-webhook", async (req, res) => {
+    try {
+      const { id, charges, reference_id } = req.body;
+      
+      console.log(`[PagSeguro Webhook] Received notification for order: ${id}`);
+      
+      const charge = charges?.[0];
+      if (charge?.status === "PAID" && reference_id) {
+        const vendorIdMatch = reference_id.match(/subscription-vendor-(\d+)/);
+        if (vendorIdMatch) {
+          const vendorId = parseInt(vendorIdMatch[1]);
+          
+          const expiresDate = new Date();
+          expiresDate.setDate(expiresDate.getDate() + 30);
+          
+          await storage.updateReseller(vendorId, {
+            subscriptionStatus: "active",
+            subscriptionExpiresAt: expiresDate,
+          });
+          
+          console.log(`[PagSeguro Webhook] Subscription activated for vendor ${vendorId}`);
+        }
+      }
+      
+      res.status(200).json({ received: true });
+    } catch (error: any) {
+      console.error("[PagSeguro Webhook] Error:", error);
+      res.status(500).json({ error: "Webhook processing failed" });
+    }
+  });
+
   return httpServer;
 }
 

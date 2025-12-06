@@ -1,42 +1,136 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, CreditCard, Loader2 } from "lucide-react";
+import { AlertCircle, CreditCard, Loader2, QrCode, CheckCircle, Copy, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
+interface PagSeguroCheckoutData {
+  success: boolean;
+  pagseguroOrderId: string;
+  referenceId: string;
+  pixCode: string;
+  qrCodeBase64: string | null;
+  qrCodeImageUrl: string | null;
+  amount: number;
+  vendorId: number;
+}
+
 export default function SubscriptionPaymentPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [pixData, setPixData] = useState<PagSeguroCheckoutData | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [checkingPayment, setCheckingPayment] = useState(false);
 
   const { data: settings } = useQuery({
     queryKey: ["/api/settings"],
   });
 
-  const stripeCheckoutMutation = useMutation({
+  const pagSeguroCheckoutMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/stripe/create-subscription-checkout");
+      const response = await apiRequest("POST", "/api/pagseguro/create-subscription-checkout");
       return response.json();
     },
-    onSuccess: (data) => {
-      if (data.url) {
-        window.location.href = data.url;
+    onSuccess: (data: PagSeguroCheckoutData) => {
+      if (data.success) {
+        setPixData(data);
+        toast({
+          title: "PIX Gerado",
+          description: "Escaneie o QR Code ou copie o codigo para pagar",
+        });
+      } else {
+        toast({
+          title: "Erro",
+          description: "Falha ao gerar pagamento PIX",
+          variant: "destructive",
+        });
       }
     },
     onError: (error: any) => {
       toast({
         title: "Erro",
-        description: "Falha ao iniciar pagamento. Tente novamente.",
+        description: "Falha ao iniciar pagamento. Verifique se o PagSeguro esta configurado.",
         variant: "destructive",
       });
     },
   });
 
-  const handleStripeCheckout = () => {
-    stripeCheckoutMutation.mutate();
+  const verifyPaymentMutation = useMutation({
+    mutationFn: async () => {
+      if (!pixData) return null;
+      const response = await apiRequest("POST", "/api/pagseguro/verify-subscription", {
+        pagseguroOrderId: pixData.pagseguroOrderId,
+        vendorId: pixData.vendorId,
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data?.isPaid) {
+        toast({
+          title: "Pagamento Confirmado",
+          description: "Sua assinatura foi ativada com sucesso!",
+        });
+        setLocation("/vendor/dashboard");
+      } else {
+        toast({
+          title: "Aguardando Pagamento",
+          description: "O pagamento ainda nao foi confirmado. Tente novamente apos pagar.",
+        });
+      }
+    },
+    onError: () => {
+      toast({
+        title: "Erro",
+        description: "Falha ao verificar pagamento",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handlePagSeguroCheckout = () => {
+    pagSeguroCheckoutMutation.mutate();
   };
+
+  const handleCopyPixCode = async () => {
+    if (pixData?.pixCode) {
+      try {
+        await navigator.clipboard.writeText(pixData.pixCode);
+        setCopied(true);
+        toast({
+          title: "Copiado",
+          description: "Codigo PIX copiado para a area de transferencia",
+        });
+        setTimeout(() => setCopied(false), 3000);
+      } catch (err) {
+        toast({
+          title: "Erro",
+          description: "Nao foi possivel copiar o codigo",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleVerifyPayment = () => {
+    setCheckingPayment(true);
+    verifyPaymentMutation.mutate();
+    setTimeout(() => setCheckingPayment(false), 2000);
+  };
+
+  useEffect(() => {
+    if (pixData && !verifyPaymentMutation.isPending) {
+      const interval = setInterval(() => {
+        if (!verifyPaymentMutation.isPending) {
+          verifyPaymentMutation.mutate();
+        }
+      }, 15000);
+
+      return () => clearInterval(interval);
+    }
+  }, [pixData, verifyPaymentMutation.isPending]);
 
   return (
     <div
@@ -62,35 +156,114 @@ export default function SubscriptionPaymentPage() {
           <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
             <p className="text-gray-300 text-sm mb-2">Plano Mensal</p>
             <p className="text-3xl font-bold text-white">R$ 10,00</p>
-            <p className="text-gray-400 text-xs mt-2">Renovacao automatica a cada 30 dias</p>
+            <p className="text-gray-400 text-xs mt-2">Renovacao a cada 30 dias</p>
           </div>
 
-          <div className="space-y-4">
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-              <p className="text-gray-300 text-sm">
-                Pagamento seguro via Stripe. Aceita Pix e cartoes de credito/debito.
-              </p>
+          {!pixData ? (
+            <div className="space-y-4">
+              <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
+                <p className="text-gray-300 text-sm">
+                  Pagamento seguro via PagSeguro. Pague com PIX e libere seu acesso imediatamente.
+                </p>
+              </div>
+              
+              <Button
+                onClick={handlePagSeguroCheckout}
+                disabled={pagSeguroCheckoutMutation.isPending}
+                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white gap-2"
+                data-testid="button-pagseguro-checkout"
+              >
+                {pagSeguroCheckoutMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Gerando PIX...
+                  </>
+                ) : (
+                  <>
+                    <QrCode className="w-4 h-4" />
+                    Pagar com PIX (PagSeguro)
+                  </>
+                )}
+              </Button>
             </div>
-            
-            <Button
-              onClick={handleStripeCheckout}
-              disabled={stripeCheckoutMutation.isPending}
-              className="w-full bg-gradient-to-r from-blue-500 to-violet-600 hover:from-blue-600 hover:to-violet-700 text-white gap-2"
-              data-testid="button-stripe-checkout"
-            >
-              {stripeCheckoutMutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Processando...
-                </>
-              ) : (
-                <>
-                  <CreditCard className="w-4 h-4" />
-                  Pagar com Pix ou Cartao
-                </>
-              )}
-            </Button>
-          </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 text-center">
+                <p className="text-gray-300 text-sm mb-4">
+                  Escaneie o QR Code abaixo ou copie o codigo PIX
+                </p>
+                
+                {pixData.qrCodeBase64 && (
+                  <div className="flex justify-center mb-4">
+                    <img 
+                      src={pixData.qrCodeBase64} 
+                      alt="QR Code PIX" 
+                      className="w-48 h-48 bg-white p-2 rounded-lg"
+                      data-testid="img-qrcode-pix"
+                    />
+                  </div>
+                )}
+
+                <div className="bg-gray-800 rounded-lg p-3 mb-4 max-h-32 overflow-y-auto">
+                  <p className="text-xs text-gray-400 mb-2">Codigo PIX Copia e Cola:</p>
+                  <p className="text-[10px] text-gray-300 break-all font-mono select-all" data-testid="text-pix-code">
+                    {pixData.pixCode}
+                  </p>
+                </div>
+
+                <Button
+                  onClick={handleCopyPixCode}
+                  variant="outline"
+                  className="w-full text-white border-green-500 hover:bg-green-500/20 gap-2 mb-3"
+                  data-testid="button-copy-pix"
+                >
+                  {copied ? (
+                    <>
+                      <CheckCircle className="w-4 h-4" />
+                      Copiado!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" />
+                      Copiar Codigo PIX
+                    </>
+                  )}
+                </Button>
+
+                <Button
+                  onClick={handleVerifyPayment}
+                  disabled={verifyPaymentMutation.isPending || checkingPayment}
+                  className="w-full bg-gradient-to-r from-blue-500 to-violet-600 hover:from-blue-600 hover:to-violet-700 text-white gap-2"
+                  data-testid="button-verify-payment"
+                >
+                  {verifyPaymentMutation.isPending || checkingPayment ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Verificando...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4" />
+                      Ja Paguei - Verificar Pagamento
+                    </>
+                  )}
+                </Button>
+
+                <p className="text-xs text-gray-500 mt-3">
+                  O pagamento e verificado automaticamente a cada 10 segundos
+                </p>
+              </div>
+
+              <Button
+                onClick={() => setPixData(null)}
+                variant="ghost"
+                className="w-full text-gray-400 hover:text-white"
+                data-testid="button-generate-new-pix"
+              >
+                Gerar Novo QR Code
+              </Button>
+            </div>
+          )}
 
           <Button
             onClick={() => setLocation("/")}
