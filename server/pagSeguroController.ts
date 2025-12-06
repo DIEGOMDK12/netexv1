@@ -58,12 +58,20 @@ function readSettingsFromFile(): SettingsJson {
   }
 }
 
+function getPagSeguroConfig() {
+  const settings = readSettingsFromFile();
+  
+  const pagseguroToken = process.env.PAGSEGURO_TOKEN || settings.pagseguroToken;
+  const pagseguroEmail = process.env.PAGSEGURO_EMAIL || settings.pagseguroEmail;
+  const pagseguroSandbox = settings.pagseguroSandbox ?? true;
+  
+  return { pagseguroToken, pagseguroEmail, pagseguroSandbox };
+}
+
 export async function createPixPayment(params: CreatePixPaymentParams) {
   const { orderId, amount, email, description } = params;
 
-  const settings = readSettingsFromFile();
-
-  const { pagseguroToken, pagseguroEmail, pagseguroSandbox } = settings;
+  const { pagseguroToken, pagseguroEmail, pagseguroSandbox } = getPagSeguroConfig();
 
   if (!pagseguroToken) {
     throw new Error("Token do PagSeguro não configurado. Configure nas configurações do admin.");
