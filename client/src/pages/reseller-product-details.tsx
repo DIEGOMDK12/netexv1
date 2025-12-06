@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useRoute } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ShoppingCart, Zap, Shield, Headphones, Clock, Check } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Zap, Shield, Headphones, Clock, Check, Star, MessageCircle, ThumbsUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CheckoutModal } from "@/components/checkout-modal";
@@ -210,6 +210,104 @@ export default function ResellerProductDetails() {
                 <SiPix className="w-5 h-5 text-green-500" />
                 <span>Pagamento instantâneo via PIX</span>
               </div>
+
+              {/* Avaliações de Clientes */}
+              <Card className="p-4" style={{ backgroundColor: "#1E1E1E", border: "1px solid rgba(255,255,255,0.1)" }}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <MessageCircle className="w-5 h-5" style={{ color: themeColor }} />
+                    <h3 className="text-white font-semibold">Avaliações de Clientes</h3>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                    <span className="text-white font-semibold">4.9</span>
+                    <span className="text-gray-500 text-sm">(127)</span>
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="border-b border-white/10 pb-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-sm font-bold">
+                        M
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-white text-sm font-medium">Marcos S.</span>
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" fill="#1DA1F2"/>
+                            <path d="M9 12l2 2 4-4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {[1,2,3,4,5].map(i => (
+                            <Star key={i} className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-gray-400 text-sm">Entrega super rápida! Recebi em menos de 1 minuto após o pagamento. Recomendo muito!</p>
+                    <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                      <ThumbsUp className="w-3 h-3" />
+                      <span>23 pessoas acharam útil</span>
+                    </div>
+                  </div>
+                  
+                  <div className="border-b border-white/10 pb-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-500 to-orange-500 flex items-center justify-center text-white text-sm font-bold">
+                        A
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-white text-sm font-medium">Ana Paula</span>
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" fill="#1DA1F2"/>
+                            <path d="M9 12l2 2 4-4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {[1,2,3,4,5].map(i => (
+                            <Star key={i} className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-gray-400 text-sm">Produto funcionando perfeitamente! Suporte excelente, responderam todas minhas dúvidas.</p>
+                    <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                      <ThumbsUp className="w-3 h-3" />
+                      <span>18 pessoas acharam útil</span>
+                    </div>
+                  </div>
+                  
+                  <div className="pb-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-teal-500 flex items-center justify-center text-white text-sm font-bold">
+                        L
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-white text-sm font-medium">Lucas M.</span>
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" fill="#1DA1F2"/>
+                            <path d="M9 12l2 2 4-4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {[1,2,3,4,5].map(i => (
+                            <Star key={i} className={`w-3 h-3 ${i <= 4 ? 'text-yellow-400 fill-yellow-400' : 'text-gray-600'}`} />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-gray-400 text-sm">Muito bom! Já é a terceira vez que compro aqui. Sempre entrega rápida e funciona certinho.</p>
+                    <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                      <ThumbsUp className="w-3 h-3" />
+                      <span>12 pessoas acharam útil</span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
 
               {/* Botões Desktop */}
               <div className="hidden md:flex gap-3">
