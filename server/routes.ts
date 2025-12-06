@@ -506,15 +506,21 @@ export async function registerRoutes(
         });
       }
 
-      const settings = await storage.getSettings();
+      const settings = readSettings();
+      const pagseguroToken = settings?.pagseguroToken;
+      const isSandbox = settings?.pagseguroSandbox ?? true;
+      const baseUrl = isSandbox 
+        ? "https://sandbox.api.pagseguro.com" 
+        : "https://api.pagseguro.com";
       
-      if (settings?.pagseguroToken && settings?.pagseguroApiUrl && order.pagseguroOrderId) {
+      if (pagseguroToken && order.pagseguroOrderId) {
         try {
           const statusResponse = await fetch(
-            `${settings.pagseguroApiUrl}/orders/${order.pagseguroOrderId}`,
+            `${baseUrl}/orders/${order.pagseguroOrderId}`,
             {
               headers: {
-                "Authorization": `Bearer ${settings.pagseguroToken}`,
+                "Authorization": `Bearer ${pagseguroToken}`,
+                "x-api-version": "4.0",
               },
             }
           );
@@ -827,15 +833,7 @@ export async function registerRoutes(
     }
 
     try {
-      let settings = await storage.getSettings();
-      if (!settings) {
-        settings = await storage.updateSettings({
-          storeName: "Digital Store",
-          themeColor: "#3B82F6",
-          textColor: "#FFFFFF",
-          pixKey: "",
-        });
-      }
+      const settings = readSettings();
       res.json(settings);
     } catch (error) {
       console.error("Admin settings fetch error:", error);
@@ -1909,8 +1907,17 @@ export async function registerRoutes(
       }
 
       const settings = readSettings();
+      console.log("[PagSeguro] Settings loaded:", {
+        hasToken: !!settings?.pagseguroToken,
+        tokenLength: settings?.pagseguroToken?.length,
+        tokenPreview: settings?.pagseguroToken?.substring(0, 20) + "...",
+        email: settings?.pagseguroEmail,
+        sandbox: settings?.pagseguroSandbox,
+      });
+      
       if (!settings || !settings.pagseguroToken) {
-        return res.status(500).json({ error: "PagSeguro not configured" });
+        console.error("[PagSeguro] Token not found in settings.json");
+        return res.status(500).json({ error: "PagSeguro not configured - Token missing" });
       }
 
       const { pagseguroToken, pagseguroSandbox } = settings;
@@ -1918,6 +1925,8 @@ export async function registerRoutes(
       const baseUrl = isSandbox 
         ? "https://sandbox.api.pagseguro.com" 
         : "https://api.pagseguro.com";
+
+      console.log("[PagSeguro] Using API:", baseUrl, "| Sandbox mode:", isSandbox);
 
       const amountInCents = 1000; // R$ 10,00
       const referenceId = `subscription-vendor-${vendorId}-${Date.now()}`;
