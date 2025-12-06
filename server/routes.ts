@@ -1862,6 +1862,49 @@ export async function registerRoutes(
     }
   });
 
+  // Manual subscription activation for vendors (self-service)
+  app.post("/api/vendor/activate-subscription-manual", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    
+    if (!token || !tokenToVendor.has(token)) {
+      return res.status(401).json({ error: "Unauthorized - Login as vendor first" });
+    }
+
+    const vendorId = tokenToVendor.get(token);
+
+    try {
+      const expiresDate = new Date();
+      expiresDate.setDate(expiresDate.getDate() + 30);
+      
+      console.log(`[Manual Activation] Activating vendor ${vendorId} for 30 days`);
+      
+      const updatedReseller = await storage.updateReseller(vendorId!, {
+        subscriptionStatus: "active",
+        subscriptionExpiresAt: expiresDate,
+      });
+
+      if (!updatedReseller) {
+        return res.status(404).json({ error: "Vendor not found" });
+      }
+
+      console.log(`[Manual Activation] Vendor ${vendorId} activated until ${expiresDate.toISOString()}`);
+      
+      res.json({ 
+        success: true, 
+        message: "Assinatura ativada por 30 dias",
+        expiresAt: expiresDate,
+        vendor: {
+          id: updatedReseller.id,
+          subscriptionStatus: updatedReseller.subscriptionStatus,
+          subscriptionExpiresAt: updatedReseller.subscriptionExpiresAt,
+        }
+      });
+    } catch (error: any) {
+      console.error("[Manual Activation] Error:", error.message);
+      res.status(500).json({ error: "Failed to activate subscription" });
+    }
+  });
+
   // Legacy subscription activation route (kept for compatibility)
   app.put("/api/subscription/activate", async (req, res) => {
     const token = req.headers.authorization?.replace("Bearer ", "");

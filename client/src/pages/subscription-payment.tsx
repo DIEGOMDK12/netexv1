@@ -302,6 +302,42 @@ export default function SubscriptionPaymentPage() {
           >
             Voltar a Pagina Inicial
           </Button>
+
+          <div className="border-t border-gray-700 pt-4 mt-4">
+            <p className="text-xs text-gray-500 mb-2 text-center">Pagamento via PIX Manual (Admin)</p>
+            <Button
+              onClick={async () => {
+                const vendorToken = localStorage.getItem("vendor_token");
+                if (!vendorToken) {
+                  toast({ title: "Erro", description: "Faca login como revendedor primeiro", variant: "destructive" });
+                  return;
+                }
+                try {
+                  const response = await fetch("/api/vendor/activate-subscription-manual", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "Authorization": `Bearer ${vendorToken}`,
+                    },
+                  });
+                  const data = await response.json();
+                  if (data.success) {
+                    toast({ title: "Sucesso", description: "Assinatura ativada por 30 dias!" });
+                    setLocation("/vendor/dashboard");
+                  } else {
+                    toast({ title: "Erro", description: data.error || "Falha ao ativar", variant: "destructive" });
+                  }
+                } catch (err) {
+                  toast({ title: "Erro", description: "Falha ao ativar assinatura", variant: "destructive" });
+                }
+              }}
+              variant="ghost"
+              className="w-full text-yellow-400 hover:bg-yellow-500/10"
+              data-testid="button-manual-activate"
+            >
+              Ativar Manualmente (Teste)
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
