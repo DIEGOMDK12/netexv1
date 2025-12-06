@@ -1350,10 +1350,10 @@ export async function registerRoutes(
   // Vendor Settings Routes
   app.patch("/api/vendor/settings/:id", async (req, res) => {
     const vendorId = parseInt(req.params.id);
-    const { storeName, logoUrl, themeColor, backgroundColor, buttonColor, cardBorderColor, backgroundImageUrl, buttonRadius, pixKey, phone, cpf, mpAccessToken } = req.body;
+    const { storeName, logoUrl, themeColor, backgroundColor, buttonColor, cardBorderColor, backgroundImageUrl, buttonRadius, pixKey, phone, cpf, mpAccessToken, supportEmail, whatsappContact, footerDescription } = req.body;
 
     console.log("[Update Settings] Received request for vendor:", vendorId);
-    console.log("[Update Settings] Data received:", { storeName, logoUrl, themeColor, backgroundColor, buttonColor, cardBorderColor, backgroundImageUrl, buttonRadius, pixKey, phone, cpf, mpAccessToken: mpAccessToken ? "***" : "" });
+    console.log("[Update Settings] Data received:", { storeName, logoUrl, themeColor, backgroundColor, buttonColor, cardBorderColor, backgroundImageUrl, buttonRadius, pixKey, phone, cpf, mpAccessToken: mpAccessToken ? "***" : "", supportEmail, whatsappContact, footerDescription });
 
     try {
       const updateData: any = {};
@@ -1369,6 +1369,9 @@ export async function registerRoutes(
       if (phone !== undefined) updateData.phone = phone;
       if (cpf !== undefined) updateData.cpf = cpf;
       if (mpAccessToken !== undefined) updateData.mpAccessToken = mpAccessToken;
+      if (supportEmail !== undefined) updateData.supportEmail = supportEmail;
+      if (whatsappContact !== undefined) updateData.whatsappContact = whatsappContact;
+      if (footerDescription !== undefined) updateData.footerDescription = footerDescription;
 
       console.log("[Update Settings] Update data to save:", updateData);
 
