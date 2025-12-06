@@ -121,9 +121,20 @@ export default function ResellerStore() {
                     <Store className="w-5 h-5 text-white" />
                   </div>
                 )}
-                <span className="font-bold text-white text-lg hidden sm:block" data-testid="text-store-name">
-                  {reseller.storeName}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-white text-base sm:text-lg" data-testid="text-store-name">
+                    {reseller.storeName || "Loja"}
+                  </span>
+                  <svg 
+                    className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" 
+                    viewBox="0 0 24 24" 
+                    fill="none"
+                    data-testid="icon-verified"
+                  >
+                    <circle cx="12" cy="12" r="10" fill="#1DA1F2"/>
+                    <path d="M9 12l2 2 4-4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
               </div>
 
               <div className="flex items-center gap-2">
