@@ -31,7 +31,8 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
   const [pixPayment, setPixPayment] = useState<{
     pixCode: string;
     qrCodeBase64: string | null;
-    pagseguroOrderId: string;
+    billingId: string;
+    checkoutUrl?: string;
   } | null>(null);
   const [isProcessingPix, setIsProcessingPix] = useState(false);
 
@@ -171,22 +172,24 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
       const data = await response.json();
       setOrder(data);
 
-      // After order is created, call PagSeguro API to generate PIX
+      // After order is created, call Abacate Pay API to generate PIX
       if (data.id) {
         setIsProcessingPix(true);
         try {
-          const pixResponse = await apiRequest("POST", "/api/pay/pagseguro", {
+          const pixResponse = await apiRequest("POST", "/api/pay/abacatepay", {
             orderId: data.id,
             amount: finalTotal,
             email,
             description: `Pedido #${data.id}`,
+            customerName: email.split("@")[0],
           });
           const pixData = await pixResponse.json();
           if (pixData.success) {
             setPixPayment({
               pixCode: pixData.pixCode,
-              qrCodeBase64: pixData.qrCodeBase64,
-              pagseguroOrderId: pixData.pagseguroOrderId,
+              qrCodeBase64: pixData.pixQrCodeUrl,
+              billingId: pixData.billingId,
+              checkoutUrl: pixData.checkoutUrl,
             });
             toast({
               title: "Pedido criado!",
@@ -199,7 +202,7 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
             });
           }
         } catch (pixError: any) {
-          console.error("PagSeguro error:", pixError);
+          console.error("AbacatePay error:", pixError);
           toast({
             title: "Pedido criado!",
             description: "PIX automático indisponível. Verifique a chave PIX manual.",

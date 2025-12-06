@@ -651,6 +651,170 @@ export async function registerRoutes(
     }
   });
 
+  // Abacate Pay PIX Payment - Create PIX payment using Abacate Pay API
+  app.post("/api/pay/abacatepay", async (req, res) => {
+    try {
+      const { orderId, amount, email, description, customerName } = req.body;
+
+      if (!orderId || !amount || !email) {
+        return res.status(400).json({ error: "Campos obrigatórios: orderId, amount, email" });
+      }
+
+      const { createPixPayment } = await import("./abacatePayController");
+      
+      const result = await createPixPayment({
+        orderId: parseInt(orderId),
+        amount: parseFloat(amount),
+        email,
+        description,
+        customerName,
+      });
+
+      // Update order with Abacate Pay data
+      await storage.updateOrder(parseInt(orderId), {
+        pagseguroOrderId: result.billingId,
+        pixCode: result.pixCode,
+        pixQrCode: result.pixQrCodeUrl || result.checkoutUrl,
+        paymentMethod: "pix_abacatepay",
+      });
+
+      console.log(`[AbacatePay] Payment created for order ${orderId}:`, result.billingId);
+
+      res.json({
+        success: true,
+        billingId: result.billingId,
+        pixCode: result.pixCode,
+        pixQrCodeUrl: result.pixQrCodeUrl,
+        checkoutUrl: result.checkoutUrl,
+        status: result.status,
+      });
+    } catch (error: any) {
+      console.error("[AbacatePay Route] Error:", error.message);
+      res.status(500).json({ error: error.message || "Falha ao criar pagamento PIX" });
+    }
+  });
+
+  // Abacate Pay Webhook - Receives payment confirmations and auto-delivers products
+  // Note: Raw body is captured via rawBody property attached by middleware in index.ts
+  app.post("/api/webhooks/abacatepay", async (req, res) => {
+    try {
+      const signature = req.headers["x-webhook-signature"] as string || 
+                        req.headers["x-abacatepay-signature"] as string || "";
+      
+      // Use raw body if available (attached by middleware), fallback to stringified body
+      const rawBody = (req as any).rawBody || JSON.stringify(req.body);
+      
+      console.log("[AbacatePay Webhook] Received event:", req.body.event);
+      console.log("[AbacatePay Webhook] Signature present:", !!signature);
+      console.log("[AbacatePay Webhook] Raw body available:", !!(req as any).rawBody);
+      
+      // Verify signature - in dev mode (no ABACATEPAY_WEBHOOK_SECRET), skip verification
+      const { verifyAbacateSignature } = await import("./abacatePayController");
+      const isValid = verifyAbacateSignature(rawBody, signature);
+      if (!isValid) {
+        console.error("[AbacatePay Webhook] Invalid signature - rejecting request");
+        return res.status(401).json({ error: "Invalid webhook signature" });
+      }
+
+      const { parseWebhookPayload } = await import("./abacatePayController");
+      const webhookData = parseWebhookPayload(req.body);
+      
+      console.log("[AbacatePay Webhook] Parsed data:", webhookData);
+
+      // Process payment confirmation
+      if (webhookData.isPaid && webhookData.orderId) {
+        const orderId = parseInt(webhookData.orderId);
+        const order = await storage.getOrder(orderId);
+        
+        if (order && order.status === "pending") {
+          console.log(`[AbacatePay Webhook] Processing auto-delivery for order ${orderId}`);
+          
+          const orderItems = await storage.getOrderItems(orderId);
+          
+          // FIRST PASS: Validate ALL items have sufficient stock before delivering anything
+          for (const item of orderItems) {
+            const product = await storage.getProduct(item.productId);
+            const quantity = item.quantity || 1;
+            
+            if (!product || !product.stock) {
+              console.error(`[AbacatePay Webhook] ❌ Product ${item.productId} has no stock field`);
+              return res.status(400).json({ 
+                error: `Insufficient stock for product ${item.productName}`,
+                orderId,
+                productId: item.productId
+              });
+            }
+            
+            const stockLines = product.stock.split("\n").filter(line => line.trim());
+            if (stockLines.length < quantity) {
+              console.error(`[AbacatePay Webhook] ❌ Insufficient stock for ${product.name} (have ${stockLines.length}, need ${quantity})`);
+              return res.status(400).json({ 
+                error: `Insufficient stock for ${product.name}: have ${stockLines.length}, need ${quantity}`,
+                orderId,
+                productId: item.productId
+              });
+            }
+          }
+          
+          // SECOND PASS: Deliver products (all validated above)
+          let deliveredContent = "";
+          for (const item of orderItems) {
+            const product = await storage.getProduct(item.productId);
+            const quantity = item.quantity || 1;
+            console.log(`[AbacatePay Webhook] Delivering item: ${product?.name} (qty: ${quantity})`);
+            
+            if (product && product.stock) {
+              const stockLines = product.stock.split("\n").filter(line => line.trim());
+              
+              // FIFO: Take quantity items from stock
+              for (let i = 0; i < quantity; i++) {
+                deliveredContent += stockLines[i] + "\n";
+                console.log(`[AbacatePay Webhook] ✓ Delivered: ${stockLines[i]}`);
+              }
+
+              // Remove delivered lines from stock and update
+              const remainingStock = stockLines.slice(quantity).join("\n");
+              await storage.updateProduct(item.productId, { stock: remainingStock });
+              console.log(`[AbacatePay Webhook] ✓ Stock updated. Remaining lines: ${stockLines.length - quantity}`);
+            }
+          }
+
+          // Mark order as paid and save delivered content
+          await storage.updateOrder(orderId, {
+            status: "paid",
+            deliveredContent: deliveredContent.trim(),
+          });
+
+          console.log(`[AbacatePay Webhook] ✅ Order ${orderId} auto-approved and delivered`);
+        } else if (order) {
+          console.log(`[AbacatePay Webhook] Order ${orderId} already processed (status: ${order.status})`);
+        } else {
+          console.log(`[AbacatePay Webhook] Order ${orderId} not found`);
+        }
+      }
+
+      res.status(200).json({ received: true });
+    } catch (error: any) {
+      console.error("[AbacatePay Webhook] Error:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Abacate Pay - Check payment status manually
+  app.get("/api/pay/abacatepay/status/:billingId", async (req, res) => {
+    try {
+      const { billingId } = req.params;
+      
+      const { checkPaymentStatus } = await import("./abacatePayController");
+      const status = await checkPaymentStatus(billingId);
+      
+      res.json(status);
+    } catch (error: any) {
+      console.error("[AbacatePay Status] Error:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/admin/login", (req, res) => {
     const { username, password } = req.body;
 
