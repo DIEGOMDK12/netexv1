@@ -31,7 +31,21 @@ export default function SubscriptionPaymentPage() {
 
   const pagSeguroCheckoutMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/pagseguro/create-subscription-checkout");
+      const vendorToken = localStorage.getItem("vendor_token");
+      if (!vendorToken) {
+        throw new Error("Token de revendedor não encontrado. Faça login novamente.");
+      }
+      const response = await fetch("/api/pagseguro/create-subscription-checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${vendorToken}`,
+        },
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Erro ao criar checkout");
+      }
       return response.json();
     },
     onSuccess: (data: PagSeguroCheckoutData) => {
@@ -61,10 +75,25 @@ export default function SubscriptionPaymentPage() {
   const verifyPaymentMutation = useMutation({
     mutationFn: async () => {
       if (!pixData) return null;
-      const response = await apiRequest("POST", "/api/pagseguro/verify-subscription", {
-        pagseguroOrderId: pixData.pagseguroOrderId,
-        vendorId: pixData.vendorId,
+      const vendorToken = localStorage.getItem("vendor_token");
+      if (!vendorToken) {
+        throw new Error("Token de revendedor não encontrado");
+      }
+      const response = await fetch("/api/pagseguro/verify-subscription", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${vendorToken}`,
+        },
+        body: JSON.stringify({
+          pagseguroOrderId: pixData.pagseguroOrderId,
+          vendorId: pixData.vendorId,
+        }),
       });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Erro ao verificar pagamento");
+      }
       return response.json();
     },
     onSuccess: (data) => {
