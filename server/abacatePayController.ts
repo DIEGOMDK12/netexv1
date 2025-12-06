@@ -125,6 +125,22 @@ export function verifyAbacateSignature(rawBody: string | Buffer, signatureFromHe
   }
 }
 
+interface PixQrCodeResponse {
+  data: {
+    id: string;
+    amount: number;
+    status: string;
+    devMode: boolean;
+    brCode: string;
+    brCodeBase64?: string;
+    platformFee: number;
+    createdAt: string;
+    updatedAt: string;
+    expiresAt: string;
+  };
+  error: string | null;
+}
+
 export async function createPixPayment(params: CreatePixPaymentParams): Promise<{
   success: boolean;
   billingId: string;
@@ -144,26 +160,15 @@ export async function createPixPayment(params: CreatePixPaymentParams): Promise<
         ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` 
         : 'https://example.com');
 
-  const billingPayload: Record<string, any> = {
-    frequency: "ONE_TIME",
-    methods: ["PIX"],
-    products: [
-      {
-        externalId: `order-${orderId}`,
-        name: description || `Pedido #${orderId}`,
-        quantity: 1,
-        price: amountInCents,
-      },
-    ],
-    metadata: {
-      orderId: String(orderId),
-    },
-    returnUrl: `${baseUrl}/order-success?orderId=${orderId}`,
-    completionUrl: `${baseUrl}/order-success?orderId=${orderId}`,
+  // Use pixQrCode/create endpoint to get brCode directly
+  const pixPayload: Record<string, any> = {
+    amount: amountInCents,
+    expiresIn: 86400, // 24 hours
+    description: description || `Pedido #${orderId}`,
   };
 
   if (email) {
-    billingPayload.customer = {
+    pixPayload.customer = {
       email: email,
       name: customerName || email.split("@")[0] || "Cliente",
       cellphone: "11999999999",
@@ -171,16 +176,16 @@ export async function createPixPayment(params: CreatePixPaymentParams): Promise<
     };
   }
 
-  console.log(`[AbacatePay] Creating PIX payment for order ${orderId}`, {
+  console.log(`[AbacatePay] Creating PIX QR Code for order ${orderId}`, {
     amount: amountInCents,
     email,
     tokenLength: token.length,
   });
 
   try {
-    const response = await axios.post<AbacatePayBillingResponse>(
-      `${ABACATEPAY_API_URL}/billing/create`,
-      billingPayload,
+    const response = await axios.post<PixQrCodeResponse>(
+      `${ABACATEPAY_API_URL}/pixQrCode/create`,
+      pixPayload,
       {
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -189,19 +194,19 @@ export async function createPixPayment(params: CreatePixPaymentParams): Promise<
       }
     );
 
-    const billingData = response.data.data;
-    console.log(`[AbacatePay] Billing created successfully:`, billingData.id);
+    const pixData = response.data.data;
+    console.log(`[AbacatePay] PIX QR Code created successfully:`, pixData.id);
 
     return {
       success: true,
-      billingId: billingData.id,
-      pixCode: billingData.brCode || billingData.pixCopiaECola || "",
-      pixQrCodeUrl: billingData.pixQrCode || null,
-      checkoutUrl: billingData.url,
-      status: billingData.status,
+      billingId: pixData.id,
+      pixCode: pixData.brCode || "",
+      pixQrCodeUrl: pixData.brCodeBase64 || null,
+      checkoutUrl: `${baseUrl}/order-success?orderId=${orderId}`,
+      status: pixData.status,
     };
   } catch (error: any) {
-    console.error("[AbacatePay] Error creating payment:", error.response?.data || error.message);
+    console.error("[AbacatePay] Error creating PIX payment:", error.response?.data || error.message);
     
     if (error.response?.data?.error) {
       throw new Error(`AbacatePay: ${error.response.data.error}`);
@@ -219,7 +224,31 @@ export async function checkPaymentStatus(billingId: string): Promise<{
   const token = getAbacatePayToken();
 
   try {
+    // Try pixQrCode list first (for PIX payments created with pixQrCode/create)
     const response = await axios.get(
+      `${ABACATEPAY_API_URL}/pixQrCode/list`,
+      {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const pixCodes = response.data.data || [];
+    const pixCode = pixCodes.find((p: any) => p.id === billingId);
+
+    if (pixCode) {
+      const isPaid = pixCode.status === "PAID" || pixCode.status === "COMPLETED";
+      return {
+        status: pixCode.status,
+        isPaid,
+        billingId,
+      };
+    }
+
+    // Fallback to billing list for older payments
+    const billingResponse = await axios.get(
       `${ABACATEPAY_API_URL}/billing/list`,
       {
         headers: {
@@ -229,7 +258,7 @@ export async function checkPaymentStatus(billingId: string): Promise<{
       }
     );
 
-    const billings = response.data.data || [];
+    const billings = billingResponse.data.data || [];
     const billing = billings.find((b: any) => b.id === billingId);
 
     if (!billing) {
