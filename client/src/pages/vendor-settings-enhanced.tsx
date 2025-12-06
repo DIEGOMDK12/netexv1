@@ -16,6 +16,9 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
     pixKey: vendorData?.pixKey || "",
     phone: vendorData?.phone || "",
     cpf: vendorData?.cpf || "",
+    supportEmail: vendorData?.supportEmail || "",
+    whatsappContact: vendorData?.whatsappContact || "",
+    footerDescription: vendorData?.footerDescription || "",
   });
 
   const saveMutation = useMutation({
@@ -47,6 +50,9 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
       pixKey: settings.pixKey,
       phone: settings.phone,
       cpf: settings.cpf,
+      supportEmail: settings.supportEmail,
+      whatsappContact: settings.whatsappContact,
+      footerDescription: settings.footerDescription,
     });
   };
 
@@ -192,6 +198,85 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
             className="w-full"
           >
             {saveMutation.isPending ? "Salvando..." : "Salvar Configurações"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Footer Settings */}
+      <Card
+        style={{
+          background: "rgba(30, 30, 30, 0.4)",
+          backdropFilter: "blur(12px)",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
+        }}
+      >
+        <CardHeader>
+          <CardTitle className="text-white">Configurações do Rodapé</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-white">Email de Suporte</Label>
+            <Input
+              value={settings.supportEmail}
+              onChange={(e) => setSettings({ ...settings, supportEmail: e.target.value })}
+              placeholder="suporte@sualoja.com"
+              style={{
+                background: "rgba(30, 30, 40, 0.4)",
+                backdropFilter: "blur(10px)",
+                borderColor: "rgba(255,255,255,0.1)",
+                color: "#FFFFFF",
+              }}
+              data-testid="input-support-email"
+            />
+            <p className="text-xs text-gray-500">Email que aparecerá no rodapé para contato</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-white">WhatsApp de Suporte</Label>
+            <Input
+              value={settings.whatsappContact}
+              onChange={(e) => setSettings({ ...settings, whatsappContact: e.target.value })}
+              placeholder="5585988007000"
+              style={{
+                background: "rgba(30, 30, 40, 0.4)",
+                backdropFilter: "blur(10px)",
+                borderColor: "rgba(255,255,255,0.1)",
+                color: "#FFFFFF",
+              }}
+              data-testid="input-whatsapp-contact"
+            />
+            <p className="text-xs text-gray-500">Número do WhatsApp com código do país (ex: 5585988007000)</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-white">Descrição do Rodapé</Label>
+            <Input
+              value={settings.footerDescription}
+              onChange={(e) => setSettings({ ...settings, footerDescription: e.target.value })}
+              placeholder="Produtos digitais confiáveis, entrega instantânea"
+              style={{
+                background: "rgba(30, 30, 40, 0.4)",
+                backdropFilter: "blur(10px)",
+                borderColor: "rgba(255,255,255,0.1)",
+                color: "#FFFFFF",
+              }}
+              data-testid="input-footer-description"
+            />
+            <p className="text-xs text-gray-500">Slogan ou descrição que aparece abaixo do nome da loja no rodapé</p>
+          </div>
+
+          <Button
+            onClick={handleSaveSettings}
+            disabled={saveMutation.isPending}
+            style={{
+              background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)",
+              color: "#FFFFFF",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+            }}
+            data-testid="button-save-footer-settings"
+            className="w-full"
+          >
+            {saveMutation.isPending ? "Salvando..." : "Salvar Configurações do Rodapé"}
           </Button>
         </CardContent>
       </Card>

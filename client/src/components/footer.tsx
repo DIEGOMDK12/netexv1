@@ -3,10 +3,12 @@ import { useStore } from "@/lib/store-context";
 import { SiPix } from "react-icons/si";
 
 export function Footer() {
-  const { settings } = useStore();
-  const storeName = settings?.storeName || "Digital Store";
-  const supportEmail = (settings as any)?.supportEmail || "support@goldstore.com";
-  const whatsappContact = (settings as any)?.whatsappContact || "5585988007000";
+  const { settings, currentReseller } = useStore();
+  
+  const storeName = currentReseller?.storeName || settings?.storeName || "Digital Store";
+  const supportEmail = currentReseller?.supportEmail || (settings as any)?.supportEmail || "support@goldstore.com";
+  const whatsappContact = currentReseller?.whatsappContact || (settings as any)?.whatsappContact || "5585988007000";
+  const footerDescription = currentReseller?.footerDescription || "Produtos digitais confiáveis, entrega instantânea";
 
   const currentYear = new Date().getFullYear();
 
@@ -16,14 +18,14 @@ export function Footer() {
   };
 
   return (
-    <footer className="bg-zinc-950 border-t border-zinc-800 mt-16">
+    <footer className="bg-zinc-950 border-t border-zinc-800">
       <div className="max-w-7xl mx-auto px-6 py-6">
         {/* Top Row: Brand + Slogan */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold mb-1" style={{ color: "#FCD34D" }} data-testid="footer-brand">
             {storeName}
           </h2>
-          <p className="text-gray-400 text-xs">Produtos digitais confiáveis, entrega instantânea</p>
+          <p className="text-gray-400 text-xs">{footerDescription}</p>
         </div>
 
         {/* Middle Row: 2 Column Grid */}

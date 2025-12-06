@@ -37,6 +37,9 @@ export const resellers = pgTable("resellers", {
   subscriptionStatus: text("subscription_status").default("pending"),
   subscriptionExpiresAt: timestamp("subscription_expires_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  supportEmail: text("support_email"),
+  whatsappContact: text("whatsapp_contact"),
+  footerDescription: text("footer_description"),
 });
 
 export const products = pgTable("products", {
@@ -140,6 +143,9 @@ export const insertResellersSchema = createInsertSchema(resellers, {
   buttonRadius: z.number().optional(),
   subscriptionStatus: z.string().optional().default("pending"),
   subscriptionExpiresAt: z.date().optional(),
+  supportEmail: z.string().optional(),
+  whatsappContact: z.string().optional(),
+  footerDescription: z.string().optional(),
 });
 
 export type Product = typeof products.$inferSelect;

@@ -3,7 +3,7 @@ import { useRoute } from "wouter";
 import { Loader2, Store, ShoppingCart, Search, Headphones, Package, Zap, Gift, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { Product, Reseller } from "@shared/schema";
 import { CheckoutModal } from "@/components/checkout-modal";
 import { useStore } from "@/lib/store-context";
@@ -11,7 +11,7 @@ import { useStore } from "@/lib/store-context";
 export default function ResellerStore() {
   const [match, params] = useRoute("/loja/:slug");
   const slug = params?.slug as string;
-  const { addToCart, cartCount } = useStore();
+  const { addToCart, cartCount, setCurrentReseller } = useStore();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -27,6 +27,15 @@ export default function ResellerStore() {
   });
 
   const isLoading = resellerLoading || productsLoading;
+
+  useEffect(() => {
+    if (reseller) {
+      setCurrentReseller(reseller);
+    }
+    return () => {
+      setCurrentReseller(null);
+    };
+  }, [reseller, setCurrentReseller]);
 
   const categories = useMemo(() => {
     const cats = new Set<string>();

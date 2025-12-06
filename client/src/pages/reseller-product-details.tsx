@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRoute } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ShoppingCart, Zap, Shield, Headphones, Clock, Check, Star, MessageCircle, ThumbsUp } from "lucide-react";
@@ -14,7 +14,7 @@ export default function ResellerProductDetails() {
   const [, params] = useRoute("/loja/:slug/produto/:productId");
   const slug = params?.slug as string;
   const productId = params?.productId as string;
-  const { addToCart, cartCount } = useStore();
+  const { addToCart, cartCount, setCurrentReseller } = useStore();
   const { toast } = useToast();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
@@ -31,6 +31,15 @@ export default function ResellerProductDetails() {
 
   const product = products.find(p => p.id === parseInt(productId));
   const isLoading = resellerLoading || productsLoading;
+
+  useEffect(() => {
+    if (reseller) {
+      setCurrentReseller(reseller);
+    }
+    return () => {
+      setCurrentReseller(null);
+    };
+  }, [reseller, setCurrentReseller]);
 
   if (isLoading) {
     return (

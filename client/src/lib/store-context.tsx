@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
-import type { Product, Settings } from "@shared/schema";
+import type { Product, Settings, Reseller } from "@shared/schema";
 
 interface CartItem {
   product: Product & { resellerId?: number };
@@ -18,6 +18,8 @@ interface StoreContextType {
   isCartOpen: boolean;
   setIsCartOpen: (open: boolean) => void;
   setSettings: (settings: Settings) => void;
+  currentReseller: Reseller | null;
+  setCurrentReseller: (reseller: Reseller | null) => void;
 }
 
 const StoreContext = createContext<StoreContextType | null>(null);
@@ -26,6 +28,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [currentReseller, setCurrentReseller] = useState<Reseller | null>(null);
 
   useEffect(() => {
     const savedCart = localStorage.getItem("cart");
@@ -98,6 +101,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         isCartOpen,
         setIsCartOpen,
         setSettings,
+        currentReseller,
+        setCurrentReseller,
       }}
     >
       {children}
