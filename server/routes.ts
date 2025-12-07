@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { setupAuth, isAuthenticated as isCustomerAuthenticated } from "./replitAuth";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
@@ -103,6 +104,21 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  // Setup customer authentication (Google, GitHub, Apple, etc)
+  await setupAuth(app);
+
+  // Customer auth user endpoint
+  app.get('/api/auth/user', isCustomerAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getCustomerUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching customer user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
 
   app.use("/uploads", (await import("express")).default.static(uploadDir));
 

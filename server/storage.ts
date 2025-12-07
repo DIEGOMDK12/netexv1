@@ -1,17 +1,21 @@
 import { 
-  products, orders, orderItems, coupons, settings, resellers, categories,
+  products, orders, orderItems, coupons, settings, resellers, categories, customerUsers,
   type Product, type InsertProduct,
   type Order, type InsertOrder,
   type OrderItem, type InsertOrderItem,
   type Coupon, type InsertCoupon,
   type Settings, type InsertSettings,
   type Reseller, type InsertReseller,
-  type Category, type InsertCategory
+  type Category, type InsertCategory,
+  type CustomerUser, type UpsertCustomerUser
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
+  getCustomerUser(id: string): Promise<CustomerUser | undefined>;
+  upsertCustomerUser(user: UpsertCustomerUser): Promise<CustomerUser>;
+
   getProducts(): Promise<Product[]>;
   getProduct(id: number): Promise<Product | undefined>;
   createProduct(product: InsertProduct): Promise<Product>;
@@ -52,6 +56,26 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  async getCustomerUser(id: string): Promise<CustomerUser | undefined> {
+    const [user] = await db.select().from(customerUsers).where(eq(customerUsers.id, id));
+    return user;
+  }
+
+  async upsertCustomerUser(userData: UpsertCustomerUser): Promise<CustomerUser> {
+    const [user] = await db
+      .insert(customerUsers)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: customerUsers.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
+  }
+
   async getProducts(): Promise<Product[]> {
     return db.select().from(products).orderBy(desc(products.id));
   }
