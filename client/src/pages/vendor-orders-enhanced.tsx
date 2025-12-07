@@ -40,17 +40,37 @@ export function VendorOrdersEnhanced({ vendorId }: { vendorId: number }) {
       
       const data = await response.json();
       
+      // Encontrar o pedido para abrir WhatsApp automaticamente
+      const order = orders.find((o: any) => o.id === orderId);
+      
       toast({
-        title: "✅ Pedido Aprovado!",
-        description: "O pagamento foi confirmado e o conteúdo foi entregue ao cliente.",
+        title: "Pedido Aprovado!",
+        description: "Abrindo WhatsApp para enviar o produto ao cliente...",
       });
 
       // Atualizar a lista de pedidos
       refetch();
       queryClient.invalidateQueries({ queryKey: ["/api/vendor/orders", vendorId] });
       
-      // 🔥 CRUCIAL: Invalidate stats so dashboard updates immediately with new revenue
+      // Invalidate stats so dashboard updates immediately with new revenue
       queryClient.invalidateQueries({ queryKey: ["/api/vendor/stats"] });
+      
+      // Abrir WhatsApp automaticamente com o produto entregue
+      if (order?.whatsapp && data.deliveredContent) {
+        const phone = order.whatsapp.replace(/\D/g, "");
+        const formattedPhone = phone.startsWith("55") ? phone : `55${phone}`;
+        const contentLines = data.deliveredContent.split("\n").filter((l: string) => l.trim()).slice(0, 5);
+        const contentPreview = contentLines.join("\n");
+        
+        const message = encodeURIComponent(
+          `Ola! Seu pedido #${orderId} foi aprovado!\n\nSeu produto:\n${contentPreview}\n\nObrigado pela compra!`
+        );
+        
+        // Pequeno delay para garantir que o toast apareça
+        setTimeout(() => {
+          window.open(`https://wa.me/+${formattedPhone}?text=${message}`, "_blank");
+        }, 500);
+      }
     } catch (error: any) {
       console.error("[Approve Payment] Error:", error);
       toast({
@@ -65,13 +85,14 @@ export function VendorOrdersEnhanced({ vendorId }: { vendorId: number }) {
 
   const handleOpenWhatsApp = (order: Order) => {
     const phone = order.whatsapp?.replace(/\D/g, "") || "";
-    const contentLines = order.deliveredContent?.split("\n").slice(0, 3) || [];
+    const formattedPhone = phone.startsWith("55") ? phone : `55${phone}`;
+    const contentLines = order.deliveredContent?.split("\n").filter(l => l.trim()).slice(0, 5) || [];
     const contentPreview = contentLines.join("\n");
     
     const message = encodeURIComponent(
-      `Olá! 🎉\n\nSeu pedido #${order.id} foi aprovado e seu acesso está pronto:\n\n${contentPreview || "(Conteúdo disponível)"}\n\nObrigado! 📲`
+      `Ola! Seu pedido #${order.id} foi aprovado!\n\nSeu produto:\n${contentPreview || "(Conteudo disponivel)"}\n\nObrigado pela compra!`
     );
-    window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
+    window.open(`https://wa.me/+${formattedPhone}?text=${message}`, "_blank");
   };
 
   const handleDeleteOrder = async (orderId: number) => {
@@ -316,15 +337,29 @@ export function VendorOrdersEnhanced({ vendorId }: { vendorId: number }) {
                         )}
                       </Button>
                     )}
-                    {order.status === "paid" && (
-                      <Button
-                        onClick={() => handleOpenWhatsApp(order)}
-                        className="w-full bg-green-600 hover:bg-green-700 text-white text-sm"
-                        data-testid={`button-whatsapp-order-${order.id}`}
-                      >
-                        <MessageCircle className="w-4 h-4 mr-2" />
-                        📲 Enviar Produto no WhatsApp
-                      </Button>
+                    {order.status === "paid" && order.whatsapp && (
+                      <div className="space-y-2">
+                        <div className="p-2 bg-green-500/20 rounded-md border border-green-500/30">
+                          <p className="text-xs text-green-400 font-medium text-center">
+                            Produto pronto para entrega!
+                          </p>
+                        </div>
+                        <Button
+                          onClick={() => handleOpenWhatsApp(order)}
+                          className="w-full bg-green-600 hover:bg-green-700 text-white text-sm animate-pulse"
+                          data-testid={`button-whatsapp-order-${order.id}`}
+                        >
+                          <MessageCircle className="w-4 h-4 mr-2" />
+                          Enviar Produto no WhatsApp
+                        </Button>
+                      </div>
+                    )}
+                    {order.status === "paid" && !order.whatsapp && (
+                      <div className="p-2 bg-yellow-500/20 rounded-md border border-yellow-500/30">
+                        <p className="text-xs text-yellow-400">
+                          Cliente nao informou WhatsApp. Produto entregue via email.
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>
