@@ -6,6 +6,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import multer from "multer";
+import { sendDeliveryEmail } from "./email";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -292,6 +293,25 @@ export async function registerRoutes(
         status: "paid",
         deliveredContent: deliveredContent.trim(),
       });
+
+      // Send delivery email automatically
+      if (order.email) {
+        const productNames = orderItems.map((item: any) => item.productName || "Produto Digital").join(", ");
+        const settings = readSettings();
+        sendDeliveryEmail({
+          to: order.email,
+          orderId,
+          productName: productNames,
+          deliveredContent: deliveredContent.trim(),
+          storeName: settings?.storeName || "Nossa Loja",
+        }).then(result => {
+          if (result.success) {
+            console.log(`[POST /api/admin/orders/:id/approve] ✓ Email sent to ${order.email}`);
+          } else {
+            console.error(`[POST /api/admin/orders/:id/approve] ❌ Email failed: ${result.error}`);
+          }
+        });
+      }
 
       console.log(`[POST /api/admin/orders/:id/approve] ✓ Order ${orderId} approved successfully`);
       res.json({
@@ -847,6 +867,24 @@ export async function registerRoutes(
             deliveredContent: deliveredContent.trim(),
             whatsappDeliveryLink: whatsappLink,
           });
+
+          // Send delivery email automatically
+          if (order.email) {
+            const productNames = orderItems.map((item: any) => item.productName || "Produto Digital").join(", ");
+            sendDeliveryEmail({
+              to: order.email,
+              orderId,
+              productName: productNames,
+              deliveredContent: deliveredContent.trim(),
+              storeName,
+            }).then(result => {
+              if (result.success) {
+                console.log(`[AbacatePay Webhook] ✓ Email sent to ${order.email}`);
+              } else {
+                console.error(`[AbacatePay Webhook] ❌ Email failed: ${result.error}`);
+              }
+            });
+          }
 
           console.log(`[AbacatePay Webhook] ✅ Order ${orderId} auto-approved and delivered`);
           if (whatsappLink) {
@@ -1850,6 +1888,25 @@ export async function registerRoutes(
         status: "paid",
         deliveredContent: deliveredContent.trim(),
       });
+
+      // Send delivery email automatically
+      if (order.email) {
+        const productNames = orderItems.map((item: any) => item.productName || "Produto Digital").join(", ");
+        const settings = readSettings();
+        sendDeliveryEmail({
+          to: order.email,
+          orderId,
+          productName: productNames,
+          deliveredContent: deliveredContent.trim(),
+          storeName: settings?.storeName || "Nossa Loja",
+        }).then(result => {
+          if (result.success) {
+            console.log(`[Vendor Approve] ✓ Email sent to ${order.email}`);
+          } else {
+            console.error(`[Vendor Approve] ❌ Email failed: ${result.error}`);
+          }
+        });
+      }
 
       console.log("[Vendor Approve] Order approved successfully:", orderId);
 

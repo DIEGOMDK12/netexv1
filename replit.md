@@ -106,10 +106,17 @@ Preferred communication style: Simple, everyday language.
 - Separate dist folders for client (`dist/public`) and server (`dist/index.cjs`)
 - Production mode uses compiled CommonJS server bundle
 
+**Email Delivery**
+- Resend integration for automatic email delivery of digital products
+- Environment variable: `RESEND_API_KEY`
+- Email sent automatically when order is approved (admin, vendor, or webhook)
+- HTML email template with dark theme matching store aesthetic
+- All user-generated content is HTML-escaped for security
+
 **Third-Party Services**
 - Google Fonts CDN for DM Sans typography
 - Image hosting expected via URLs (logoUrl, product imageUrl fields)
-- No file upload system visible (images likely managed externally)
+- Resend for transactional email delivery
 
 **Session Management**
 - `connect-pg-simple` and `express-session` packages present but not actively used in visible code
