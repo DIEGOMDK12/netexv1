@@ -111,6 +111,8 @@ export const orderItems = pgTable("order_items", {
   productName: text("product_name").notNull(),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   quantity: integer("quantity").notNull().default(1),
+  deliveredContent: text("delivered_content"),
+  redeemedAt: timestamp("redeemed_at"),
 });
 
 export const coupons = pgTable("coupons", {

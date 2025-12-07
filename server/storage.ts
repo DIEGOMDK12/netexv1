@@ -34,6 +34,7 @@ export interface IStorage {
 
   getOrderItems(orderId: number): Promise<OrderItem[]>;
   createOrderItem(item: InsertOrderItem): Promise<OrderItem>;
+  updateOrderItem(id: number, data: Partial<OrderItem>): Promise<OrderItem | undefined>;
 
   getCoupons(): Promise<Coupon[]>;
   getCouponByCode(code: string): Promise<Coupon | undefined>;
@@ -145,6 +146,11 @@ export class DatabaseStorage implements IStorage {
   async createOrderItem(item: InsertOrderItem): Promise<OrderItem> {
     const [created] = await db.insert(orderItems).values(item).returning();
     return created;
+  }
+
+  async updateOrderItem(id: number, data: Partial<OrderItem>): Promise<OrderItem | undefined> {
+    const [updated] = await db.update(orderItems).set(data).where(eq(orderItems.id, id)).returning();
+    return updated || undefined;
   }
 
   async getCoupons(): Promise<Coupon[]> {

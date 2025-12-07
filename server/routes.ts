@@ -429,6 +429,37 @@ export async function registerRoutes(
     }
   });
 
+  // Get orders by email for customer redemption page
+  app.get("/api/orders/by-email", async (req, res) => {
+    try {
+      const email = req.query.email as string;
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+
+      const allOrders = await storage.getOrders();
+      const customerOrders = allOrders.filter(o => o.email.toLowerCase() === email.toLowerCase());
+
+      const ordersWithItems = await Promise.all(
+        customerOrders.map(async (order) => {
+          const items = await storage.getOrderItems(order.id);
+          return {
+            ...order,
+            items: items.map(item => ({
+              ...item,
+              secretContent: item.deliveredContent || null,
+            })),
+          };
+        })
+      );
+
+      res.json(ordersWithItems);
+    } catch (error) {
+      console.error("[Orders by Email] Error:", error);
+      res.status(500).json({ error: "Failed to fetch orders" });
+    }
+  });
+
   app.post("/api/orders", async (req, res) => {
     try {
       const { email, whatsapp, items, couponCode, discountAmount, totalAmount } = req.body;
@@ -1122,6 +1153,11 @@ export async function registerRoutes(
       }
 
       console.log("[Vendor Register] Creating new vendor:", { name, email, slug });
+      
+      // Calculate 7-day trial expiration date
+      const trialExpiresAt = new Date();
+      trialExpiresAt.setDate(trialExpiresAt.getDate() + 7);
+      
       const vendor = await storage.createReseller({
         name,
         email,
@@ -1131,6 +1167,9 @@ export async function registerRoutes(
         pixKey: "",
         paymentClientId: "",
         paymentClientSecret: "",
+        subscriptionStatus: "trial",
+        subscriptionExpiresAt: trialExpiresAt,
+        active: true,
       });
 
       console.log("[Vendor Register] Vendor created successfully:", { id: vendor.id, slug: vendor.slug });
@@ -1150,7 +1189,10 @@ export async function registerRoutes(
           commissionPercent: vendor.commissionPercent,
           totalSales: vendor.totalSales,
           totalCommission: vendor.totalCommission,
+          subscriptionStatus: vendor.subscriptionStatus,
+          subscriptionExpiresAt: vendor.subscriptionExpiresAt,
         },
+        message: "Loja criada com 7 dias grátis de trial!",
       });
     } catch (error: any) {
       console.error("[Vendor Register] Error:", error);
@@ -1774,6 +1816,11 @@ export async function registerRoutes(
         
         await storage.updateProduct(item.productId, { 
           stock: remainingStock,
+        });
+
+        // Save delivered content per item for redemption
+        await storage.updateOrderItem(item.id, {
+          deliveredContent: deliveredItem,
         });
 
         console.log(`[Vendor Approve] Product stock updated. Remaining items: ${stockLines.length - 1}`);

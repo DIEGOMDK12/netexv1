@@ -1,11 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLocation } from "wouter";
-import { Loader2, Copy, CheckCircle } from "lucide-react";
+import { Loader2, Copy, CheckCircle, Gift, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 export default function MyOrders() {
   const [, setLocation] = useLocation();
@@ -16,6 +23,11 @@ export default function MyOrders() {
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ["/api/orders/by-email", email],
+    queryFn: async () => {
+      const response = await fetch(`/api/orders/by-email?email=${encodeURIComponent(email)}`);
+      if (!response.ok) throw new Error("Failed to fetch orders");
+      return response.json();
+    },
     enabled: submitted && !!email,
   });
 
