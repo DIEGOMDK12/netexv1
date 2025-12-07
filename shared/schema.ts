@@ -101,6 +101,7 @@ export const orders = pgTable("orders", {
   discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }),
   imei: text("imei"),
   resellerId: integer("reseller_id"),
+  whatsappDeliveryLink: text("whatsapp_delivery_link"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

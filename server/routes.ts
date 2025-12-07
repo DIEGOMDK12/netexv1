@@ -62,6 +62,13 @@ function isVendorAuthenticated(token: string | undefined): boolean {
   return token ? tokenToVendor.has(token) : false;
 }
 
+function generateWhatsAppLink(phone: string, message: string): string {
+  const cleanPhone = phone.replace(/\D/g, "");
+  const formattedPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
+  const encodedMessage = encodeURIComponent(message);
+  return `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
+}
+
 const SETTINGS_FILE = path.join(process.cwd(), "settings.json");
 
 function readSettings() {
@@ -826,13 +833,25 @@ export async function registerRoutes(
             }
           }
 
-          // Mark order as paid and save delivered content
+          // Generate WhatsApp delivery link
+          const settings = readSettings();
+          const storeName = settings?.storeName || "NexStore";
+          const whatsappMessage = `Ola! Seu pagamento foi confirmado. Aqui esta sua entrega do pedido #${orderId} na ${storeName}:\n\n${deliveredContent.trim()}\n\nObrigado pela compra!`;
+          const whatsappLink = order.whatsapp 
+            ? generateWhatsAppLink(order.whatsapp, whatsappMessage)
+            : null;
+
+          // Mark order as paid and save delivered content + WhatsApp link
           await storage.updateOrder(orderId, {
             status: "paid",
             deliveredContent: deliveredContent.trim(),
+            whatsappDeliveryLink: whatsappLink,
           });
 
           console.log(`[AbacatePay Webhook] ✅ Order ${orderId} auto-approved and delivered`);
+          if (whatsappLink) {
+            console.log(`[AbacatePay Webhook] 📱 WhatsApp link generated: ${whatsappLink}`);
+          }
         } else if (order) {
           console.log(`[AbacatePay Webhook] Order ${orderId} already processed (status: ${order.status})`);
         } else {
