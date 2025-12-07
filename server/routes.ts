@@ -2597,6 +2597,166 @@ export async function registerRoutes(
     }
   });
 
+  // ========== WITHDRAWAL REQUESTS ROUTES ==========
+  
+  // Vendor: Create withdrawal request
+  app.post("/api/vendor/withdrawals", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    
+    if (!token || !tokenToVendor.has(token)) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    
+    const vendorId = tokenToVendor.get(token)!;
+    
+    try {
+      const { amount, pixKey, pixKeyType } = req.body;
+      
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ error: "Valor inválido" });
+      }
+      
+      if (!pixKey) {
+        return res.status(400).json({ error: "Chave PIX é obrigatória" });
+      }
+      
+      // Get vendor's available balance
+      const vendor = await storage.getReseller(vendorId);
+      if (!vendor) {
+        return res.status(404).json({ error: "Revendedor não encontrado" });
+      }
+      
+      const availableBalance = parseFloat(vendor.totalCommission || "0");
+      
+      if (amount > availableBalance) {
+        return res.status(400).json({ 
+          error: `Saldo insuficiente. Disponível: R$ ${availableBalance.toFixed(2)}` 
+        });
+      }
+      
+      // Create withdrawal request
+      const withdrawal = await storage.createWithdrawalRequest({
+        resellerId: vendorId,
+        amount: amount.toString(),
+        pixKey,
+        pixKeyType: pixKeyType || "cpf",
+        status: "pending",
+      });
+      
+      console.log(`[Withdrawal] Created request for vendor ${vendorId}: R$ ${amount}`);
+      
+      res.json(withdrawal);
+    } catch (error: any) {
+      console.error("[Withdrawal] Error creating request:", error);
+      res.status(500).json({ error: "Erro ao criar solicitação de retirada" });
+    }
+  });
+  
+  // Vendor: Get own withdrawal requests
+  app.get("/api/vendor/withdrawals", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    
+    if (!token || !tokenToVendor.has(token)) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    
+    const vendorId = tokenToVendor.get(token)!;
+    
+    try {
+      const withdrawals = await storage.getWithdrawalRequestsByReseller(vendorId);
+      res.json(withdrawals);
+    } catch (error: any) {
+      console.error("[Withdrawal] Error fetching requests:", error);
+      res.status(500).json({ error: "Erro ao buscar solicitações" });
+    }
+  });
+  
+  // Admin: Get all withdrawal requests
+  app.get("/api/admin/withdrawals", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    
+    if (!isAuthenticated(token)) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    
+    try {
+      const withdrawals = await storage.getWithdrawalRequests();
+      
+      // Enrich with reseller info
+      const enrichedWithdrawals = await Promise.all(
+        withdrawals.map(async (w) => {
+          const reseller = await storage.getReseller(w.resellerId);
+          return {
+            ...w,
+            resellerName: reseller?.storeName || reseller?.name || "Desconhecido",
+            resellerEmail: reseller?.email || "",
+          };
+        })
+      );
+      
+      res.json(enrichedWithdrawals);
+    } catch (error: any) {
+      console.error("[Withdrawal] Error fetching all requests:", error);
+      res.status(500).json({ error: "Erro ao buscar solicitações" });
+    }
+  });
+  
+  // Admin: Approve or reject withdrawal request
+  app.patch("/api/admin/withdrawals/:id", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    
+    if (!isAuthenticated(token)) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    
+    const withdrawalId = parseInt(req.params.id);
+    const { status, adminNotes } = req.body;
+    
+    if (!["approved", "rejected"].includes(status)) {
+      return res.status(400).json({ error: "Status inválido" });
+    }
+    
+    try {
+      const withdrawal = await storage.getWithdrawalRequest(withdrawalId);
+      
+      if (!withdrawal) {
+        return res.status(404).json({ error: "Solicitação não encontrada" });
+      }
+      
+      if (withdrawal.status !== "pending") {
+        return res.status(400).json({ error: "Solicitação já processada" });
+      }
+      
+      // If approving, deduct from reseller's balance
+      if (status === "approved") {
+        const reseller = await storage.getReseller(withdrawal.resellerId);
+        if (reseller) {
+          const currentBalance = parseFloat(reseller.totalCommission || "0");
+          const withdrawalAmount = parseFloat(withdrawal.amount);
+          const newBalance = Math.max(0, currentBalance - withdrawalAmount);
+          
+          await storage.updateReseller(withdrawal.resellerId, {
+            totalCommission: newBalance.toFixed(2),
+          });
+          
+          console.log(`[Withdrawal] Approved ${withdrawalId}: R$ ${withdrawalAmount} deducted from vendor ${withdrawal.resellerId}. New balance: R$ ${newBalance.toFixed(2)}`);
+        }
+      }
+      
+      // Update withdrawal status
+      const updated = await storage.updateWithdrawalRequest(withdrawalId, {
+        status,
+        adminNotes: adminNotes || null,
+        processedAt: new Date(),
+      });
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("[Withdrawal] Error updating request:", error);
+      res.status(500).json({ error: "Erro ao processar solicitação" });
+    }
+  });
+
   return httpServer;
 }
 

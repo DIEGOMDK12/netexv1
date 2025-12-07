@@ -1,5 +1,5 @@
 import { 
-  products, orders, orderItems, coupons, settings, resellers, categories, customerUsers,
+  products, orders, orderItems, coupons, settings, resellers, categories, customerUsers, withdrawalRequests,
   type Product, type InsertProduct,
   type Order, type InsertOrder,
   type OrderItem, type InsertOrderItem,
@@ -7,7 +7,8 @@ import {
   type Settings, type InsertSettings,
   type Reseller, type InsertReseller,
   type Category, type InsertCategory,
-  type CustomerUser, type UpsertCustomerUser
+  type CustomerUser, type UpsertCustomerUser,
+  type WithdrawalRequest, type InsertWithdrawalRequest
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
@@ -54,6 +55,13 @@ export interface IStorage {
   createResellerProduct(product: InsertProduct & { resellerId: number }): Promise<Product>;
   getResellerOrders(resellerId: number): Promise<any[]>;
   getAllResellers(): Promise<any[]>;
+
+  // Withdrawal requests
+  getWithdrawalRequests(): Promise<WithdrawalRequest[]>;
+  getWithdrawalRequestsByReseller(resellerId: number): Promise<WithdrawalRequest[]>;
+  getWithdrawalRequest(id: number): Promise<WithdrawalRequest | undefined>;
+  createWithdrawalRequest(request: InsertWithdrawalRequest): Promise<WithdrawalRequest>;
+  updateWithdrawalRequest(id: number, data: Partial<WithdrawalRequest>): Promise<WithdrawalRequest | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -301,6 +309,32 @@ export class DatabaseStorage implements IStorage {
     
     console.log("[🔴 getAllResellers] ✅ Retornando resellers com dados de subscription");
     return resellersWithCounts;
+  }
+
+  // Withdrawal requests methods
+  async getWithdrawalRequests(): Promise<WithdrawalRequest[]> {
+    return db.select().from(withdrawalRequests).orderBy(desc(withdrawalRequests.createdAt));
+  }
+
+  async getWithdrawalRequestsByReseller(resellerId: number): Promise<WithdrawalRequest[]> {
+    return db.select().from(withdrawalRequests)
+      .where(eq(withdrawalRequests.resellerId, resellerId))
+      .orderBy(desc(withdrawalRequests.createdAt));
+  }
+
+  async getWithdrawalRequest(id: number): Promise<WithdrawalRequest | undefined> {
+    const [request] = await db.select().from(withdrawalRequests).where(eq(withdrawalRequests.id, id));
+    return request || undefined;
+  }
+
+  async createWithdrawalRequest(request: InsertWithdrawalRequest): Promise<WithdrawalRequest> {
+    const [created] = await db.insert(withdrawalRequests).values(request).returning();
+    return created;
+  }
+
+  async updateWithdrawalRequest(id: number, data: Partial<WithdrawalRequest>): Promise<WithdrawalRequest | undefined> {
+    const [updated] = await db.update(withdrawalRequests).set(data).where(eq(withdrawalRequests.id, id)).returning();
+    return updated || undefined;
   }
 }
 
