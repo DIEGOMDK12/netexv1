@@ -419,33 +419,6 @@ export async function registerRoutes(
     }
   });
 
-  app.put("/api/admin/settings", async (req, res) => {
-    try {
-      const token = req.headers.authorization?.split(" ")[1];
-      if (!isAuthenticated(token)) {
-        return res.status(401).json({ error: "Unauthorized" });
-      }
-
-      const { storeName, logoUrl, themeColor, textColor, pixKey, pagseguroToken, pagseguroApiUrl } = req.body;
-      
-      const settings = await storage.updateSettings({
-        storeName: storeName || "NexStore",
-        logoUrl: logoUrl || null,
-        themeColor: themeColor || "#3B82F6",
-        textColor: textColor || "#FFFFFF",
-        pixKey: pixKey || "",
-        pagseguroToken: pagseguroToken || null,
-        pagseguroApiUrl: pagseguroApiUrl || null,
-      });
-
-      const { pagseguroToken: token2, ...publicSettings } = settings;
-      res.json(publicSettings);
-    } catch (error) {
-      console.error("Settings update error:", error);
-      res.status(500).json({ error: "Failed to update settings" });
-    }
-  });
-
   app.get("/api/coupons/validate", async (req, res) => {
     try {
       const code = req.query.code as string;
