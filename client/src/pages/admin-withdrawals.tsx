@@ -257,6 +257,7 @@ export default function AdminWithdrawals() {
                     <th className="text-left py-3 px-3 text-gray-400 font-medium">Data</th>
                     <th className="text-left py-3 px-3 text-gray-400 font-medium">Loja</th>
                     <th className="text-right py-3 px-3 text-gray-400 font-medium">Valor</th>
+                    <th className="text-left py-3 px-3 text-gray-400 font-medium hidden xl:table-cell">Titular</th>
                     <th className="text-left py-3 px-3 text-gray-400 font-medium hidden lg:table-cell">Chave PIX</th>
                     <th className="text-left py-3 px-3 text-gray-400 font-medium hidden md:table-cell">Tipo</th>
                     <th className="text-center py-3 px-3 text-gray-400 font-medium">Status</th>
@@ -279,6 +280,9 @@ export default function AdminWithdrawals() {
                         </td>
                         <td className="py-3 px-3 text-right font-semibold text-emerald-400">
                           R$ {parseFloat(withdrawal.amount.toString()).toFixed(2)}
+                        </td>
+                        <td className="py-3 px-3 text-white hidden xl:table-cell text-sm truncate max-w-[150px]">
+                          {withdrawal.pixHolderName || "-"}
                         </td>
                         <td className="py-3 px-3 text-gray-400 hidden lg:table-cell text-sm truncate max-w-[200px]">
                           {withdrawal.pixKey}
@@ -366,8 +370,24 @@ export default function AdminWithdrawals() {
                     <p className="text-white font-medium">{selectedWithdrawal.reseller?.storeName}</p>
                   </div>
                   <div>
-                    <p className="text-gray-500">Valor</p>
+                    <p className="text-gray-500">Valor Solicitado</p>
                     <p className="text-emerald-400 font-bold">R$ {parseFloat(selectedWithdrawal.amount.toString()).toFixed(2)}</p>
+                  </div>
+                  {selectedWithdrawal.netAmount && (
+                    <div>
+                      <p className="text-gray-500">Valor Liquido</p>
+                      <p className="text-white font-bold">R$ {parseFloat(selectedWithdrawal.netAmount.toString()).toFixed(2)}</p>
+                    </div>
+                  )}
+                  {selectedWithdrawal.withdrawalFee && (
+                    <div>
+                      <p className="text-gray-500">Taxa</p>
+                      <p className="text-yellow-400">R$ {parseFloat(selectedWithdrawal.withdrawalFee.toString()).toFixed(2)}</p>
+                    </div>
+                  )}
+                  <div className="col-span-2">
+                    <p className="text-gray-500">Titular da Conta</p>
+                    <p className="text-white font-medium">{selectedWithdrawal.pixHolderName || "Nao informado"}</p>
                   </div>
                   <div className="col-span-2">
                     <p className="text-gray-500">Chave PIX ({selectedWithdrawal.pixKeyType.toUpperCase()})</p>

@@ -2609,11 +2609,24 @@ export async function registerRoutes(
     
     const vendorId = tokenToVendor.get(token)!;
     
+    const WITHDRAWAL_FEE = 0.80;
+    const MIN_WITHDRAWAL = 5.00;
+    
     try {
-      const { amount, pixKey, pixKeyType } = req.body;
+      const { amount, pixKey, pixKeyType, pixHolderName } = req.body;
       
-      if (!amount || amount <= 0) {
+      const numericAmount = parseFloat(amount);
+      
+      if (!amount || numericAmount <= 0) {
         return res.status(400).json({ error: "Valor inválido" });
+      }
+      
+      if (numericAmount < MIN_WITHDRAWAL) {
+        return res.status(400).json({ error: `O valor mínimo para retirada é R$ ${MIN_WITHDRAWAL.toFixed(2)}` });
+      }
+      
+      if (!pixHolderName || !pixHolderName.trim()) {
+        return res.status(400).json({ error: "Nome do titular é obrigatório" });
       }
       
       if (!pixKey) {
@@ -2628,22 +2641,28 @@ export async function registerRoutes(
       
       const availableBalance = parseFloat(vendor.totalCommission || "0");
       
-      if (amount > availableBalance) {
+      if (numericAmount > availableBalance) {
         return res.status(400).json({ 
           error: `Saldo insuficiente. Disponível: R$ ${availableBalance.toFixed(2)}` 
         });
       }
       
+      // Calculate net amount after fee
+      const netAmount = numericAmount - WITHDRAWAL_FEE;
+      
       // Create withdrawal request
       const withdrawal = await storage.createWithdrawalRequest({
         resellerId: vendorId,
-        amount: amount.toString(),
+        amount: numericAmount.toFixed(2),
         pixKey,
         pixKeyType: pixKeyType || "cpf",
+        pixHolderName: pixHolderName.trim(),
+        withdrawalFee: WITHDRAWAL_FEE.toFixed(2),
+        netAmount: netAmount.toFixed(2),
         status: "pending",
       });
       
-      console.log(`[Withdrawal] Created request for vendor ${vendorId}: R$ ${amount}`);
+      console.log(`[Withdrawal] Created request for vendor ${vendorId}: R$ ${numericAmount} (líquido: R$ ${netAmount.toFixed(2)})`);
       
       res.json(withdrawal);
     } catch (error: any) {

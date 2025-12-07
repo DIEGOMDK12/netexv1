@@ -36,6 +36,11 @@ export function DashboardMain({ vendorId, isAdmin, subscriptionExpiresAt }: Dash
   const [withdrawalAmount, setWithdrawalAmount] = useState("");
   const [pixKey, setPixKey] = useState("");
   const [pixKeyType, setPixKeyType] = useState("cpf");
+  const [pixHolderName, setPixHolderName] = useState("");
+  
+  const WITHDRAWAL_FEE = 0.80;
+  const SALE_FEE = 0.80;
+  const MIN_WITHDRAWAL = 5.00;
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -98,7 +103,7 @@ export function DashboardMain({ vendorId, isAdmin, subscriptionExpiresAt }: Dash
   });
 
   const createWithdrawalMutation = useMutation({
-    mutationFn: async (data: { amount: string; pixKey: string; pixKeyType: string }) => {
+    mutationFn: async (data: { amount: string; pixKey: string; pixKeyType: string; pixHolderName: string }) => {
       const token = localStorage.getItem("vendor_token");
       if (!token) throw new Error("No auth token");
       
@@ -126,6 +131,7 @@ export function DashboardMain({ vendorId, isAdmin, subscriptionExpiresAt }: Dash
       setWithdrawalAmount("");
       setPixKey("");
       setPixKeyType("cpf");
+      setPixHolderName("");
       queryClient.invalidateQueries({ queryKey: ["/api/vendor/withdrawals"] });
       queryClient.invalidateQueries({ queryKey: ["/api/vendor/profile", vendorId] });
       queryClient.invalidateQueries({ queryKey: ["/api/vendor/stats"] });
@@ -199,10 +205,26 @@ export function DashboardMain({ vendorId, isAdmin, subscriptionExpiresAt }: Dash
       });
       return;
     }
+    if (amount < MIN_WITHDRAWAL) {
+      toast({
+        title: "Valor minimo nao atingido",
+        description: `O valor minimo para retirada e R$ ${MIN_WITHDRAWAL.toFixed(2)}.`,
+        variant: "destructive",
+      });
+      return;
+    }
     if (amount > availableBalance) {
       toast({
         title: "Saldo insuficiente",
         description: "O valor solicitado e maior que seu saldo disponivel.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!pixHolderName.trim()) {
+      toast({
+        title: "Nome do titular obrigatorio",
+        description: "Digite o nome do titular da conta PIX.",
         variant: "destructive",
       });
       return;
@@ -220,6 +242,7 @@ export function DashboardMain({ vendorId, isAdmin, subscriptionExpiresAt }: Dash
       amount: withdrawalAmount,
       pixKey: pixKey.trim(),
       pixKeyType,
+      pixHolderName: pixHolderName.trim(),
     });
   };
 
@@ -594,19 +617,48 @@ export function DashboardMain({ vendorId, isAdmin, subscriptionExpiresAt }: Dash
               <p className="text-2xl font-bold text-emerald-400">R$ {availableBalance.toFixed(2)}</p>
             </div>
             
+            <div className="p-3 rounded-lg space-y-2" style={{ background: "rgba(245, 158, 11, 0.1)", border: "1px solid rgba(245, 158, 11, 0.3)" }}>
+              <p className="text-sm font-medium text-yellow-400">Informacoes de Taxas</p>
+              <div className="text-xs text-gray-400 space-y-1">
+                <p>Taxa por venda: <span className="text-white">R$ {SALE_FEE.toFixed(2)}</span></p>
+                <p>Taxa por retirada: <span className="text-white">R$ {WITHDRAWAL_FEE.toFixed(2)}</span></p>
+                <p>Valor minimo para retirada: <span className="text-white">R$ {MIN_WITHDRAWAL.toFixed(2)}</span></p>
+              </div>
+            </div>
+            
             <div className="space-y-2">
-              <Label htmlFor="amount" className="text-gray-300">Valor da retirada</Label>
+              <Label htmlFor="amount" className="text-gray-300">Valor da retirada (minimo R$ {MIN_WITHDRAWAL.toFixed(2)})</Label>
               <Input
                 id="amount"
                 type="number"
                 step="0.01"
-                min="0"
+                min={MIN_WITHDRAWAL}
                 max={availableBalance}
-                placeholder="0.00"
+                placeholder={MIN_WITHDRAWAL.toFixed(2)}
                 value={withdrawalAmount}
                 onChange={(e) => setWithdrawalAmount(e.target.value)}
                 className="bg-zinc-900 border-zinc-700 text-white"
                 data-testid="input-withdrawal-amount"
+              />
+              {withdrawalAmount && parseFloat(withdrawalAmount) >= MIN_WITHDRAWAL && (
+                <div className="text-xs text-gray-400 mt-1">
+                  <p>Valor solicitado: <span className="text-white">R$ {parseFloat(withdrawalAmount).toFixed(2)}</span></p>
+                  <p>Taxa de retirada: <span className="text-yellow-400">- R$ {WITHDRAWAL_FEE.toFixed(2)}</span></p>
+                  <p className="text-emerald-400 font-medium">Valor liquido a receber: R$ {(parseFloat(withdrawalAmount) - WITHDRAWAL_FEE).toFixed(2)}</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="pixHolderName" className="text-gray-300">Nome do titular da conta PIX</Label>
+              <Input
+                id="pixHolderName"
+                type="text"
+                placeholder="Nome completo do titular"
+                value={pixHolderName}
+                onChange={(e) => setPixHolderName(e.target.value)}
+                className="bg-zinc-900 border-zinc-700 text-white"
+                data-testid="input-pix-holder-name"
               />
             </div>
             
