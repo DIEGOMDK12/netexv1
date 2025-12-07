@@ -684,9 +684,10 @@ export async function registerRoutes(
   });
 
   // PagSeguro PIX Payment - Create PIX payment using PagSeguro API v4
+  // Supports both admin config (global) and reseller config (individual accounts)
   app.post("/api/pay/pagseguro", async (req, res) => {
     try {
-      const { orderId, amount, email, description } = req.body;
+      const { orderId, amount, email, description, resellerId } = req.body;
 
       if (!orderId || !amount || !email) {
         return res.status(400).json({ error: "Campos obrigatórios: orderId, amount, email" });
@@ -694,11 +695,30 @@ export async function registerRoutes(
 
       const { createPixPayment } = await import("./pagSeguroController");
       
+      let resellerConfig: { 
+        resellerPagseguroToken?: string; 
+        resellerPagseguroEmail?: string; 
+        resellerPagseguroSandbox?: boolean;
+      } = {};
+      
+      if (resellerId) {
+        const reseller = await storage.getReseller(parseInt(resellerId));
+        if (reseller?.pagseguroToken) {
+          resellerConfig = {
+            resellerPagseguroToken: reseller.pagseguroToken,
+            resellerPagseguroEmail: reseller.pagseguroEmail || undefined,
+            resellerPagseguroSandbox: reseller.pagseguroSandbox ?? true,
+          };
+          console.log(`[PagSeguro] Using reseller ${resellerId} credentials for payment`);
+        }
+      }
+      
       const result = await createPixPayment({
         orderId: parseInt(orderId),
         amount: parseFloat(amount),
         email,
         description,
+        ...resellerConfig,
       });
 
       // Update order with PagSeguro data
