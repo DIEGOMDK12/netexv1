@@ -872,15 +872,8 @@ export async function registerRoutes(
 
       const { createPixPayment } = await import("./abacatePayController");
       
-      // Get reseller's Abacate Pay token if available
+      // AbacatePay deprecated - using PagSeguro instead
       let resellerToken: string | undefined;
-      if (resellerId) {
-        const reseller = await storage.getReseller(parseInt(resellerId));
-        if (reseller?.abacatePayToken) {
-          resellerToken = reseller.abacatePayToken;
-          console.log(`[AbacatePay] Using reseller ${resellerId} token for payment`);
-        }
-      }
       
       const result = await createPixPayment({
         orderId: parseInt(orderId),
@@ -1056,18 +1049,8 @@ export async function registerRoutes(
     try {
       const { billingId } = req.params;
       
-      // Look up order by billingId (stored as pagseguroOrderId) to get reseller token
+      // AbacatePay deprecated - using PagSeguro instead
       let resellerToken: string | undefined;
-      const orders = await storage.getOrders();
-      const order = orders.find(o => o.pagseguroOrderId === billingId);
-      
-      if (order?.resellerId) {
-        const reseller = await storage.getReseller(order.resellerId);
-        if (reseller?.abacatePayToken) {
-          resellerToken = reseller.abacatePayToken;
-          console.log(`[AbacatePay Status] Using reseller ${order.resellerId} token`);
-        }
-      }
       
       const { checkPaymentStatus } = await import("./abacatePayController");
       const status = await checkPaymentStatus(billingId, resellerToken);
@@ -1825,7 +1808,7 @@ export async function registerRoutes(
         pagseguroToken: vendor.pagseguroToken || null,
         pagseguroEmail: vendor.pagseguroEmail || null,
         pagseguroSandbox: false,
-        preferredPaymentMethod: vendor.preferredPaymentMethod || "abacatepay",
+        preferredPaymentMethod: vendor.preferredPaymentMethod || "pagseguro",
       });
     } catch (error) {
       console.error("[Vendor Profile] Error:", error);
