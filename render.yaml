@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: midiastore
+    name: nexstore
     runtime: node
     region: oregon
     plan: free

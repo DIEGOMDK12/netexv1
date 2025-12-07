@@ -5,8 +5,8 @@ import { SiPix } from "react-icons/si";
 export function Footer() {
   const { settings, currentReseller } = useStore();
   
-  const storeName = currentReseller?.storeName || settings?.storeName || "Digital Store";
-  const supportEmail = currentReseller?.supportEmail || (settings as any)?.supportEmail || "support@goldstore.com";
+  const storeName = currentReseller?.storeName || settings?.storeName || "NexStore";
+  const supportEmail = currentReseller?.supportEmail || (settings as any)?.supportEmail || "suporte@nexstore.com";
   const whatsappContact = currentReseller?.whatsappContact || (settings as any)?.whatsappContact || "5585988007000";
   const footerDescription = currentReseller?.footerDescription || "Produtos digitais confiáveis, entrega instantânea";
 

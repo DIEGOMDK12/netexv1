@@ -1,5 +1,5 @@
 {
-  "storeName": "Digital Store",
+  "storeName": "NexStore",
   "logoUrl": "",
   "themeColor": "#00ff00",
   "textColor": "#ffffff",
@@ -10,7 +10,7 @@
   "pagseguroEmail": "Diego.marinho.foda@gmail.com",
   "pagseguroSandbox": false,
   "pagseguroApiUrl": "",
-  "supportEmail": "suport@midiastore",
+  "supportEmail": "suporte@nexstore.com",
   "whatsappContact": "5585988007000",
   "resellerWhatsapp": ""
 }

@@ -71,7 +71,7 @@ function readSettings() {
   } catch (error) {
     console.error("[Settings] Error reading settings file:", error);
     return {
-      storeName: "Digital Store",
+      storeName: "NexStore",
       logoUrl: "",
       themeColor: "#3B82F6",
       textColor: "#FFFFFF",
@@ -82,7 +82,7 @@ function readSettings() {
       pagseguroEmail: "",
       pagseguroSandbox: true,
       pagseguroApiUrl: "",
-      supportEmail: "support@goldstore.com",
+      supportEmail: "suporte@nexstore.com",
       whatsappContact: "5585988007000",
       resellerWhatsapp: ""
     };
@@ -189,7 +189,7 @@ export async function registerRoutes(
     const currentSettings = readSettings();
     
     const updatedSettings = {
-      storeName: storeName || currentSettings.storeName || "Digital Store",
+      storeName: storeName || currentSettings.storeName || "NexStore",
       logoUrl: logoUrl || currentSettings.logoUrl || "",
       themeColor: themeColor || currentSettings.themeColor || "#3B82F6",
       textColor: textColor || currentSettings.textColor || "#FFFFFF",
@@ -200,7 +200,7 @@ export async function registerRoutes(
       pagseguroEmail: pagseguroEmail || currentSettings.pagseguroEmail || "",
       pagseguroSandbox: pagseguroSandbox !== undefined ? pagseguroSandbox : (currentSettings.pagseguroSandbox !== undefined ? currentSettings.pagseguroSandbox : true),
       pagseguroApiUrl: pagseguroApiUrl || currentSettings.pagseguroApiUrl || "",
-      supportEmail: supportEmail || currentSettings.supportEmail || "support@goldstore.com",
+      supportEmail: supportEmail || currentSettings.supportEmail || "suporte@nexstore.com",
       whatsappContact: whatsappContact || currentSettings.whatsappContact || "5585988007000",
       resellerWhatsapp: resellerWhatsapp || currentSettings.resellerWhatsapp || ""
     };
@@ -394,7 +394,7 @@ export async function registerRoutes(
       const { storeName, logoUrl, themeColor, textColor, pixKey, pagseguroToken, pagseguroApiUrl } = req.body;
       
       const settings = await storage.updateSettings({
-        storeName: storeName || "Digital Store",
+        storeName: storeName || "NexStore",
         logoUrl: logoUrl || null,
         themeColor: themeColor || "#3B82F6",
         textColor: textColor || "#FFFFFF",

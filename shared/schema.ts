@@ -124,7 +124,7 @@ export const coupons = pgTable("coupons", {
 
 export const settings = pgTable("settings", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  storeName: text("store_name").notNull().default("Digital Store"),
+  storeName: text("store_name").notNull().default("NexStore"),
   logoUrl: text("logo_url"),
   themeColor: text("theme_color").notNull().default("#3B82F6"),
   textColor: text("text_color").notNull().default("#FFFFFF"),
@@ -135,7 +135,7 @@ export const settings = pgTable("settings", {
   pixKey: text("pix_key").default(""),
   adminPixKey: text("admin_pix_key").default("973.182.722-68"),
   resellerPixKey: text("reseller_pix_key").default(""),
-  supportEmail: text("support_email").default("support@goldstore.com"),
+  supportEmail: text("support_email").default("suporte@nexstore.com"),
   whatsappContact: text("whatsapp_contact").default("5585988007000"),
   resellerWhatsapp: text("reseller_whatsapp").default(""),
 });
