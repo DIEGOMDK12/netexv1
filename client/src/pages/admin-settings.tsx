@@ -15,7 +15,6 @@ export default function AdminSettings() {
     logoUrl: "",
     themeColor: "#3B82F6",
     textColor: "#FFFFFF",
-    pixKey: "",
     pagseguroToken: "",
     pagseguroEmail: "",
     pagseguroApiUrl: "",
@@ -46,7 +45,6 @@ export default function AdminSettings() {
         logoUrl: settings.logoUrl || "",
         themeColor: settings.themeColor || "#3B82F6",
         textColor: settings.textColor || "#FFFFFF",
-        pixKey: (settings as any).pixKey || "",
         pagseguroToken: settings.pagseguroToken || "",
         pagseguroEmail: (settings as any).pagseguroEmail || "",
         pagseguroApiUrl: settings.pagseguroApiUrl || "",
@@ -253,27 +251,6 @@ export default function AdminSettings() {
             <p className="text-sm text-green-300">
               Modo de producao ativo! Todos os pagamentos serao processados com valores reais.
             </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Chave PIX para Saques */}
-      <div
-        className="p-6 rounded-lg border"
-        style={{ backgroundColor: "#1E1E1E", borderColor: "rgba(255,255,255,0.1)" }}
-      >
-        <h3 className="text-lg font-semibold text-white mb-4">Chave PIX para Repasses</h3>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label className="text-white">Chave PIX da Plataforma</Label>
-            <Input
-              value={formData.pixKey}
-              onChange={(e) => setFormData({ ...formData, pixKey: e.target.value })}
-              placeholder="CPF, CNPJ, E-mail ou Chave Aleatoria"
-              style={{ backgroundColor: "#242424", borderColor: "rgba(255,255,255,0.1)", color: "#fff" }}
-              data-testid="input-pix-key"
-            />
-            <p className="text-xs text-gray-400">Chave PIX para identificacao nos repasses</p>
           </div>
         </div>
       </div>
