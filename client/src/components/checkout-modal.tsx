@@ -172,37 +172,73 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
       const data = await response.json();
       setOrder(data);
 
-      // After order is created, call Abacate Pay API to generate PIX
+      // After order is created, call appropriate payment API based on vendor settings
       if (data.id) {
         setIsProcessingPix(true);
         try {
-          const pixResponse = await apiRequest("POST", "/api/pay/abacatepay", {
-            orderId: data.id,
-            amount: finalTotal,
-            email,
-            description: `Pedido #${data.id}`,
-            customerName: email.split("@")[0],
-          });
-          const pixData = await pixResponse.json();
-          if (pixData.success) {
-            setPixPayment({
-              pixCode: pixData.pixCode,
-              qrCodeBase64: pixData.pixQrCodeUrl,
-              billingId: pixData.billingId,
-              checkoutUrl: pixData.checkoutUrl,
+          const preferredMethod = settings?.preferredPaymentMethod || "abacatepay";
+          console.log("[CheckoutModal] Using payment method:", preferredMethod, "resellerId:", resellerId);
+          
+          let pixResponse;
+          let pixData;
+          
+          if (preferredMethod === "pagseguro" && resellerId) {
+            // Use PagSeguro for this vendor
+            console.log("[CheckoutModal] Calling PagSeguro API for reseller:", resellerId);
+            pixResponse = await apiRequest("POST", "/api/pay/pagseguro", {
+              orderId: data.id,
+              amount: finalTotal,
+              email,
+              description: `Pedido #${data.id}`,
+              resellerId: resellerId,
             });
-            toast({
-              title: "Pedido criado!",
-              description: "Escaneie o QR Code ou copie o código PIX para pagar",
-            });
+            pixData = await pixResponse.json();
+            
+            if (pixData.success) {
+              setPixPayment({
+                pixCode: pixData.pixCode,
+                qrCodeBase64: pixData.qrCodeBase64 || pixData.qrCodeImageUrl,
+                billingId: pixData.pagseguroOrderId,
+              });
+              toast({
+                title: "Pedido criado!",
+                description: "Escaneie o QR Code ou copie o código PIX para pagar",
+              });
+            } else {
+              throw new Error(pixData.error || "PagSeguro falhou");
+            }
           } else {
-            toast({
-              title: "Pedido criado!",
-              description: "Aguarde o QR Code PIX ou entre em contato com o vendedor",
+            // Use Abacate Pay (default)
+            console.log("[CheckoutModal] Calling AbacatePay API");
+            pixResponse = await apiRequest("POST", "/api/pay/abacatepay", {
+              orderId: data.id,
+              amount: finalTotal,
+              email,
+              description: `Pedido #${data.id}`,
+              customerName: email.split("@")[0],
             });
+            pixData = await pixResponse.json();
+            
+            if (pixData.success) {
+              setPixPayment({
+                pixCode: pixData.pixCode,
+                qrCodeBase64: pixData.pixQrCodeUrl,
+                billingId: pixData.billingId,
+                checkoutUrl: pixData.checkoutUrl,
+              });
+              toast({
+                title: "Pedido criado!",
+                description: "Escaneie o QR Code ou copie o código PIX para pagar",
+              });
+            } else {
+              toast({
+                title: "Pedido criado!",
+                description: "Aguarde o QR Code PIX ou entre em contato com o vendedor",
+              });
+            }
           }
         } catch (pixError: any) {
-          console.error("AbacatePay error:", pixError);
+          console.error("Payment API error:", pixError);
           toast({
             title: "Pedido criado!",
             description: "PIX automático indisponível. Verifique a chave PIX manual.",
