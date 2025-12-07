@@ -1,17 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRoute } from "wouter";
-import { Loader2, Store, ShoppingCart, Search, Headphones, Package, Zap, Gift, Sparkles } from "lucide-react";
+import { Loader2, Store, ShoppingCart, Search, Headphones, Package, Zap, Gift, Sparkles, User, LogOut } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useState, useMemo, useEffect } from "react";
 import type { Product, Reseller } from "@shared/schema";
 import { CheckoutModal } from "@/components/checkout-modal";
 import { useStore } from "@/lib/store-context";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function ResellerStore() {
   const [match, params] = useRoute("/loja/:slug");
   const slug = params?.slug as string;
   const { addToCart, cartCount, setCurrentReseller } = useStore();
+  const { user, isAuthenticated, login, logout } = useAuth();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -177,13 +179,31 @@ export default function ResellerStore() {
                     </span>
                   )}
                 </Button>
-                <Button
-                  variant="outline"
-                  className="ml-2 border-purple-500/50 text-white hover:bg-purple-500/20"
-                  data-testid="button-login"
-                >
-                  Entrar
-                </Button>
+                {isAuthenticated ? (
+                  <div className="flex items-center gap-2 ml-2">
+                    <span className="text-sm text-gray-300 hidden sm:inline" data-testid="text-user-name">
+                      {user?.firstName || user?.email?.split('@')[0]}
+                    </span>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="text-gray-300 hover:text-white"
+                      onClick={logout}
+                      data-testid="button-logout"
+                    >
+                      <LogOut className="w-5 h-5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="ml-2 border-purple-500/50 text-white hover:bg-purple-500/20"
+                    onClick={() => login()}
+                    data-testid="button-login"
+                  >
+                    Entrar
+                  </Button>
+                )}
               </div>
             </div>
           </header>
