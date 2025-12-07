@@ -3,12 +3,10 @@ import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CreditCard, Wallet } from "lucide-react";
+import { queryClient } from "@/lib/queryClient";
+import { CreditCard, Info, Wallet } from "lucide-react";
 
 export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: number; vendorData: any }) {
   const { toast } = useToast();
@@ -19,29 +17,34 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
     pixKey: vendorData?.pixKey || "",
     phone: vendorData?.phone || "",
     cpf: vendorData?.cpf || "",
-    pagseguroToken: vendorData?.pagseguroToken || "",
-    pagseguroEmail: vendorData?.pagseguroEmail || "",
-    pagseguroSandbox: vendorData?.pagseguroSandbox ?? true,
-    abacatePayToken: vendorData?.abacatePayToken || "",
-    preferredPaymentMethod: vendorData?.preferredPaymentMethod || "abacatepay",
   });
+
+  const vendorToken = localStorage.getItem("vendor_token");
 
   const saveMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest("PATCH", `/api/vendor/settings/${vendorId}`, data);
+      const response = await fetch(`/api/vendor/settings/${vendorId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${vendorToken}`,
+        },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error('Erro ao salvar');
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/vendor/profile", vendorId] });
-      alert("Dados salvos com sucesso!");
       toast({
         title: "Sucesso",
-        description: "Configurações atualizadas!",
+        description: "Configuracoes atualizadas!",
       });
     },
     onError: (error: any) => {
       toast({
         title: "Erro",
-        description: error?.message || "Não foi possível salvar as configurações",
+        description: error?.message || "Nao foi possivel salvar as configuracoes",
         variant: "destructive",
       });
     },
@@ -55,17 +58,117 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
       pixKey: settings.pixKey,
       phone: settings.phone,
       cpf: settings.cpf,
-      pagseguroToken: settings.pagseguroToken,
-      pagseguroEmail: settings.pagseguroEmail,
-      pagseguroSandbox: settings.pagseguroSandbox,
-      abacatePayToken: settings.abacatePayToken,
-      preferredPaymentMethod: settings.preferredPaymentMethod,
     });
   };
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-white">Configurações</h1>
+      <h1 className="text-3xl font-bold text-white">Configuracoes</h1>
+
+      {/* Informacao sobre Pagamentos */}
+      <Card
+        style={{
+          background: "rgba(20, 184, 166, 0.1)",
+          backdropFilter: "blur(12px)",
+          border: "1px solid rgba(20, 184, 166, 0.3)",
+        }}
+      >
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-teal-500/20 flex items-center justify-center">
+              <CreditCard className="w-5 h-5 text-teal-400" />
+            </div>
+            <div>
+              <CardTitle className="text-white">Pagamentos</CardTitle>
+              <p className="text-sm text-teal-400 mt-1">Processados pela plataforma</p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-start gap-3 p-4 rounded-lg bg-teal-500/10">
+            <Info className="w-5 h-5 text-teal-400 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm text-teal-300">
+                Todos os pagamentos dos seus clientes sao processados automaticamente pela plataforma via PagSeguro.
+              </p>
+              <p className="text-sm text-gray-400 mt-2">
+                O valor das vendas sera creditado no seu saldo e voce pode solicitar saque via Pix no menu "Saques".
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Chave PIX para Saques */}
+      <Card
+        style={{
+          background: "rgba(30, 30, 30, 0.4)",
+          backdropFilter: "blur(12px)",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
+        }}
+      >
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
+              <Wallet className="w-5 h-5 text-green-400" />
+            </div>
+            <div>
+              <CardTitle className="text-white">Dados para Saque</CardTitle>
+              <p className="text-sm text-gray-400 mt-1">Configure onde receber seus saques via Pix</p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-white">Chave PIX para Receber Saques</Label>
+            <Input
+              value={settings.pixKey}
+              onChange={(e) => setSettings({ ...settings, pixKey: e.target.value })}
+              placeholder="CPF, Email, Telefone ou Chave Aleatoria"
+              style={{
+                background: "rgba(30, 30, 40, 0.4)",
+                backdropFilter: "blur(10px)",
+                borderColor: "rgba(255,255,255,0.1)",
+                color: "#FFFFFF",
+              }}
+              data-testid="input-pix-key"
+            />
+            <p className="text-xs text-gray-500">Esta chave sera usada para receber seus saques</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-white">CPF/CNPJ do Titular</Label>
+            <Input
+              value={settings.cpf}
+              onChange={(e) => setSettings({ ...settings, cpf: e.target.value })}
+              placeholder="000.000.000-00"
+              style={{
+                background: "rgba(30, 30, 40, 0.4)",
+                backdropFilter: "blur(10px)",
+                borderColor: "rgba(255,255,255,0.1)",
+                color: "#FFFFFF",
+              }}
+              data-testid="input-cpf"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-white">Telefone</Label>
+            <Input
+              value={settings.phone}
+              onChange={(e) => setSettings({ ...settings, phone: e.target.value })}
+              placeholder="(85) 98888-7000"
+              style={{
+                background: "rgba(30, 30, 40, 0.4)",
+                backdropFilter: "blur(10px)",
+                borderColor: "rgba(255,255,255,0.1)",
+                color: "#FFFFFF",
+              }}
+              data-testid="input-phone"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Store Customization */}
       <Card
@@ -76,7 +179,7 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
         }}
       >
         <CardHeader>
-          <CardTitle className="text-white">Personalização da Loja</CardTitle>
+          <CardTitle className="text-white">Personalizacao da Loja</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -109,62 +212,13 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
               }}
               data-testid="input-logo-url"
             />
-            <p className="text-xs text-gray-500">Link direto para sua logo (PNG/JPG). Aparecerá no topo de todas as páginas.</p>
+            <p className="text-xs text-gray-500">Link direto para sua logo (PNG/JPG)</p>
             {settings.logoUrl && (
               <div className="mt-2 p-3 rounded-lg border border-white/10 bg-white/5">
-                <p className="text-xs text-gray-400 mb-2">Prévia:</p>
+                <p className="text-xs text-gray-400 mb-2">Previa:</p>
                 <img src={settings.logoUrl} alt="Logo preview" className="h-10 object-contain" />
               </div>
             )}
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-white">Chave PIX para Receber</Label>
-            <Input
-              value={settings.pixKey}
-              onChange={(e) => setSettings({ ...settings, pixKey: e.target.value })}
-              placeholder="CPF, Email, Telefone ou Chave Aleatória"
-              style={{
-                background: "rgba(30, 30, 40, 0.4)",
-                backdropFilter: "blur(10px)",
-                borderColor: "rgba(255,255,255,0.1)",
-                color: "#FFFFFF",
-              }}
-              data-testid="input-pix-key"
-            />
-            <p className="text-xs text-gray-500">Seus clientes enviarão PIX para essa chave ao comprar</p>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-white">Seu Telefone</Label>
-            <Input
-              value={settings.phone}
-              onChange={(e) => setSettings({ ...settings, phone: e.target.value })}
-              placeholder="(85) 98888-7000"
-              style={{
-                background: "rgba(30, 30, 40, 0.4)",
-                backdropFilter: "blur(10px)",
-                borderColor: "rgba(255,255,255,0.1)",
-                color: "#FFFFFF",
-              }}
-              data-testid="input-phone"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-white">CPF/CNPJ</Label>
-            <Input
-              value={settings.cpf}
-              onChange={(e) => setSettings({ ...settings, cpf: e.target.value })}
-              placeholder="000.000.000-00"
-              style={{
-                background: "rgba(30, 30, 40, 0.4)",
-                backdropFilter: "blur(10px)",
-                borderColor: "rgba(255,255,255,0.1)",
-                color: "#FFFFFF",
-              }}
-              data-testid="input-cpf"
-            />
           </div>
 
           <div className="space-y-3">
@@ -188,220 +242,10 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
               />
               <div>
                 <p className="text-sm text-gray-400">Cor selecionada</p>
-                <p className="text-xs text-gray-500">Seus botões aparecerão nesta cor</p>
+                <p className="text-xs text-gray-500">Seus botoes aparecerao nesta cor</p>
               </div>
             </div>
           </div>
-
-          <Button
-            onClick={handleSaveSettings}
-            disabled={saveMutation.isPending}
-            style={{
-              background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)",
-              color: "#FFFFFF",
-              border: "1px solid rgba(255, 255, 255, 0.2)",
-            }}
-            data-testid="button-save-store-settings"
-            className="w-full"
-          >
-            {saveMutation.isPending ? "Salvando..." : "Salvar Configurações"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Payment Configuration - PagSeguro */}
-      <Card
-        style={{
-          background: "rgba(30, 30, 30, 0.4)",
-          backdropFilter: "blur(12px)",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
-        }}
-      >
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5 text-green-500" />
-            <CardTitle className="text-white">Configuração de Pagamentos</CardTitle>
-          </div>
-          <CardDescription className="text-gray-400">
-            Configure como você deseja receber pagamentos PIX dos seus clientes
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Payment Method Selection */}
-          <div className="space-y-3">
-            <Label className="text-white">Método de Recebimento Preferido</Label>
-            <Select
-              value={settings.preferredPaymentMethod}
-              onValueChange={(value) => setSettings({ ...settings, preferredPaymentMethod: value })}
-            >
-              <SelectTrigger 
-                style={{
-                  background: "rgba(30, 30, 40, 0.4)",
-                  backdropFilter: "blur(10px)",
-                  borderColor: "rgba(255,255,255,0.1)",
-                  color: "#FFFFFF",
-                }}
-                data-testid="select-payment-method"
-              >
-                <SelectValue placeholder="Selecione o método" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="abacatepay">
-                  <div className="flex items-center gap-2">
-                    <Wallet className="h-4 w-4" />
-                    <span>AbacatePay (Plataforma)</span>
-                  </div>
-                </SelectItem>
-                <SelectItem value="pagseguro">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-4 w-4" />
-                    <span>PagSeguro (Sua conta)</span>
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-gray-500">
-              {settings.preferredPaymentMethod === "abacatepay" 
-                ? "Pagamentos via AbacatePay - processado pela plataforma" 
-                : "Pagamentos via PagSeguro - você recebe diretamente na sua conta"}
-            </p>
-          </div>
-
-          {/* AbacatePay Config - Only show if abacatepay is selected */}
-          {settings.preferredPaymentMethod === "abacatepay" && (
-            <div className="space-y-4 p-4 rounded-lg border border-purple-500/30 bg-purple-500/5">
-              <div className="flex items-center gap-2 mb-2">
-                <Wallet className="h-4 w-4 text-purple-500" />
-                <span className="text-sm font-medium text-purple-400">Configuracao AbacatePay</span>
-              </div>
-              
-              <div className="space-y-2">
-                <Label className="text-white">Token da API AbacatePay</Label>
-                <Input
-                  type="password"
-                  value={settings.abacatePayToken}
-                  onChange={(e) => setSettings({ ...settings, abacatePayToken: e.target.value })}
-                  placeholder="Seu token de API do AbacatePay"
-                  style={{
-                    background: "rgba(30, 30, 40, 0.4)",
-                    backdropFilter: "blur(10px)",
-                    borderColor: "rgba(255,255,255,0.1)",
-                    color: "#FFFFFF",
-                  }}
-                  data-testid="input-abacatepay-token"
-                />
-                <p className="text-xs text-gray-500">
-                  Encontre seu token em: AbacatePay &gt; Configuracoes &gt; API &gt; Gerar Token
-                </p>
-              </div>
-
-              {settings.abacatePayToken ? (
-                <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/30">
-                  <p className="text-sm text-purple-400 font-medium">
-                    Token Configurado
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Pagamentos PIX serao enviados diretamente para sua conta AbacatePay
-                  </p>
-                </div>
-              ) : (
-                <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
-                  <p className="text-sm text-yellow-400 font-medium">
-                    Token Nao Configurado
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Configure seu token para receber pagamentos diretamente na sua conta
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* PagSeguro Config - Only show if pagseguro is selected */}
-          {settings.preferredPaymentMethod === "pagseguro" && (
-            <div className="space-y-4 p-4 rounded-lg border border-green-500/30 bg-green-500/5">
-              <div className="flex items-center gap-2 mb-2">
-                <CreditCard className="h-4 w-4 text-green-500" />
-                <span className="text-sm font-medium text-green-400">Configuração PagSeguro</span>
-              </div>
-              
-              <div className="space-y-2">
-                <Label className="text-white">Token do PagSeguro</Label>
-                <Input
-                  type="password"
-                  value={settings.pagseguroToken}
-                  onChange={(e) => setSettings({ ...settings, pagseguroToken: e.target.value })}
-                  placeholder="Seu token de autenticação do PagSeguro"
-                  style={{
-                    background: "rgba(30, 30, 40, 0.4)",
-                    backdropFilter: "blur(10px)",
-                    borderColor: "rgba(255,255,255,0.1)",
-                    color: "#FFFFFF",
-                  }}
-                  data-testid="input-pagseguro-token"
-                />
-                <p className="text-xs text-gray-500">
-                  Encontre seu token em: PagSeguro &gt; Minha Conta &gt; Integrações &gt; Gerar Token
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-white">Email do PagSeguro</Label>
-                <Input
-                  type="email"
-                  value={settings.pagseguroEmail}
-                  onChange={(e) => setSettings({ ...settings, pagseguroEmail: e.target.value })}
-                  placeholder="seu-email@pagseguro.com"
-                  style={{
-                    background: "rgba(30, 30, 40, 0.4)",
-                    backdropFilter: "blur(10px)",
-                    borderColor: "rgba(255,255,255,0.1)",
-                    color: "#FFFFFF",
-                  }}
-                  data-testid="input-pagseguro-email"
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
-                <div className="space-y-1">
-                  <Label className="text-white">Modo Sandbox (Teste)</Label>
-                  <p className="text-xs text-gray-400">
-                    Ative para testar sem processar pagamentos reais
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.pagseguroSandbox}
-                  onCheckedChange={(checked) => setSettings({ ...settings, pagseguroSandbox: checked })}
-                  data-testid="switch-pagseguro-sandbox"
-                />
-              </div>
-
-              {!settings.pagseguroSandbox && (
-                <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/30">
-                  <p className="text-sm text-green-400 font-medium">
-                    Modo Produção Ativo
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Pagamentos serão processados e você receberá diretamente na sua conta PagSeguro
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          <Button
-            onClick={handleSaveSettings}
-            disabled={saveMutation.isPending}
-            style={{
-              background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
-              color: "#FFFFFF",
-              border: "1px solid rgba(255, 255, 255, 0.2)",
-            }}
-            data-testid="button-save-payment-settings"
-            className="w-full"
-          >
-            {saveMutation.isPending ? "Salvando..." : "Salvar Configurações de Pagamento"}
-          </Button>
         </CardContent>
       </Card>
 
@@ -414,15 +258,25 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
         }}
       >
         <CardHeader>
-          <CardTitle className="text-white">Informações da Conta</CardTitle>
+          <CardTitle className="text-white">Informacoes da Conta</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           <p className="text-sm text-gray-400">Email: {vendorData?.email}</p>
-          <p className="text-sm text-gray-400">Slug: {vendorData?.slug}</p>
-          <p className="text-sm text-gray-400">Comissão: {vendorData?.commissionPercent}%</p>
+          <p className="text-sm text-gray-400">Link da loja: /{vendorData?.slug}</p>
+          <p className="text-sm text-gray-400">Comissao: {vendorData?.commissionPercent}%</p>
           <p className="text-sm text-gray-400">Total de vendas: R$ {parseFloat(vendorData?.totalSales as any || "0").toFixed(2)}</p>
         </CardContent>
       </Card>
+
+      {/* Save Button */}
+      <Button
+        onClick={handleSaveSettings}
+        disabled={saveMutation.isPending}
+        className="w-full bg-teal-600 hover:bg-teal-700 text-white h-10"
+        data-testid="button-save-settings"
+      >
+        {saveMutation.isPending ? "Salvando..." : "Salvar Configuracoes"}
+      </Button>
     </div>
   );
 }
