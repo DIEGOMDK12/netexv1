@@ -7,6 +7,14 @@ import fs from "fs";
 import path from "path";
 import multer from "multer";
 import { sendDeliveryEmail } from "./email";
+import {
+  generateAuthorizationUrl,
+  exchangeCodeForToken,
+  refreshAccessToken,
+  createPixOrder,
+  checkOrderStatus,
+  parseWebhook as parsePagseguroWebhook,
+} from "./pagseguroConnectController";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -1102,6 +1110,345 @@ export async function registerRoutes(
       res.status(500).json({ error: error.message });
     }
   });
+
+  // ============== PAGSEGURO CONNECT ROUTES ==============
+
+  // PagSeguro Connect - Generate authorization URL for reseller
+  app.get("/api/pagseguro/connect/authorize", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    
+    if (!isVendorAuthenticated(token)) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    
+    const vendorId = tokenToVendor.get(token!);
+    if (!vendorId) {
+      return res.status(401).json({ error: "Vendedor não encontrado" });
+    }
+    
+    try {
+      const baseUrl = process.env.APP_URL 
+        || (process.env.REPLIT_DOMAINS?.split(',')[0] 
+            ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` 
+            : 'http://localhost:5000');
+      
+      const redirectUri = `${baseUrl}/api/pagseguro/connect/callback`;
+      const state = `${vendorId}-${crypto.randomBytes(16).toString("hex")}`;
+      
+      const authUrl = generateAuthorizationUrl(redirectUri, state);
+      
+      console.log(`[PagSeguro Connect] Generated auth URL for vendor ${vendorId}`);
+      res.json({ authUrl, state });
+    } catch (error: any) {
+      console.error("[PagSeguro Connect] Error generating auth URL:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // PagSeguro Connect - OAuth callback
+  app.get("/api/pagseguro/connect/callback", async (req, res) => {
+    const { code, state, error: oauthError } = req.query;
+    
+    if (oauthError) {
+      console.error("[PagSeguro Connect] OAuth error:", oauthError);
+      return res.redirect(`/vendor/settings?pagseguro_error=${encodeURIComponent(String(oauthError))}`);
+    }
+    
+    if (!code || !state) {
+      return res.redirect("/vendor/settings?pagseguro_error=missing_params");
+    }
+    
+    // Extract vendorId from state
+    const stateParts = String(state).split("-");
+    const vendorId = parseInt(stateParts[0]);
+    
+    if (isNaN(vendorId)) {
+      return res.redirect("/vendor/settings?pagseguro_error=invalid_state");
+    }
+    
+    try {
+      const baseUrl = process.env.APP_URL 
+        || (process.env.REPLIT_DOMAINS?.split(',')[0] 
+            ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` 
+            : 'http://localhost:5000');
+      
+      const redirectUri = `${baseUrl}/api/pagseguro/connect/callback`;
+      
+      const tokens = await exchangeCodeForToken(String(code), redirectUri);
+      
+      // Calculate expiration date
+      const expiresAt = new Date();
+      expiresAt.setSeconds(expiresAt.getSeconds() + tokens.expiresIn);
+      
+      // Update reseller with PagSeguro credentials
+      await storage.updateReseller(vendorId, {
+        pagseguroAccessToken: tokens.accessToken,
+        pagseguroRefreshToken: tokens.refreshToken,
+        pagseguroTokenExpiresAt: expiresAt,
+        pagseguroAccountId: tokens.accountId || null,
+        pagseguroConnected: true,
+      });
+      
+      console.log(`[PagSeguro Connect] Vendor ${vendorId} connected successfully`);
+      res.redirect("/vendor/settings?pagseguro_success=true");
+    } catch (error: any) {
+      console.error("[PagSeguro Connect] Callback error:", error.message);
+      res.redirect(`/vendor/settings?pagseguro_error=${encodeURIComponent(error.message)}`);
+    }
+  });
+
+  // PagSeguro Connect - Disconnect account
+  app.post("/api/pagseguro/connect/disconnect", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    
+    if (!isVendorAuthenticated(token)) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    
+    const vendorId = tokenToVendor.get(token!);
+    if (!vendorId) {
+      return res.status(401).json({ error: "Vendedor não encontrado" });
+    }
+    
+    try {
+      await storage.updateReseller(vendorId, {
+        pagseguroAccessToken: null,
+        pagseguroRefreshToken: null,
+        pagseguroTokenExpiresAt: null,
+        pagseguroAccountId: null,
+        pagseguroConnected: false,
+      });
+      
+      console.log(`[PagSeguro Connect] Vendor ${vendorId} disconnected`);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[PagSeguro Connect] Disconnect error:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // PagSeguro Connect - Check connection status
+  app.get("/api/pagseguro/connect/status", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    
+    if (!isVendorAuthenticated(token)) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    
+    const vendorId = tokenToVendor.get(token!);
+    if (!vendorId) {
+      return res.status(401).json({ error: "Vendedor não encontrado" });
+    }
+    
+    try {
+      const reseller = await storage.getReseller(vendorId);
+      
+      res.json({
+        connected: reseller?.pagseguroConnected || false,
+        accountId: reseller?.pagseguroAccountId || null,
+        expiresAt: reseller?.pagseguroTokenExpiresAt || null,
+      });
+    } catch (error: any) {
+      console.error("[PagSeguro Connect] Status check error:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // PagSeguro Connect - Create PIX payment
+  app.post("/api/pay/pagseguro", async (req, res) => {
+    try {
+      const { orderId, amount, email, customerName, customerCpf, resellerId } = req.body;
+      
+      if (!orderId || !amount || !resellerId) {
+        return res.status(400).json({ error: "Dados incompletos para pagamento" });
+      }
+      
+      // Get reseller's PagSeguro credentials
+      const reseller = await storage.getReseller(resellerId);
+      
+      if (!reseller?.pagseguroConnected || !reseller?.pagseguroAccessToken) {
+        return res.status(400).json({ error: "Revendedor não conectou conta PagSeguro" });
+      }
+      
+      // Check if token is expired and refresh if needed
+      let accessToken = reseller.pagseguroAccessToken;
+      
+      if (reseller.pagseguroTokenExpiresAt && new Date() >= new Date(reseller.pagseguroTokenExpiresAt)) {
+        if (!reseller.pagseguroRefreshToken) {
+          return res.status(400).json({ error: "Token PagSeguro expirado. Reconecte a conta." });
+        }
+        
+        try {
+          const newTokens = await refreshAccessToken(reseller.pagseguroRefreshToken);
+          
+          const expiresAt = new Date();
+          expiresAt.setSeconds(expiresAt.getSeconds() + newTokens.expiresIn);
+          
+          await storage.updateReseller(resellerId, {
+            pagseguroAccessToken: newTokens.accessToken,
+            pagseguroRefreshToken: newTokens.refreshToken,
+            pagseguroTokenExpiresAt: expiresAt,
+          });
+          
+          accessToken = newTokens.accessToken;
+          console.log(`[PagSeguro Connect] Token refreshed for reseller ${resellerId}`);
+        } catch (refreshError: any) {
+          console.error("[PagSeguro Connect] Token refresh failed:", refreshError.message);
+          return res.status(400).json({ error: "Falha ao renovar token. Reconecte a conta PagSeguro." });
+        }
+      }
+      
+      const baseUrl = process.env.APP_URL 
+        || (process.env.REPLIT_DOMAINS?.split(',')[0] 
+            ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` 
+            : 'http://localhost:5000');
+      
+      const webhookUrl = `${baseUrl}/api/pay/pagseguro/webhook`;
+      
+      const result = await createPixOrder({
+        orderId,
+        amount,
+        customerName: customerName || "Cliente",
+        customerEmail: email,
+        customerCpf: customerCpf || "",
+        accessToken,
+        webhookUrl,
+        sandbox: reseller.pagseguroSandbox ?? true,
+      });
+      
+      // Update order with PagSeguro order ID
+      await storage.updateOrder(orderId, {
+        pagseguroOrderId: result.pagseguroOrderId,
+        paymentMethod: "pagseguro_pix",
+        pixCode: result.pixCode,
+        pixQrCode: result.pixQrCodeUrl,
+      });
+      
+      console.log(`[PagSeguro Connect] PIX created for order ${orderId}`);
+      
+      res.json({
+        success: true,
+        pixCode: result.pixCode,
+        pixQrCode: result.pixQrCodeUrl,
+        pagseguroOrderId: result.pagseguroOrderId,
+        expirationDate: result.expirationDate,
+      });
+    } catch (error: any) {
+      console.error("[PagSeguro Connect] Payment error:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // PagSeguro Connect - Check payment status
+  app.get("/api/pay/pagseguro/status/:pagseguroOrderId", async (req, res) => {
+    try {
+      const { pagseguroOrderId } = req.params;
+      
+      // Look up order to get reseller credentials
+      const orders = await storage.getOrders();
+      const order = orders.find(o => o.pagseguroOrderId === pagseguroOrderId);
+      
+      if (!order?.resellerId) {
+        return res.status(404).json({ error: "Pedido não encontrado" });
+      }
+      
+      const reseller = await storage.getReseller(order.resellerId);
+      
+      if (!reseller?.pagseguroAccessToken) {
+        return res.status(400).json({ error: "Credenciais PagSeguro não encontradas" });
+      }
+      
+      const status = await checkOrderStatus(
+        pagseguroOrderId,
+        reseller.pagseguroAccessToken,
+        reseller.pagseguroSandbox ?? true
+      );
+      
+      res.json(status);
+    } catch (error: any) {
+      console.error("[PagSeguro Connect] Status check error:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // PagSeguro Connect - Webhook for payment notifications
+  app.post("/api/pay/pagseguro/webhook", async (req, res) => {
+    try {
+      console.log("[PagSeguro Webhook] Received:", JSON.stringify(req.body, null, 2));
+      
+      const payload = req.body;
+      const { orderId, isPaid, pagseguroOrderId } = parsePagseguroWebhook(payload);
+      
+      if (!orderId) {
+        console.log("[PagSeguro Webhook] No orderId found in payload");
+        return res.status(200).json({ received: true });
+      }
+      
+      const orderIdNum = parseInt(orderId);
+      const order = await storage.getOrder(orderIdNum);
+      
+      if (!order) {
+        console.log(`[PagSeguro Webhook] Order ${orderId} not found`);
+        return res.status(200).json({ received: true });
+      }
+      
+      if (isPaid && order.status !== "paid") {
+        console.log(`[PagSeguro Webhook] Payment confirmed for order ${orderId}`);
+        
+        // Auto-approve the order (same logic as AbacatePay)
+        const orderItems = await storage.getOrderItems(orderIdNum);
+        let deliveredContent = "";
+        
+        for (const item of orderItems) {
+          const product = await storage.getProduct(item.productId);
+          
+          if (product && product.stock) {
+            const stockLines = product.stock.split("\n").filter((line: string) => line.trim());
+            
+            if (stockLines.length >= 1) {
+              deliveredContent += stockLines[0] + "\n";
+              const remainingStock = stockLines.slice(1).join("\n");
+              await storage.updateProduct(item.productId, { stock: remainingStock });
+            }
+          }
+        }
+        
+        await storage.updateOrder(orderIdNum, {
+          status: "paid",
+          deliveredContent: deliveredContent.trim(),
+        });
+        
+        // Send delivery email
+        if (order.email) {
+          const productNames = orderItems.map((item: any) => item.productName || "Produto").join(", ");
+          const settings = readSettings();
+          
+          sendDeliveryEmail({
+            to: order.email,
+            orderId: orderIdNum,
+            productName: productNames,
+            deliveredContent: deliveredContent.trim(),
+            storeName: settings?.storeName || "Nossa Loja",
+          }).then(result => {
+            if (result.success) {
+              console.log(`[PagSeguro Webhook] Email sent to ${order.email}`);
+            } else {
+              console.error(`[PagSeguro Webhook] Email failed: ${result.error}`);
+            }
+          });
+        }
+        
+        console.log(`[PagSeguro Webhook] Order ${orderId} auto-approved`);
+      }
+      
+      res.status(200).json({ received: true });
+    } catch (error: any) {
+      console.error("[PagSeguro Webhook] Error:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============== END PAGSEGURO CONNECT ROUTES ==============
 
   app.post("/api/admin/login", (req, res) => {
     const { username, password } = req.body;
