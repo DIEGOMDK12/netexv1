@@ -1697,6 +1697,93 @@ export async function registerRoutes(
     }
   });
 
+  // Vendor profile by token (no ID required)
+  app.get("/api/vendor/profile", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const vendorId = tokenToVendor.get(token);
+    if (!vendorId) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    try {
+      const vendor = await storage.getReseller(vendorId);
+      if (!vendor) {
+        return res.status(404).json({ error: "Vendor not found" });
+      }
+
+      res.json({
+        id: vendor.id,
+        name: vendor.name,
+        email: vendor.email,
+        slug: vendor.slug,
+        storeName: vendor.storeName,
+        logoUrl: vendor.logoUrl,
+        themeColor: vendor.themeColor,
+        pixKey: vendor.pixKey || null,
+        phone: vendor.phone || null,
+        cpf: vendor.cpf || null,
+        customDomain: vendor.customDomain || null,
+        commissionPercent: vendor.commissionPercent,
+        totalSales: vendor.totalSales,
+        totalCommission: vendor.totalCommission,
+        subscriptionStatus: vendor.subscriptionStatus || "inactive",
+        subscriptionExpiresAt: vendor.subscriptionExpiresAt,
+        pagseguroToken: vendor.pagseguroToken || null,
+        pagseguroEmail: vendor.pagseguroEmail || null,
+        createdAt: vendor.createdAt,
+      });
+    } catch (error) {
+      console.error("[Vendor Profile GET] Error:", error);
+      res.status(500).json({ error: "Failed to fetch vendor profile" });
+    }
+  });
+
+  app.put("/api/vendor/profile", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const vendorId = tokenToVendor.get(token);
+    if (!vendorId) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    const { storeName, pixKey, pixKeyType, pixHolderName, pagseguroToken, pagseguroEmail } = req.body;
+
+    try {
+      const updateData: any = {};
+      if (storeName !== undefined) updateData.storeName = storeName;
+      if (pixKey !== undefined) updateData.pixKey = pixKey;
+      if (pagseguroToken !== undefined) updateData.pagseguroToken = pagseguroToken;
+      if (pagseguroEmail !== undefined) updateData.pagseguroEmail = pagseguroEmail;
+      updateData.pagseguroSandbox = false;
+
+      const vendor = await storage.updateReseller(vendorId, updateData);
+      if (!vendor) {
+        return res.status(404).json({ error: "Vendor not found" });
+      }
+
+      res.json({
+        id: vendor.id,
+        name: vendor.name,
+        email: vendor.email,
+        slug: vendor.slug,
+        storeName: vendor.storeName,
+        pixKey: vendor.pixKey || null,
+        pagseguroToken: vendor.pagseguroToken || null,
+        pagseguroEmail: vendor.pagseguroEmail || null,
+      });
+    } catch (error) {
+      console.error("[Vendor Profile PUT] Error:", error);
+      res.status(500).json({ error: "Failed to update vendor profile" });
+    }
+  });
+
   app.get("/api/vendor/profile/:id", async (req, res) => {
     const token = req.headers.authorization?.replace("Bearer ", "");
     const vendorId = parseInt(req.params.id);
