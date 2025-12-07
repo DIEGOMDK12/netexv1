@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { CreditCard, Info, Wallet } from "lucide-react";
+import { Info, Wallet } from "lucide-react";
 
 export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: number; vendorData: any }) {
   const { toast } = useToast();
@@ -17,8 +17,6 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
     pixKey: vendorData?.pixKey || "",
     phone: vendorData?.phone || "",
     cpf: vendorData?.cpf || "",
-    pagseguroToken: vendorData?.pagseguroToken || "",
-    pagseguroEmail: vendorData?.pagseguroEmail || "",
   });
 
   const vendorToken = localStorage.getItem("vendor_token");
@@ -60,8 +58,6 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
       pixKey: settings.pixKey,
       phone: settings.phone,
       cpf: settings.cpf,
-      pagseguroToken: settings.pagseguroToken,
-      pagseguroEmail: settings.pagseguroEmail,
     });
   };
 
@@ -69,7 +65,7 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
     <div className="space-y-6">
       <h1 className="text-3xl font-bold text-white">Configuracoes</h1>
 
-      {/* Configuracao PagSeguro */}
+      {/* Informativo sobre Pagamentos */}
       <Card
         style={{
           background: "rgba(20, 184, 166, 0.1)",
@@ -77,72 +73,15 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
           border: "1px solid rgba(20, 184, 166, 0.3)",
         }}
       >
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-teal-500/20 flex items-center justify-center">
-              <CreditCard className="w-5 h-5 text-teal-400" />
-            </div>
-            <div>
-              <CardTitle className="text-white">PagSeguro - Receber Pagamentos</CardTitle>
-              <p className="text-sm text-teal-400 mt-1">Configure para gerar PIX QR Code</p>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="py-4">
           <div className="flex items-start gap-3 p-4 rounded-lg bg-teal-500/10">
             <Info className="w-5 h-5 text-teal-400 mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-sm text-teal-300">
-                Configure seu token do PagSeguro para receber pagamentos dos clientes diretamente na sua conta via PIX QR Code.
+                Os pagamentos dos seus clientes sao processados automaticamente pelo gateway da plataforma. O saldo das vendas fica disponivel para saque na sua carteira.
               </p>
             </div>
           </div>
-
-          <div className="space-y-2">
-            <Label className="text-white">E-mail da conta PagSeguro</Label>
-            <Input
-              type="email"
-              value={settings.pagseguroEmail}
-              onChange={(e) => setSettings({ ...settings, pagseguroEmail: e.target.value })}
-              placeholder="seu-email@pagseguro.com"
-              style={{
-                background: "rgba(30, 30, 40, 0.4)",
-                backdropFilter: "blur(10px)",
-                borderColor: "rgba(255,255,255,0.1)",
-                color: "#FFFFFF",
-              }}
-              data-testid="input-pagseguro-email"
-            />
-            <p className="text-xs text-gray-400">E-mail cadastrado na sua conta PagSeguro</p>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-white">Token de Producao PagSeguro</Label>
-            <Input
-              type="password"
-              value={settings.pagseguroToken}
-              onChange={(e) => setSettings({ ...settings, pagseguroToken: e.target.value })}
-              placeholder="Cole seu token de producao aqui"
-              style={{
-                background: "rgba(30, 30, 40, 0.4)",
-                backdropFilter: "blur(10px)",
-                borderColor: "rgba(255,255,255,0.1)",
-                color: "#FFFFFF",
-              }}
-              data-testid="input-pagseguro-token"
-            />
-            <p className="text-xs text-gray-400">
-              Obtenha em: PagSeguro - Minha Conta - Integracoes - Token de Producao
-            </p>
-          </div>
-
-          {settings.pagseguroToken && settings.pagseguroEmail && (
-            <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/30">
-              <p className="text-sm text-green-300">
-                PagSeguro configurado! Os pagamentos dos seus clientes irao direto para sua conta.
-              </p>
-            </div>
-          )}
         </CardContent>
       </Card>
 
