@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY || "dummy-key-for-initialization");
 
 function escapeHtml(text: string): string {
   const htmlEntities: Record<string, string> = {
