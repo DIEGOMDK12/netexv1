@@ -127,9 +127,9 @@ export default function Home() {
         <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-violet-500/10 rounded-full blur-[100px]" />
         
         <div className="relative max-w-7xl mx-auto px-4 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-blue-500/10 to-violet-500/10 border border-blue-500/20 mb-8">
-            <Sparkles className="w-4 h-4 text-blue-400" />
-            <span className="text-sm font-medium text-blue-300">Entrega Automática e Instantânea</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 mb-8">
+            <Sparkles className="w-4 h-4 text-green-400" />
+            <span className="text-sm font-medium text-green-300">7 Dias Grátis para Testar</span>
           </div>
           
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight tracking-tight">
@@ -373,7 +373,7 @@ export default function Home() {
             <div className="relative">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/10 border border-green-500/20 mb-8">
                 <Star className="w-4 h-4 text-green-400 fill-green-400" />
-                <span className="text-sm font-medium text-green-300">Planos a partir de R$ 10,00/mês</span>
+                <span className="text-sm font-medium text-green-300">7 Dias Grátis + Planos a partir de R$ 10,00/mês</span>
               </div>
               
               <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
