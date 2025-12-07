@@ -90,16 +90,23 @@ async function getTokenForPayment(params: CreatePixPaymentParams): Promise<{
   isSandbox: boolean;
   source: 'oauth' | 'manual' | 'default';
 }> {
+  // Priority 1: Try OAuth token if resellerId is provided
   if (params.resellerId) {
-    const oauthToken = await getValidAccessToken(params.resellerId);
-    if (oauthToken) {
-      const settings = await storage.getSettings();
-      const isSandbox = settings?.pagseguroSandbox ?? true;
-      console.log(`[PagSeguro] Using OAuth token for reseller ${params.resellerId}`);
-      return { token: oauthToken, isSandbox, source: 'oauth' };
+    try {
+      const oauthToken = await getValidAccessToken(params.resellerId);
+      if (oauthToken) {
+        const settings = await storage.getSettings();
+        const isSandbox = settings?.pagseguroSandbox ?? true;
+        console.log(`[PagSeguro] Using OAuth token for reseller ${params.resellerId}`);
+        return { token: oauthToken, isSandbox, source: 'oauth' };
+      }
+      console.log(`[PagSeguro] No OAuth token for reseller ${params.resellerId}, trying fallbacks...`);
+    } catch (error) {
+      console.log(`[PagSeguro] OAuth token retrieval failed for reseller ${params.resellerId}, trying fallbacks...`, error);
     }
   }
 
+  // Priority 2: Use manual reseller token if provided
   if (params.resellerPagseguroToken) {
     console.log(`[PagSeguro] Using manual reseller token`);
     return {
@@ -109,6 +116,7 @@ async function getTokenForPayment(params: CreatePixPaymentParams): Promise<{
     };
   }
 
+  // Priority 3: Use default token from settings/env
   const defaultConfig = getPagSeguroConfig();
   if (defaultConfig.pagseguroToken) {
     console.log(`[PagSeguro] Using default token from settings`);
