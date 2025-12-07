@@ -1319,6 +1319,8 @@ export async function registerRoutes(
         logoUrl: vendor.logoUrl,
         themeColor: vendor.themeColor,
         pixKey: vendor.pixKey || null,
+        phone: vendor.phone || null,
+        cpf: vendor.cpf || null,
         customDomain: vendor.customDomain || null,
         storeUrl: storeUrl,
         commissionPercent: vendor.commissionPercent,
@@ -1326,6 +1328,10 @@ export async function registerRoutes(
         totalCommission: vendor.totalCommission,
         subscriptionStatus: vendor.subscriptionStatus || "inactive",
         subscriptionExpiresAt: vendor.subscriptionExpiresAt,
+        pagseguroToken: vendor.pagseguroToken || null,
+        pagseguroEmail: vendor.pagseguroEmail || null,
+        pagseguroSandbox: vendor.pagseguroSandbox ?? true,
+        preferredPaymentMethod: vendor.preferredPaymentMethod || "abacatepay",
       });
     } catch (error) {
       console.error("[Vendor Profile] Error:", error);
@@ -1485,10 +1491,10 @@ export async function registerRoutes(
   // Vendor Settings Routes
   app.patch("/api/vendor/settings/:id", async (req, res) => {
     const vendorId = parseInt(req.params.id);
-    const { storeName, logoUrl, themeColor, backgroundColor, buttonColor, cardBorderColor, backgroundImageUrl, buttonRadius, pixKey, phone, cpf, mpAccessToken, supportEmail, whatsappContact, footerDescription } = req.body;
+    const { storeName, logoUrl, themeColor, backgroundColor, buttonColor, cardBorderColor, backgroundImageUrl, buttonRadius, pixKey, phone, cpf, mpAccessToken, supportEmail, whatsappContact, footerDescription, pagseguroToken, pagseguroEmail, pagseguroSandbox, preferredPaymentMethod } = req.body;
 
     console.log("[Update Settings] Received request for vendor:", vendorId);
-    console.log("[Update Settings] Data received:", { storeName, logoUrl, themeColor, backgroundColor, buttonColor, cardBorderColor, backgroundImageUrl, buttonRadius, pixKey, phone, cpf, mpAccessToken: mpAccessToken ? "***" : "", supportEmail, whatsappContact, footerDescription });
+    console.log("[Update Settings] Data received:", { storeName, logoUrl, themeColor, backgroundColor, buttonColor, cardBorderColor, backgroundImageUrl, buttonRadius, pixKey, phone, cpf, mpAccessToken: mpAccessToken ? "***" : "", supportEmail, whatsappContact, footerDescription, pagseguroToken: pagseguroToken ? "***" : "", pagseguroEmail, pagseguroSandbox, preferredPaymentMethod });
 
     try {
       const updateData: any = {};
@@ -1507,6 +1513,10 @@ export async function registerRoutes(
       if (supportEmail !== undefined) updateData.supportEmail = supportEmail;
       if (whatsappContact !== undefined) updateData.whatsappContact = whatsappContact;
       if (footerDescription !== undefined) updateData.footerDescription = footerDescription;
+      if (pagseguroToken !== undefined) updateData.pagseguroToken = pagseguroToken;
+      if (pagseguroEmail !== undefined) updateData.pagseguroEmail = pagseguroEmail;
+      if (pagseguroSandbox !== undefined) updateData.pagseguroSandbox = pagseguroSandbox;
+      if (preferredPaymentMethod !== undefined) updateData.preferredPaymentMethod = preferredPaymentMethod;
 
       console.log("[Update Settings] Update data to save:", updateData);
 
