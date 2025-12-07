@@ -53,8 +53,8 @@ export default function VendorDashboard() {
       // Parse string to Date - garantir que é um objeto Date válido
       const expiresAt = expiresAtValue ? new Date(expiresAtValue) : null;
       
-      // Verificação robusta - ambas condições DEVEM ser verdadeiras
-      const isSubscriptionActive = subscriptionStatus === "active";
+      // Verificação robusta - status deve ser "active" ou "trial" e não expirado
+      const isSubscriptionActive = subscriptionStatus === "active" || subscriptionStatus === "trial";
       const isNotExpired = expiresAt ? (expiresAt.getTime() > now.getTime()) : false;
       const canAccess = isSubscriptionActive && isNotExpired;
 
