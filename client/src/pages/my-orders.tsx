@@ -165,25 +165,59 @@ export default function MyOrders() {
                       <div className="text-sm text-gray-300">
                         <p className="font-semibold text-white mb-2">Produtos:</p>
                         {order.items?.map((item: any) => (
-                          <div key={item.id} className="flex items-center justify-between gap-2 py-2 border-b border-gray-700 last:border-b-0">
-                            <div className="flex-1">
-                              <p className="text-gray-300">{item.productName}</p>
-                              <p className="text-xs text-gray-500">Qtd: {item.quantity}</p>
+                          <div key={item.id} className="py-3 border-b border-gray-700 last:border-b-0">
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <div className="flex-1">
+                                <p className="text-gray-300 font-medium">{item.productName}</p>
+                                <p className="text-xs text-gray-500">Qtd: {item.quantity}</p>
+                              </div>
+                              {order.status === "paid" && item.secretContent && (
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => copyContent(item.secretContent, item.id)}
+                                    style={{ backgroundColor: "#3B82F6", color: "#FFFFFF" }}
+                                    data-testid={`button-copy-${item.id}`}
+                                  >
+                                    {copied === item.id ? (
+                                      <>
+                                        <CheckCircle className="w-3 h-3 mr-1" />
+                                        Copiado!
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Copy className="w-3 h-3 mr-1" />
+                                        Copiar
+                                      </>
+                                    )}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => openRedeemDialog({
+                                      id: item.id,
+                                      productName: item.productName,
+                                      secretContent: item.secretContent,
+                                    })}
+                                    className="border-green-500/50 text-green-400"
+                                    data-testid={`button-redeem-${item.id}`}
+                                  >
+                                    <Gift className="w-3 h-3 mr-1" />
+                                    Ver
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                             {order.status === "paid" && item.secretContent && (
-                              <Button
-                                size="sm"
-                                onClick={() => openRedeemDialog({
-                                  id: item.id,
-                                  productName: item.productName,
-                                  secretContent: item.secretContent,
-                                })}
-                                style={{ backgroundColor: "#22C55E", color: "#FFFFFF" }}
-                                data-testid={`button-redeem-${item.id}`}
-                              >
-                                <Gift className="w-3 h-3 mr-1" />
-                                Resgatar
-                              </Button>
+                              <div className="bg-zinc-900/50 p-3 rounded-md border border-gray-700 mt-2">
+                                <p className="text-xs text-gray-400 mb-1">Conteudo entregue:</p>
+                                <p 
+                                  className="text-white text-sm font-mono break-all whitespace-pre-wrap select-all cursor-text"
+                                  data-testid={`text-secret-content-${item.id}`}
+                                >
+                                  {item.secretContent}
+                                </p>
+                              </div>
                             )}
                           </div>
                         ))}
