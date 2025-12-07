@@ -1620,7 +1620,7 @@ export async function registerRoutes(
     }
 
     try {
-      const settings = await storage.updateSettings({
+      const settingsData = {
         storeName: req.body.storeName,
         logoUrl: req.body.logoUrl || null,
         themeColor: req.body.themeColor,
@@ -1632,9 +1632,23 @@ export async function registerRoutes(
         pagseguroApiUrl: req.body.pagseguroApiUrl || null,
         supportEmail: req.body.supportEmail || null,
         whatsappContact: req.body.whatsappContact || null,
-      });
-      res.json(settings);
+      };
+
+      // Save to database
+      const dbSettings = await storage.updateSettings(settingsData);
+
+      // Also save to settings.json file for consistency
+      const currentSettings = readSettings();
+      const updatedFileSettings = {
+        ...currentSettings,
+        ...settingsData,
+      };
+      writeSettings(updatedFileSettings);
+
+      console.log("[PUT /api/admin/settings] Settings saved to both database and file");
+      res.json(dbSettings);
     } catch (error) {
+      console.error("[PUT /api/admin/settings] Error:", error);
       res.status(500).json({ error: "Failed to update settings" });
     }
   });
