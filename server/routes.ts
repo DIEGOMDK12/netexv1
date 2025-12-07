@@ -2289,6 +2289,125 @@ export async function registerRoutes(
     }
   });
 
+  // Vendor Categories Routes
+  app.get("/api/vendor/categories", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const vendorId = tokenToVendor.get(token);
+    if (!vendorId) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    try {
+      const categories = await storage.getResellerCategories(vendorId);
+      console.log("[GET /api/vendor/categories] Found", categories.length, "categories for vendor", vendorId);
+      res.json(categories);
+    } catch (error) {
+      console.error("[GET /api/vendor/categories] Error:", error);
+      res.status(500).json({ error: "Failed to fetch categories" });
+    }
+  });
+
+  app.post("/api/vendor/categories", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const vendorId = tokenToVendor.get(token);
+    if (!vendorId) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    try {
+      const { name, icon, displayOrder } = req.body;
+      
+      if (!name) {
+        return res.status(400).json({ error: "Nome da categoria é obrigatório" });
+      }
+
+      const slug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+
+      const category = await storage.createCategory({
+        name,
+        slug,
+        resellerId: vendorId,
+        icon: icon || "folder",
+        displayOrder: displayOrder || 0,
+        active: true,
+      });
+
+      console.log("[POST /api/vendor/categories] Created category:", category.id, "for vendor", vendorId);
+      res.json(category);
+    } catch (error) {
+      console.error("[POST /api/vendor/categories] Error:", error);
+      res.status(500).json({ error: "Failed to create category" });
+    }
+  });
+
+  app.patch("/api/vendor/categories/:id", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const vendorId = tokenToVendor.get(token);
+    if (!vendorId) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    try {
+      const categoryId = parseInt(req.params.id);
+      const { name, icon, displayOrder, active } = req.body;
+      
+      const updateData: any = {};
+      if (name !== undefined) {
+        updateData.name = name;
+        updateData.slug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+      }
+      if (icon !== undefined) updateData.icon = icon;
+      if (displayOrder !== undefined) updateData.displayOrder = displayOrder;
+      if (active !== undefined) updateData.active = active;
+
+      const category = await storage.updateCategory(categoryId, updateData);
+      
+      if (!category) {
+        return res.status(404).json({ error: "Categoria não encontrada" });
+      }
+
+      console.log("[PATCH /api/vendor/categories] Updated category:", categoryId);
+      res.json(category);
+    } catch (error) {
+      console.error("[PATCH /api/vendor/categories] Error:", error);
+      res.status(500).json({ error: "Failed to update category" });
+    }
+  });
+
+  app.delete("/api/vendor/categories/:id", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const vendorId = tokenToVendor.get(token);
+    if (!vendorId) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    try {
+      const categoryId = parseInt(req.params.id);
+      await storage.deleteCategory(categoryId);
+      console.log("[DELETE /api/vendor/categories] Deleted category:", categoryId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[DELETE /api/vendor/categories] Error:", error);
+      res.status(500).json({ error: "Failed to delete category" });
+    }
+  });
+
   // Vendor Settings Routes
   app.patch("/api/vendor/settings/:id", async (req, res) => {
     const vendorId = parseInt(req.params.id);

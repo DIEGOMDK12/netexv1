@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { VendorLayout } from "@/components/vendor-layout";
 import { DashboardMain } from "./vendor-dashboard-main";
-import { VendorProductsEnhanced } from "./vendor-products-enhanced";
+import { VendorStoreManagement } from "./vendor-store-management";
 import { VendorOrdersEnhanced } from "./vendor-orders-enhanced";
 import { VendorSettingsEnhanced } from "./vendor-settings-enhanced";
 import type { Reseller } from "@shared/schema";
@@ -115,8 +115,8 @@ export default function VendorDashboard() {
         storeName={vendor?.storeName}
         logoUrl={vendor?.logoUrl || undefined}
       >
-        {currentPage === "dashboard" && <DashboardMain vendorId={parseInt(vendorId)} subscriptionExpiresAt={vendor?.subscriptionExpiresAt || null} />}
-        {currentPage === "products" && vendor && <VendorProductsEnhanced vendorId={parseInt(vendorId)} />}
+        {currentPage === "dashboard" && <DashboardMain vendorId={parseInt(vendorId)} subscriptionExpiresAt={vendor?.subscriptionExpiresAt ? vendor.subscriptionExpiresAt.toString() : null} />}
+        {currentPage === "products" && vendor && <VendorStoreManagement vendorId={parseInt(vendorId)} />}
         {currentPage === "orders" && vendor && <VendorOrdersEnhanced vendorId={parseInt(vendorId)} />}
         {currentPage === "settings" && vendor && <VendorSettingsEnhanced vendorId={parseInt(vendorId)} vendorData={vendor} />}
       </VendorLayout>

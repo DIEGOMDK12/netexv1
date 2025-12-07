@@ -30,8 +30,13 @@ export type CustomerUser = typeof customerUsers.$inferSelect;
 
 export const categories = pgTable("categories", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  name: text("name").notNull().unique(),
-  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull(),
+  resellerId: integer("reseller_id"),
+  icon: text("icon").default("folder"),
+  displayOrder: integer("display_order").default(0),
+  active: boolean("active").default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const resellers = pgTable("resellers", {
@@ -81,6 +86,7 @@ export const resellers = pgTable("resellers", {
 export const products = pgTable("products", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   name: text("name").notNull(),
+  slug: text("slug"),
   description: text("description"),
   imageUrl: text("image_url"),
   originalPrice: decimal("original_price", { precision: 10, scale: 2 }).notNull(),
@@ -92,6 +98,7 @@ export const products = pgTable("products", {
   warranty: text("warranty"),
   deliveryContent: text("delivery_content"),
   active: boolean("active").notNull().default(true),
+  limitPerUser: boolean("limit_per_user").default(false),
   resellerId: integer("reseller_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

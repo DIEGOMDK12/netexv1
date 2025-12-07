@@ -1,0 +1,1065 @@
+import { useState, useMemo, useRef } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { 
+  Plus, Trash2, Edit2, Loader2, Upload, ChevronDown, ChevronUp,
+  GripVertical, FolderOpen, Eye, EyeOff, Package, X, Image
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle,
+  DialogFooter 
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import type { Product, Category } from "@shared/schema";
+
+interface VendorStoreManagementProps {
+  vendorId: number;
+}
+
+export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) {
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set());
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [showDeleteCategoryConfirm, setShowDeleteCategoryConfirm] = useState<number | null>(null);
+  const [showDeleteProductConfirm, setShowDeleteProductConfirm] = useState<number | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const [categoryForm, setCategoryForm] = useState({ name: "", icon: "folder" });
+  const [productForm, setProductForm] = useState({
+    name: "",
+    slug: "",
+    description: "",
+    imageUrl: "",
+    currentPrice: "",
+    originalPrice: "",
+    stock: "",
+    categoryId: "",
+    active: true,
+    limitPerUser: false,
+  });
+
+  const { data: categories = [], isLoading: loadingCategories } = useQuery<Category[]>({
+    queryKey: ["/api/vendor/categories"],
+    queryFn: async () => {
+      const token = localStorage.getItem("vendor_token");
+      const response = await fetch("/api/vendor/categories", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("Failed to fetch categories");
+      return response.json();
+    },
+  });
+
+  const { data: products = [], isLoading: loadingProducts } = useQuery<Product[]>({
+    queryKey: ["/api/vendor/products", vendorId],
+    queryFn: async () => {
+      const response = await fetch(`/api/vendor/products?vendorId=${vendorId}`);
+      if (!response.ok) throw new Error("Failed to fetch products");
+      return response.json();
+    },
+  });
+
+  const productsByCategory = useMemo(() => {
+    const grouped: Record<number, Product[]> = {};
+    const uncategorized: Product[] = [];
+    
+    products.forEach((product) => {
+      if (product.categoryId) {
+        if (!grouped[product.categoryId]) {
+          grouped[product.categoryId] = [];
+        }
+        grouped[product.categoryId].push(product);
+      } else {
+        uncategorized.push(product);
+      }
+    });
+
+    return { grouped, uncategorized };
+  }, [products]);
+
+  const createCategoryMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const token = localStorage.getItem("vendor_token");
+      const response = await fetch("/api/vendor/categories", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("Failed to create category");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vendor/categories"] });
+      setShowCategoryModal(false);
+      setCategoryForm({ name: "", icon: "folder" });
+      toast({ title: "Categoria criada com sucesso" });
+    },
+    onError: () => {
+      toast({ title: "Erro ao criar categoria", variant: "destructive" });
+    },
+  });
+
+  const updateCategoryMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const token = localStorage.getItem("vendor_token");
+      const response = await fetch(`/api/vendor/categories/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("Failed to update category");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vendor/categories"] });
+      setShowCategoryModal(false);
+      setEditingCategory(null);
+      setCategoryForm({ name: "", icon: "folder" });
+      toast({ title: "Categoria atualizada com sucesso" });
+    },
+    onError: () => {
+      toast({ title: "Erro ao atualizar categoria", variant: "destructive" });
+    },
+  });
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const token = localStorage.getItem("vendor_token");
+      const response = await fetch(`/api/vendor/categories/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("Failed to delete category");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vendor/categories"] });
+      setShowDeleteCategoryConfirm(null);
+      toast({ title: "Categoria removida com sucesso" });
+    },
+    onError: () => {
+      toast({ title: "Erro ao remover categoria", variant: "destructive" });
+    },
+  });
+
+  const createProductMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return apiRequest("POST", "/api/vendor/products", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vendor/products", vendorId] });
+      setShowProductModal(false);
+      resetProductForm();
+      toast({ title: "Produto criado com sucesso" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Erro ao criar produto", 
+        description: error?.message,
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const updateProductMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      return apiRequest("PATCH", `/api/vendor/products/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vendor/products", vendorId] });
+      setShowProductModal(false);
+      setEditingProduct(null);
+      resetProductForm();
+      toast({ title: "Produto atualizado com sucesso" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Erro ao atualizar produto",
+        description: error?.message,
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const deleteProductMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest("DELETE", `/api/vendor/products/${id}`, null);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vendor/products", vendorId] });
+      setShowDeleteProductConfirm(null);
+      toast({ title: "Produto removido com sucesso" });
+    },
+    onError: () => {
+      toast({ title: "Erro ao remover produto", variant: "destructive" });
+    },
+  });
+
+  const resetProductForm = () => {
+    setProductForm({
+      name: "",
+      slug: "",
+      description: "",
+      imageUrl: "",
+      currentPrice: "",
+      originalPrice: "",
+      stock: "",
+      categoryId: "",
+      active: true,
+      limitPerUser: false,
+    });
+  };
+
+  const toggleCategory = (categoryId: number) => {
+    setExpandedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(categoryId)) {
+        next.delete(categoryId);
+      } else {
+        next.add(categoryId);
+      }
+      return next;
+    });
+  };
+
+  const collapseAll = () => {
+    setExpandedCategories(new Set());
+  };
+
+  const expandAll = () => {
+    setExpandedCategories(new Set(categories.map((c) => c.id)));
+  };
+
+  const openEditCategory = (category: Category) => {
+    setEditingCategory(category);
+    setCategoryForm({ name: category.name, icon: category.icon || "folder" });
+    setShowCategoryModal(true);
+  };
+
+  const openNewCategory = () => {
+    setEditingCategory(null);
+    setCategoryForm({ name: "", icon: "folder" });
+    setShowCategoryModal(true);
+  };
+
+  const openEditProduct = (product: Product) => {
+    setEditingProduct(product);
+    setProductForm({
+      name: product.name,
+      slug: product.slug || "",
+      description: product.description || "",
+      imageUrl: product.imageUrl || "",
+      currentPrice: product.currentPrice?.toString() || "",
+      originalPrice: product.originalPrice?.toString() || "",
+      stock: product.stock || "",
+      categoryId: product.categoryId?.toString() || "",
+      active: product.active ?? true,
+      limitPerUser: product.limitPerUser ?? false,
+    });
+    setShowProductModal(true);
+  };
+
+  const openNewProduct = (categoryId?: number) => {
+    setEditingProduct(null);
+    resetProductForm();
+    if (categoryId) {
+      setProductForm((prev) => ({ ...prev, categoryId: categoryId.toString() }));
+    }
+    setShowProductModal(true);
+  };
+
+  const handleSaveCategory = () => {
+    if (!categoryForm.name.trim()) {
+      toast({ title: "Nome da categoria é obrigatório", variant: "destructive" });
+      return;
+    }
+
+    if (editingCategory) {
+      updateCategoryMutation.mutate({ id: editingCategory.id, data: categoryForm });
+    } else {
+      createCategoryMutation.mutate(categoryForm);
+    }
+  };
+
+  const handleSaveProduct = () => {
+    if (!productForm.name.trim() || !productForm.currentPrice || !productForm.originalPrice) {
+      toast({ 
+        title: "Campos obrigatórios", 
+        description: "Nome, preço e preço original são obrigatórios",
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    const slug = productForm.slug || productForm.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+
+    const data = {
+      name: productForm.name,
+      slug,
+      description: productForm.description,
+      imageUrl: productForm.imageUrl || "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400",
+      currentPrice: productForm.currentPrice,
+      originalPrice: productForm.originalPrice,
+      stock: productForm.stock,
+      category: categories.find(c => c.id === parseInt(productForm.categoryId))?.name || "Outros",
+      categoryId: productForm.categoryId ? parseInt(productForm.categoryId) : null,
+      active: productForm.active,
+      limitPerUser: productForm.limitPerUser,
+      resellerId: vendorId,
+    };
+
+    if (editingProduct) {
+      updateProductMutation.mutate({ id: editingProduct.id, data });
+    } else {
+      createProductMutation.mutate(data);
+    }
+  };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      const token = localStorage.getItem("vendor_token");
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error("Upload failed");
+      
+      const { imageUrl } = await response.json();
+      setProductForm((prev) => ({ ...prev, imageUrl }));
+      toast({ title: "Imagem enviada com sucesso" });
+    } catch {
+      toast({ title: "Erro ao enviar imagem", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const stockCount = useMemo(() => {
+    return productForm.stock.split("\n").filter((line) => line.trim()).length;
+  }, [productForm.stock]);
+
+  if (loadingCategories || loadingProducts) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 pb-20">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white" data-testid="text-page-title">
+            Gerenciar Loja
+          </h1>
+          <p className="text-gray-400 text-sm mt-1">
+            Organize seus produtos por categorias
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={collapseAll}
+            className="text-gray-300 border-gray-600"
+            data-testid="button-collapse-all"
+          >
+            Recolher tudo
+          </Button>
+          <Button
+            size="sm"
+            onClick={openNewCategory}
+            className="bg-blue-600 hover:bg-blue-700"
+            data-testid="button-new-category"
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            Nova Categoria
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => openNewProduct()}
+            style={{
+              background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)",
+            }}
+            data-testid="button-new-product"
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            Novo Produto
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {categories.map((category) => {
+          const isExpanded = expandedCategories.has(category.id);
+          const categoryProducts = productsByCategory.grouped[category.id] || [];
+
+          return (
+            <div
+              key={category.id}
+              className="rounded-lg overflow-hidden"
+              data-testid={`category-accordion-${category.id}`}
+            >
+              <div
+                className="flex items-center gap-3 p-4 cursor-pointer transition-colors"
+                style={{ backgroundColor: "#1f2937" }}
+                onClick={() => toggleCategory(category.id)}
+                data-testid={`button-toggle-category-${category.id}`}
+              >
+                <GripVertical className="w-5 h-5 text-gray-500 flex-shrink-0" />
+                <FolderOpen className="w-5 h-5 text-blue-400 flex-shrink-0" />
+                <span className="font-bold text-white uppercase flex-1">
+                  {category.name}
+                </span>
+                <Badge variant="secondary" className="bg-blue-600/20 text-blue-400 border-0">
+                  Categoria
+                </Badge>
+                <Badge variant="outline" className="text-gray-400 border-gray-600">
+                  {categoryProducts.length} produto{categoryProducts.length !== 1 ? "s" : ""}
+                </Badge>
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="text-gray-400 hover:text-white"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openEditCategory(category);
+                    }}
+                    data-testid={`button-edit-category-${category.id}`}
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="text-gray-400 hover:text-red-400"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowDeleteCategoryConfirm(category.id);
+                    }}
+                    data-testid={`button-delete-category-${category.id}`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+                {isExpanded ? (
+                  <ChevronUp className="w-5 h-5 text-gray-400 transition-transform" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-gray-400 transition-transform" />
+                )}
+              </div>
+
+              <div
+                className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                  isExpanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
+                }`}
+                style={{ backgroundColor: "#111827" }}
+              >
+                <div className="p-4 space-y-3">
+                  {categoryProducts.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p>Nenhum produto nesta categoria</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-3 border-gray-600 text-gray-300"
+                        onClick={() => openNewProduct(category.id)}
+                        data-testid={`button-add-product-to-category-${category.id}`}
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        Adicionar Produto
+                      </Button>
+                    </div>
+                  ) : (
+                    categoryProducts.map((product) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        onEdit={() => openEditProduct(product)}
+                        onDelete={() => setShowDeleteProductConfirm(product.id)}
+                      />
+                    ))
+                  )}
+                  {categoryProducts.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full border-dashed border-gray-600 text-gray-400 hover:text-white"
+                      onClick={() => openNewProduct(category.id)}
+                      data-testid={`button-add-more-to-category-${category.id}`}
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      Adicionar produto a esta categoria
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {productsByCategory.uncategorized.length > 0 && (
+          <div className="rounded-lg overflow-hidden" data-testid="category-uncategorized">
+            <div
+              className="flex items-center gap-3 p-4 cursor-pointer transition-colors"
+              style={{ backgroundColor: "#374151" }}
+              onClick={() => toggleCategory(-1)}
+              data-testid="button-toggle-uncategorized"
+            >
+              <GripVertical className="w-5 h-5 text-gray-500 flex-shrink-0" />
+              <Package className="w-5 h-5 text-gray-400 flex-shrink-0" />
+              <span className="font-bold text-white uppercase flex-1">
+                SEM CATEGORIA
+              </span>
+              <Badge variant="outline" className="text-gray-400 border-gray-600">
+                {productsByCategory.uncategorized.length} produto{productsByCategory.uncategorized.length !== 1 ? "s" : ""}
+              </Badge>
+              {expandedCategories.has(-1) ? (
+                <ChevronUp className="w-5 h-5 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-gray-400" />
+              )}
+            </div>
+
+            <div
+              className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                expandedCategories.has(-1) ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
+              }`}
+              style={{ backgroundColor: "#1f2937" }}
+            >
+              <div className="p-4 space-y-3">
+                {productsByCategory.uncategorized.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onEdit={() => openEditProduct(product)}
+                    onDelete={() => setShowDeleteProductConfirm(product.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {categories.length === 0 && products.length === 0 && (
+          <div className="text-center py-16 text-gray-500">
+            <FolderOpen className="w-16 h-16 mx-auto mb-4 opacity-30" />
+            <h3 className="text-lg font-medium text-gray-300 mb-2">
+              Comece a organizar sua loja
+            </h3>
+            <p className="text-sm mb-6">
+              Crie categorias e adicione produtos para organizar sua vitrine
+            </p>
+            <div className="flex justify-center gap-3">
+              <Button
+                variant="outline"
+                onClick={openNewCategory}
+                className="border-gray-600 text-gray-300"
+                data-testid="button-first-category"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Criar Categoria
+              </Button>
+              <Button
+                onClick={() => openNewProduct()}
+                style={{
+                  background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)",
+                }}
+                data-testid="button-first-product"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Criar Produto
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <Dialog open={showCategoryModal} onOpenChange={setShowCategoryModal}>
+        <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingCategory ? "Editar Categoria" : "Nova Categoria"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label className="text-gray-300">Nome da Categoria</Label>
+              <Input
+                value={categoryForm.name}
+                onChange={(e) => setCategoryForm((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="Ex: STREAMING, JOGOS, ASSINATURAS"
+                className="bg-gray-800 border-gray-600 text-white"
+                data-testid="input-category-name"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowCategoryModal(false)}
+              className="border-gray-600"
+              data-testid="button-cancel-category"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveCategory}
+              disabled={createCategoryMutation.isPending || updateCategoryMutation.isPending}
+              className="bg-blue-600 hover:bg-blue-700"
+              data-testid="button-save-category"
+            >
+              {(createCategoryMutation.isPending || updateCategoryMutation.isPending) && (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              )}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showProductModal} onOpenChange={setShowProductModal}>
+        <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingProduct ? "Editar Produto" : "Novo Produto"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-gray-300">Nome do Produto *</Label>
+                <Input
+                  value={productForm.name}
+                  onChange={(e) => setProductForm((prev) => ({ ...prev, name: e.target.value }))}
+                  placeholder="Ex: Netflix Premium 30 dias"
+                  className="bg-gray-800 border-gray-600 text-white"
+                  data-testid="input-product-name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-gray-300">Slug (URL amigável)</Label>
+                <Input
+                  value={productForm.slug}
+                  onChange={(e) => setProductForm((prev) => ({ ...prev, slug: e.target.value }))}
+                  placeholder="netflix-premium-30dias"
+                  className="bg-gray-800 border-gray-600 text-white"
+                  data-testid="input-product-slug"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-gray-300">Preço Atual (R$) *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={productForm.currentPrice}
+                  onChange={(e) => setProductForm((prev) => ({ ...prev, currentPrice: e.target.value }))}
+                  placeholder="29.90"
+                  className="bg-gray-800 border-gray-600 text-white"
+                  data-testid="input-product-price"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-gray-300">Preço Original (R$) *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={productForm.originalPrice}
+                  onChange={(e) => setProductForm((prev) => ({ ...prev, originalPrice: e.target.value }))}
+                  placeholder="49.90"
+                  className="bg-gray-800 border-gray-600 text-white"
+                  data-testid="input-product-original-price"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-gray-300">Categoria</Label>
+              <Select
+                value={productForm.categoryId}
+                onValueChange={(value) => setProductForm((prev) => ({ ...prev, categoryId: value }))}
+              >
+                <SelectTrigger 
+                  className="bg-gray-800 border-gray-600 text-white"
+                  data-testid="select-product-category"
+                >
+                  <SelectValue placeholder="Selecione uma categoria" />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-800 border-gray-600">
+                  {categories.map((cat) => (
+                    <SelectItem 
+                      key={cat.id} 
+                      value={cat.id.toString()}
+                      className="text-white hover:bg-gray-700"
+                    >
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-gray-300">Descrição</Label>
+              <Textarea
+                value={productForm.description}
+                onChange={(e) => setProductForm((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder="Descrição detalhada do produto..."
+                className="bg-gray-800 border-gray-600 text-white resize-none"
+                rows={3}
+                data-testid="textarea-product-description"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-gray-300">Imagem de Capa</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={productForm.imageUrl}
+                  onChange={(e) => setProductForm((prev) => ({ ...prev, imageUrl: e.target.value }))}
+                  placeholder="URL da imagem ou faça upload"
+                  className="bg-gray-800 border-gray-600 text-white flex-1"
+                  data-testid="input-product-image"
+                />
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleImageUpload}
+                  accept="image/*"
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="border-gray-600"
+                  data-testid="button-upload-image"
+                >
+                  {isUploading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Upload className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
+              {productForm.imageUrl && (
+                <div className="mt-2 relative w-20 h-20 rounded-lg overflow-hidden border border-gray-600">
+                  <img
+                    src={productForm.imageUrl}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                  />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="absolute top-0 right-0 w-6 h-6 bg-black/50 hover:bg-black/70"
+                    onClick={() => setProductForm((prev) => ({ ...prev, imageUrl: "" }))}
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-gray-300">
+                  Estoque de Keys / Licenças
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Badge 
+                    variant={stockCount > 0 ? "default" : "destructive"}
+                    className={stockCount > 0 ? "bg-green-600" : ""}
+                  >
+                    Estoque: {stockCount} {stockCount === 1 ? "item" : "itens"}
+                  </Badge>
+                  {productForm.stock && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-400 hover:text-red-300"
+                      onClick={() => setProductForm((prev) => ({ ...prev, stock: "" }))}
+                      data-testid="button-clear-stock"
+                    >
+                      Limpar
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <Textarea
+                value={productForm.stock}
+                onChange={(e) => setProductForm((prev) => ({ ...prev, stock: e.target.value }))}
+                placeholder={"Cole suas keys/licenças aqui (uma por linha):\n\nemail1@gmail.com:senha123\nemail2@gmail.com:senha456\nABC123-DEF456-GHI789\n..."}
+                className="bg-gray-800 border-gray-600 text-white font-mono text-sm resize-none"
+                rows={8}
+                data-testid="textarea-product-stock"
+              />
+              <p className="text-xs text-gray-500">
+                Cada linha representa um item de estoque. Quando uma venda ocorre, 
+                o primeiro item disponível é enviado ao cliente automaticamente.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4 pt-2">
+              <div className="flex items-center gap-3 flex-1">
+                <Switch
+                  id="active"
+                  checked={productForm.active}
+                  onCheckedChange={(checked) => 
+                    setProductForm((prev) => ({ ...prev, active: checked }))
+                  }
+                  data-testid="switch-product-active"
+                />
+                <Label htmlFor="active" className="text-gray-300 cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    {productForm.active ? (
+                      <Eye className="w-4 h-4 text-green-400" />
+                    ) : (
+                      <EyeOff className="w-4 h-4 text-gray-500" />
+                    )}
+                    Visibilidade
+                  </div>
+                  <span className="text-xs text-gray-500 block">
+                    {productForm.active ? "Produto visível na loja" : "Produto oculto"}
+                  </span>
+                </Label>
+              </div>
+
+              <div className="flex items-center gap-3 flex-1">
+                <Switch
+                  id="limitPerUser"
+                  checked={productForm.limitPerUser}
+                  onCheckedChange={(checked) => 
+                    setProductForm((prev) => ({ ...prev, limitPerUser: checked }))
+                  }
+                  data-testid="switch-product-limit"
+                />
+                <Label htmlFor="limitPerUser" className="text-gray-300 cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    Limite de 1 por usuário
+                  </div>
+                  <span className="text-xs text-gray-500 block">
+                    {productForm.limitPerUser 
+                      ? "Cada cliente pode comprar apenas 1" 
+                      : "Sem limite de compras"}
+                  </span>
+                </Label>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowProductModal(false);
+                setEditingProduct(null);
+                resetProductForm();
+              }}
+              className="border-gray-600"
+              data-testid="button-cancel-product"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveProduct}
+              disabled={createProductMutation.isPending || updateProductMutation.isPending}
+              style={{
+                background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)",
+              }}
+              data-testid="button-save-product"
+            >
+              {(createProductMutation.isPending || updateProductMutation.isPending) && (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              )}
+              Salvar Produto
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog 
+        open={showDeleteCategoryConfirm !== null} 
+        onOpenChange={() => setShowDeleteCategoryConfirm(null)}
+      >
+        <AlertDialogContent className="bg-gray-900 border-gray-700 text-white">
+          <AlertDialogTitle>Excluir Categoria</AlertDialogTitle>
+          <AlertDialogDescription className="text-gray-400">
+            Tem certeza que deseja excluir esta categoria? Os produtos 
+            associados ficarão sem categoria, mas não serão excluídos.
+          </AlertDialogDescription>
+          <div className="flex justify-end gap-3 mt-4">
+            <AlertDialogCancel className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => showDeleteCategoryConfirm && deleteCategoryMutation.mutate(showDeleteCategoryConfirm)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteCategoryMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Excluir
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog 
+        open={showDeleteProductConfirm !== null} 
+        onOpenChange={() => setShowDeleteProductConfirm(null)}
+      >
+        <AlertDialogContent className="bg-gray-900 border-gray-700 text-white">
+          <AlertDialogTitle>Excluir Produto</AlertDialogTitle>
+          <AlertDialogDescription className="text-gray-400">
+            Tem certeza que deseja excluir este produto? Esta ação não pode ser desfeita.
+          </AlertDialogDescription>
+          <div className="flex justify-end gap-3 mt-4">
+            <AlertDialogCancel className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => showDeleteProductConfirm && deleteProductMutation.mutate(showDeleteProductConfirm)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteProductMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Excluir
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+function ProductCard({
+  product,
+  onEdit,
+  onDelete,
+}: {
+  product: Product;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const stockCount = product.stock?.split("\n").filter((line) => line.trim()).length || 0;
+
+  return (
+    <div
+      className="flex items-center gap-4 p-3 rounded-lg transition-colors hover:bg-gray-800/50"
+      style={{ backgroundColor: "rgba(31, 41, 55, 0.5)" }}
+      data-testid={`product-card-${product.id}`}
+    >
+      <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-gray-700">
+        {product.imageUrl ? (
+          <img
+            src={product.imageUrl}
+            alt={product.name}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Image className="w-6 h-6 text-gray-500" />
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <h4 className="font-medium text-white truncate">{product.name}</h4>
+          {!product.active && (
+            <Badge variant="outline" className="text-gray-500 border-gray-600 text-xs">
+              Oculto
+            </Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-3 mt-1">
+          <span className="text-green-400 font-semibold">
+            R$ {parseFloat(product.currentPrice).toFixed(2)}
+          </span>
+          {product.originalPrice !== product.currentPrice && (
+            <span className="text-gray-500 line-through text-sm">
+              R$ {parseFloat(product.originalPrice).toFixed(2)}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <Badge
+        variant={stockCount > 0 ? "default" : "destructive"}
+        className={`flex-shrink-0 ${stockCount > 0 ? "bg-green-600/20 text-green-400 border-green-600/30" : ""}`}
+      >
+        {stockCount} em estoque
+      </Badge>
+
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <Button
+          size="icon"
+          variant="ghost"
+          className="text-gray-400 hover:text-white"
+          onClick={onEdit}
+          data-testid={`button-edit-product-${product.id}`}
+        >
+          <Edit2 className="w-4 h-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="text-gray-400 hover:text-red-400"
+          onClick={onDelete}
+          data-testid={`button-delete-product-${product.id}`}
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
