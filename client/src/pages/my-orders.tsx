@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLocation } from "wouter";
-import { Loader2, Copy, CheckCircle, Gift, Eye, EyeOff } from "lucide-react";
+import { Loader2, Copy, CheckCircle, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
@@ -14,11 +14,19 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
+interface RedeemItem {
+  id: number;
+  productName: string;
+  secretContent: string;
+}
+
 export default function MyOrders() {
   const [, setLocation] = useLocation();
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [copied, setCopied] = useState<number | null>(null);
+  const [redeemDialogOpen, setRedeemDialogOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<RedeemItem | null>(null);
   const { toast } = useToast();
 
   const { data: orders, isLoading } = useQuery({
@@ -38,9 +46,14 @@ export default function MyOrders() {
     }
   };
 
-  const copyContent = async (content: string, orderId: number) => {
+  const openRedeemDialog = (item: RedeemItem) => {
+    setSelectedItem(item);
+    setRedeemDialogOpen(true);
+  };
+
+  const copyContent = async (content: string, itemId: number) => {
     await navigator.clipboard.writeText(content);
-    setCopied(orderId);
+    setCopied(itemId);
     setTimeout(() => setCopied(null), 2000);
     toast({
       title: "Copiado!",
@@ -103,7 +116,7 @@ export default function MyOrders() {
               className="mb-4"
               data-testid="button-back-search"
             >
-              ← Voltar
+              Voltar
             </Button>
 
             {isLoading ? (
@@ -125,7 +138,7 @@ export default function MyOrders() {
                     data-testid={`order-card-${order.id}`}
                   >
                     <CardHeader>
-                      <div className="flex items-start justify-between">
+                      <div className="flex items-start justify-between gap-2">
                         <div>
                           <CardTitle className="text-white">Pedido #{order.id}</CardTitle>
                           <p className="text-sm text-gray-400 mt-1">
@@ -152,9 +165,27 @@ export default function MyOrders() {
                       <div className="text-sm text-gray-300">
                         <p className="font-semibold text-white mb-2">Produtos:</p>
                         {order.items?.map((item: any) => (
-                          <p key={item.id} className="text-gray-400">
-                            • {item.productName} (Qtd: {item.quantity})
-                          </p>
+                          <div key={item.id} className="flex items-center justify-between gap-2 py-2 border-b border-gray-700 last:border-b-0">
+                            <div className="flex-1">
+                              <p className="text-gray-300">{item.productName}</p>
+                              <p className="text-xs text-gray-500">Qtd: {item.quantity}</p>
+                            </div>
+                            {order.status === "paid" && item.secretContent && (
+                              <Button
+                                size="sm"
+                                onClick={() => openRedeemDialog({
+                                  id: item.id,
+                                  productName: item.productName,
+                                  secretContent: item.secretContent,
+                                })}
+                                style={{ backgroundColor: "#22C55E", color: "#FFFFFF" }}
+                                data-testid={`button-redeem-${item.id}`}
+                              >
+                                <Gift className="w-3 h-3 mr-1" />
+                                Resgatar
+                              </Button>
+                            )}
+                          </div>
                         ))}
                       </div>
 
@@ -164,48 +195,10 @@ export default function MyOrders() {
                         </p>
                       </div>
 
-                      {order.status === "paid" ? (
-                        <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
-                          <p className="text-green-400 text-sm font-semibold mb-3">✓ Dados de Acesso Liberados:</p>
-                          {order.items?.map((item: any) => (
-                            <div key={item.id} className="space-y-2 mb-3 last:mb-0">
-                              <p className="text-xs text-gray-400">{item.productName}:</p>
-                              <div
-                                className="bg-zinc-900 p-3 rounded border border-gray-700"
-                                data-testid={`secret-content-${item.id}`}
-                              >
-                                <p className="text-white text-sm whitespace-pre-wrap font-mono break-words">
-                                  {item.secretContent || "(Sem dados de acesso configurado)"}
-                                </p>
-                              </div>
-                              {item.secretContent && (
-                                <Button
-                                  size="sm"
-                                  variant="secondary"
-                                  onClick={() => copyContent(item.secretContent, item.id)}
-                                  className="w-full mt-2"
-                                  data-testid={`button-copy-content-${item.id}`}
-                                >
-                                  {copied === item.id ? (
-                                    <>
-                                      <CheckCircle className="w-3 h-3 mr-1" />
-                                      Copiado!
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Copy className="w-3 h-3 mr-1" />
-                                      Copiar
-                                    </>
-                                  )}
-                                </Button>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
+                      {order.status !== "paid" && (
                         <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
                           <p className="text-yellow-400 text-sm">
-                            ⏳ Aguardando aprovação para liberar acesso
+                            Aguardando aprovacao para liberar acesso
                           </p>
                         </div>
                       )}
@@ -217,6 +210,53 @@ export default function MyOrders() {
           </div>
         )}
       </main>
+
+      <Dialog open={redeemDialogOpen} onOpenChange={setRedeemDialogOpen}>
+        <DialogContent style={{ backgroundColor: "#1E1E1E", borderColor: "rgba(255,255,255,0.2)" }}>
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Gift className="w-5 h-5 text-green-400" />
+              Resgatar Produto
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              {selectedItem?.productName}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedItem && (
+            <div className="space-y-4 mt-4">
+              <div className="bg-zinc-900 p-4 rounded-lg border border-gray-700">
+                <p className="text-xs text-gray-400 mb-2">Seus dados de acesso:</p>
+                <p 
+                  className="text-white text-sm whitespace-pre-wrap font-mono break-words"
+                  data-testid={`dialog-secret-content-${selectedItem.id}`}
+                >
+                  {selectedItem.secretContent}
+                </p>
+              </div>
+              
+              <Button
+                className="w-full"
+                onClick={() => copyContent(selectedItem.secretContent, selectedItem.id)}
+                style={{ backgroundColor: "#3B82F6", color: "#FFFFFF" }}
+                data-testid={`button-dialog-copy-${selectedItem.id}`}
+              >
+                {copied === selectedItem.id ? (
+                  <>
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Copiado!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4 mr-2" />
+                    Copiar para Area de Transferencia
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
