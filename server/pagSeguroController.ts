@@ -1,6 +1,8 @@
 import axios from "axios";
 import fs from "fs";
 import path from "path";
+import { getValidAccessToken } from "./pagSeguroOAuth";
+import { storage } from "./storage";
 
 interface CreatePixPaymentParams {
   orderId: number;
@@ -12,6 +14,7 @@ interface CreatePixPaymentParams {
   resellerPagseguroToken?: string;
   resellerPagseguroEmail?: string;
   resellerPagseguroSandbox?: boolean;
+  resellerId?: number;
 }
 
 interface PagSeguroQRCode {
@@ -82,20 +85,48 @@ function formatTaxId(cpf?: string): string {
   return "12345678909";
 }
 
-export async function createPixPayment(params: CreatePixPaymentParams) {
-  const { orderId, amount, email, description, customerCpf, customerName, resellerPagseguroToken, resellerPagseguroEmail, resellerPagseguroSandbox } = params;
+async function getTokenForPayment(params: CreatePixPaymentParams): Promise<{
+  token: string;
+  isSandbox: boolean;
+  source: 'oauth' | 'manual' | 'default';
+}> {
+  if (params.resellerId) {
+    const oauthToken = await getValidAccessToken(params.resellerId);
+    if (oauthToken) {
+      const settings = await storage.getSettings();
+      const isSandbox = settings?.pagseguroSandbox ?? true;
+      console.log(`[PagSeguro] Using OAuth token for reseller ${params.resellerId}`);
+      return { token: oauthToken, isSandbox, source: 'oauth' };
+    }
+  }
+
+  if (params.resellerPagseguroToken) {
+    console.log(`[PagSeguro] Using manual reseller token`);
+    return {
+      token: params.resellerPagseguroToken,
+      isSandbox: params.resellerPagseguroSandbox ?? true,
+      source: 'manual'
+    };
+  }
 
   const defaultConfig = getPagSeguroConfig();
-  
-  const pagseguroToken = resellerPagseguroToken || defaultConfig.pagseguroToken;
-  const pagseguroEmail = resellerPagseguroEmail || defaultConfig.pagseguroEmail;
-  const isSandbox = resellerPagseguroToken 
-    ? (resellerPagseguroSandbox ?? true) 
-    : (defaultConfig.pagseguroSandbox ?? true);
-
-  if (!pagseguroToken) {
-    throw new Error("Token do PagSeguro não configurado. Configure nas configurações do admin ou do revendedor.");
+  if (defaultConfig.pagseguroToken) {
+    console.log(`[PagSeguro] Using default token from settings`);
+    return {
+      token: defaultConfig.pagseguroToken,
+      isSandbox: defaultConfig.pagseguroSandbox ?? true,
+      source: 'default'
+    };
   }
+
+  throw new Error("Token do PagSeguro nao configurado. Configure nas configuracoes do admin ou conecte sua conta PagSeguro.");
+}
+
+export async function createPixPayment(params: CreatePixPaymentParams) {
+  const { orderId, amount, email, description, customerCpf, customerName } = params;
+
+  const { token: pagseguroToken, isSandbox } = await getTokenForPayment(params);
+
   const baseUrl = isSandbox 
     ? "https://sandbox.api.pagseguro.com" 
     : "https://api.pagseguro.com";
@@ -155,7 +186,7 @@ export async function createPixPayment(params: CreatePixPaymentParams) {
     const qrCode = orderData.qr_codes?.[0];
     
     if (!qrCode) {
-      throw new Error("QR Code não retornado pelo PagSeguro");
+      throw new Error("QR Code nao retornado pelo PagSeguro");
     }
 
     const qrCodeImageLink = qrCode.links?.find(link => link.media === "image/png");
@@ -198,6 +229,7 @@ interface CheckPaymentStatusParams {
   pagseguroOrderId: string;
   resellerPagseguroToken?: string;
   resellerPagseguroSandbox?: boolean;
+  resellerId?: number;
 }
 
 export async function checkPaymentStatus(params: CheckPaymentStatusParams | string) {
@@ -205,16 +237,31 @@ export async function checkPaymentStatus(params: CheckPaymentStatusParams | stri
   const pagseguroOrderId = isLegacyCall ? params : params.pagseguroOrderId;
   const resellerToken = isLegacyCall ? undefined : params.resellerPagseguroToken;
   const resellerSandbox = isLegacyCall ? undefined : params.resellerPagseguroSandbox;
+  const resellerId = isLegacyCall ? undefined : params.resellerId;
 
-  const defaultConfig = getPagSeguroConfig();
-  
-  const pagseguroToken = resellerToken || defaultConfig.pagseguroToken;
-  const isSandbox = resellerToken 
-    ? (resellerSandbox ?? true) 
-    : (defaultConfig.pagseguroSandbox ?? true);
+  let pagseguroToken: string | undefined;
+  let isSandbox = true;
+
+  if (resellerId) {
+    const oauthToken = await getValidAccessToken(resellerId);
+    if (oauthToken) {
+      const settings = await storage.getSettings();
+      pagseguroToken = oauthToken;
+      isSandbox = settings?.pagseguroSandbox ?? true;
+      console.log(`[PagSeguro] Using OAuth token for status check, reseller ${resellerId}`);
+    }
+  }
 
   if (!pagseguroToken) {
-    throw new Error("Configurações do PagSeguro não encontradas");
+    const defaultConfig = getPagSeguroConfig();
+    pagseguroToken = resellerToken || defaultConfig.pagseguroToken;
+    isSandbox = resellerToken 
+      ? (resellerSandbox ?? true) 
+      : (defaultConfig.pagseguroSandbox ?? true);
+  }
+
+  if (!pagseguroToken) {
+    throw new Error("Configuracoes do PagSeguro nao encontradas");
   }
 
   const baseUrl = isSandbox 
