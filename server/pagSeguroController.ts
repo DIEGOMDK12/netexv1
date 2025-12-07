@@ -88,46 +88,21 @@ function formatTaxId(cpf?: string): string {
 async function getTokenForPayment(params: CreatePixPaymentParams): Promise<{
   token: string;
   isSandbox: boolean;
-  source: 'oauth' | 'manual' | 'default';
+  source: 'platform';
 }> {
-  // Priority 1: Try OAuth token if resellerId is provided
-  if (params.resellerId) {
-    try {
-      const oauthToken = await getValidAccessToken(params.resellerId);
-      if (oauthToken) {
-        const settings = await storage.getSettings();
-        const isSandbox = settings?.pagseguroSandbox ?? true;
-        console.log(`[PagSeguro] Using OAuth token for reseller ${params.resellerId}`);
-        return { token: oauthToken, isSandbox, source: 'oauth' };
-      }
-      console.log(`[PagSeguro] No OAuth token for reseller ${params.resellerId}, trying fallbacks...`);
-    } catch (error) {
-      console.log(`[PagSeguro] OAuth token retrieval failed for reseller ${params.resellerId}, trying fallbacks...`, error);
-    }
-  }
-
-  // Priority 2: Use manual reseller token if provided
-  if (params.resellerPagseguroToken) {
-    console.log(`[PagSeguro] Using manual reseller token`);
-    return {
-      token: params.resellerPagseguroToken,
-      isSandbox: params.resellerPagseguroSandbox ?? true,
-      source: 'manual'
-    };
-  }
-
-  // Priority 3: Use default token from settings/env
+  // TODOS os pagamentos usam as credenciais da PLATAFORMA
+  // Os valores caem na conta da plataforma e as revendas solicitam saque via Pix
   const defaultConfig = getPagSeguroConfig();
   if (defaultConfig.pagseguroToken) {
-    console.log(`[PagSeguro] Using default token from settings`);
+    console.log(`[PagSeguro] Usando token da PLATAFORMA para todos os pagamentos`);
     return {
       token: defaultConfig.pagseguroToken,
       isSandbox: defaultConfig.pagseguroSandbox ?? true,
-      source: 'default'
+      source: 'platform'
     };
   }
 
-  throw new Error("Token do PagSeguro nao configurado. Configure nas configuracoes do admin ou conecte sua conta PagSeguro.");
+  throw new Error("Token do PagSeguro nao configurado. Configure o token de producao nas configuracoes do admin.");
 }
 
 export async function createPixPayment(params: CreatePixPaymentParams) {
@@ -243,34 +218,17 @@ interface CheckPaymentStatusParams {
 export async function checkPaymentStatus(params: CheckPaymentStatusParams | string) {
   const isLegacyCall = typeof params === 'string';
   const pagseguroOrderId = isLegacyCall ? params : params.pagseguroOrderId;
-  const resellerToken = isLegacyCall ? undefined : params.resellerPagseguroToken;
-  const resellerSandbox = isLegacyCall ? undefined : params.resellerPagseguroSandbox;
-  const resellerId = isLegacyCall ? undefined : params.resellerId;
 
-  let pagseguroToken: string | undefined;
-  let isSandbox = true;
-
-  if (resellerId) {
-    const oauthToken = await getValidAccessToken(resellerId);
-    if (oauthToken) {
-      const settings = await storage.getSettings();
-      pagseguroToken = oauthToken;
-      isSandbox = settings?.pagseguroSandbox ?? true;
-      console.log(`[PagSeguro] Using OAuth token for status check, reseller ${resellerId}`);
-    }
-  }
-
-  if (!pagseguroToken) {
-    const defaultConfig = getPagSeguroConfig();
-    pagseguroToken = resellerToken || defaultConfig.pagseguroToken;
-    isSandbox = resellerToken 
-      ? (resellerSandbox ?? true) 
-      : (defaultConfig.pagseguroSandbox ?? true);
-  }
+  // TODOS os pagamentos usam as credenciais da PLATAFORMA
+  const defaultConfig = getPagSeguroConfig();
+  const pagseguroToken = defaultConfig.pagseguroToken;
+  const isSandbox = defaultConfig.pagseguroSandbox ?? true;
 
   if (!pagseguroToken) {
     throw new Error("Configuracoes do PagSeguro nao encontradas");
   }
+  
+  console.log(`[PagSeguro] Verificando status com token da PLATAFORMA`);
 
   const baseUrl = isSandbox 
     ? "https://sandbox.api.pagseguro.com" 

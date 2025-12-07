@@ -200,30 +200,32 @@ export default function AdminSettings() {
         </div>
       </div>
 
-      {/* Payment */}
+      {/* Payment - PagSeguro da Plataforma */}
       <div
         className="p-6 rounded-lg border"
-        style={{ backgroundColor: "#1E1E1E", borderColor: "rgba(255,255,255,0.1)" }}
+        style={{ backgroundColor: "#1E1E1E", borderColor: "rgba(45,212,191,0.3)" }}
       >
-        <h3 className="text-lg font-semibold text-white mb-4">Pagamento</h3>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-lg bg-teal-500/20 flex items-center justify-center">
+            <svg className="w-5 h-5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-white">PagSeguro - Pagamentos da Plataforma</h3>
+            <p className="text-xs text-teal-400">Todos os pagamentos caem na sua conta</p>
+          </div>
+        </div>
+
+        <div className="bg-teal-500/10 border border-teal-500/20 rounded-lg p-3 mb-4">
+          <p className="text-sm text-teal-300">
+            Configure seu token de producao do PagSeguro. Todos os pagamentos das revendas serao processados pela sua conta e as revendas podem solicitar saque via Pix.
+          </p>
+        </div>
+
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label className="text-white">Chave PIX (Manual)</Label>
-            <Input
-              value={formData.pixKey}
-              onChange={(e) => setFormData({ ...formData, pixKey: e.target.value })}
-              placeholder="CPF, CNPJ, E-mail ou Chave Aleatória"
-              style={{ backgroundColor: "#242424", borderColor: "rgba(255,255,255,0.1)", color: "#fff" }}
-              data-testid="input-pix-key"
-            />
-          </div>
-
-          <div className="pt-4 border-t" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
-            <h4 className="text-md font-medium text-white mb-3">PagSeguro (PIX Automático)</h4>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-white">E-mail PagSeguro</Label>
+            <Label className="text-white">E-mail da conta PagSeguro</Label>
             <Input
               type="email"
               value={formData.pagseguroEmail}
@@ -232,36 +234,73 @@ export default function AdminSettings() {
               style={{ backgroundColor: "#242424", borderColor: "rgba(255,255,255,0.1)", color: "#fff" }}
               data-testid="input-pagseguro-email"
             />
+            <p className="text-xs text-gray-400">E-mail cadastrado na sua conta PagSeguro</p>
           </div>
 
           <div className="space-y-2">
-            <Label className="text-white">Token PagSeguro</Label>
+            <Label className="text-white">Token de Producao PagSeguro</Label>
             <Input
               type="password"
               value={formData.pagseguroToken}
               onChange={(e) => setFormData({ ...formData, pagseguroToken: e.target.value })}
-              placeholder="Token da sua conta PagSeguro"
+              placeholder="Cole seu token de producao aqui"
               style={{ backgroundColor: "#242424", borderColor: "rgba(255,255,255,0.1)", color: "#fff" }}
               data-testid="input-pagseguro-token"
             />
+            <p className="text-xs text-gray-400">
+              Obtenha em: PagSeguro &gt; Minha Conta &gt; Integracoes &gt; Token de Producao
+            </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 p-3 rounded-lg" style={{ backgroundColor: "#242424" }}>
             <input
               type="checkbox"
               id="pagseguroSandbox"
               checked={formData.pagseguroSandbox}
               onChange={(e) => setFormData({ ...formData, pagseguroSandbox: e.target.checked })}
-              className="w-4 h-4 rounded"
+              className="w-5 h-5 rounded accent-teal-500"
               data-testid="checkbox-pagseguro-sandbox"
             />
-            <Label htmlFor="pagseguroSandbox" className="text-white cursor-pointer">
-              Modo Sandbox (Teste)
-            </Label>
+            <div>
+              <Label htmlFor="pagseguroSandbox" className="text-white cursor-pointer font-medium">
+                Modo Sandbox (Teste)
+              </Label>
+              <p className="text-xs text-gray-400">
+                {formData.pagseguroSandbox 
+                  ? "Ativo - Pagamentos de teste, nao processam valores reais" 
+                  : "Desativado - Pagamentos REAIS serao processados"}
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-gray-400">
-            Ative o modo Sandbox para testes. Desative para usar em produção.
-          </p>
+
+          {!formData.pagseguroSandbox && (
+            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+              <p className="text-sm text-yellow-300">
+                Modo de producao ativo! Todos os pagamentos serao processados com valores reais.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Chave PIX para Saques */}
+      <div
+        className="p-6 rounded-lg border"
+        style={{ backgroundColor: "#1E1E1E", borderColor: "rgba(255,255,255,0.1)" }}
+      >
+        <h3 className="text-lg font-semibold text-white mb-4">Chave PIX para Repasses</h3>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-white">Chave PIX da Plataforma</Label>
+            <Input
+              value={formData.pixKey}
+              onChange={(e) => setFormData({ ...formData, pixKey: e.target.value })}
+              placeholder="CPF, CNPJ, E-mail ou Chave Aleatoria"
+              style={{ backgroundColor: "#242424", borderColor: "rgba(255,255,255,0.1)", color: "#fff" }}
+              data-testid="input-pix-key"
+            />
+            <p className="text-xs text-gray-400">Chave PIX para identificacao nos repasses</p>
+          </div>
         </div>
       </div>
 

@@ -4,126 +4,134 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Check, X, Loader2 } from "lucide-react";
-import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
-import { Badge } from "@/components/ui/badge";
+import { Loader2, CreditCard, Info, Wallet } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 
-interface PagSeguroStatus {
-  connected: boolean;
-  accountId?: string;
+interface VendorProfile {
+  id: number;
+  name: string;
+  email: string;
+  storeName: string | null;
+  slug: string;
+  pixKey: string | null;
+  totalSales: string;
+  totalCommission: string;
+  createdAt: string;
 }
 
 export function VendorSettings() {
   const { toast } = useToast();
-  const [location] = useLocation();
-  const [showToken, setShowToken] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [settings, setSettings] = useState({
-    pagseguroToken: "",
     storeName: "",
-    email: "",
+    pixKey: "",
+    pixKeyType: "cpf",
+    pixHolderName: "",
   });
 
-  const resellerId = 1;
+  const vendorToken = localStorage.getItem("vendor_token");
 
-  const { data: pagSeguroStatus, refetch: refetchStatus, isLoading: isLoadingStatus } = useQuery<PagSeguroStatus>({
-    queryKey: ['/api/pagseguro/status', resellerId],
-    enabled: !!resellerId,
+  const { data: profile, isLoading } = useQuery<VendorProfile>({
+    queryKey: ['/api/vendor/profile'],
+    queryFn: async () => {
+      const response = await fetch('/api/vendor/profile', {
+        headers: {
+          'Authorization': `Bearer ${vendorToken}`,
+        },
+      });
+      if (!response.ok) throw new Error('Erro ao carregar perfil');
+      return response.json();
+    },
+    enabled: !!vendorToken,
   });
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const pagseguroResult = urlParams.get('pagseguro');
-    
-    if (pagseguroResult === 'success') {
-      toast({
-        title: "PagSeguro conectado!",
-        description: "Sua conta PagSeguro foi conectada com sucesso. Agora os pagamentos PIX serao processados automaticamente.",
+    if (profile) {
+      setSettings({
+        storeName: profile.storeName || "",
+        pixKey: profile.pixKey || "",
+        pixKeyType: "cpf",
+        pixHolderName: profile.name || "",
       });
-      refetchStatus();
-      window.history.replaceState({}, '', window.location.pathname);
-    } else if (pagseguroResult === 'error') {
-      const errorMessage = urlParams.get('message') || 'Erro ao conectar com PagSeguro';
-      toast({
-        title: "Erro na conexao",
-        description: decodeURIComponent(errorMessage),
-        variant: "destructive",
-      });
-      window.history.replaceState({}, '', window.location.pathname);
     }
-  }, [location, toast, refetchStatus]);
+  }, [profile]);
 
-  const handleConnectPagSeguro = async () => {
-    setIsConnecting(true);
-    try {
-      const response = await fetch(`/api/pagseguro/connect/${resellerId}`);
-      const data = await response.json();
-      
-      if (data.success && data.redirectUrl) {
-        window.location.href = data.redirectUrl;
-      } else {
-        toast({
-          title: "Erro",
-          description: data.message || "Nao foi possivel iniciar a conexao com PagSeguro",
-          variant: "destructive",
-        });
-        setIsConnecting(false);
-      }
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Falha ao conectar com PagSeguro. Tente novamente.",
-        variant: "destructive",
+  const updateMutation = useMutation({
+    mutationFn: async (data: typeof settings) => {
+      const response = await fetch('/api/vendor/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${vendorToken}`,
+        },
+        body: JSON.stringify(data),
       });
-      setIsConnecting(false);
-    }
-  };
+      if (!response.ok) throw new Error('Erro ao atualizar perfil');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/vendor/profile'] });
+      toast({ title: "Configuracoes salvas com sucesso!" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Erro", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    },
+  });
 
-  const handleDisconnectPagSeguro = async () => {
-    setIsDisconnecting(true);
-    try {
-      const response = await fetch(`/api/pagseguro/disconnect/${resellerId}`, {
-        method: 'POST',
-      });
-      const data = await response.json();
-      
-      if (data.success) {
-        toast({
-          title: "PagSeguro desconectado",
-          description: "Sua conta PagSeguro foi desconectada.",
-        });
-        refetchStatus();
-      } else {
-        toast({
-          title: "Erro",
-          description: data.message || "Nao foi possivel desconectar",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Falha ao desconectar do PagSeguro. Tente novamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDisconnecting(false);
-    }
-  };
-
-  const handleSaveSettings = () => {
-    toast({
-      title: "Configuracoes salvas!",
-      description: "Suas alteracoes foram aplicadas com sucesso",
-    });
-  };
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-teal-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold text-white">Configuracoes</h1>
 
+      {/* Informacao sobre Pagamentos */}
+      <Card
+        style={{
+          background: "rgba(20, 184, 166, 0.1)",
+          backdropFilter: "blur(12px)",
+          border: "1px solid rgba(20, 184, 166, 0.3)",
+        }}
+      >
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-teal-500/20 flex items-center justify-center">
+              <CreditCard className="w-5 h-5 text-teal-400" />
+            </div>
+            <div>
+              <CardTitle className="text-white">Pagamentos</CardTitle>
+              <p className="text-sm text-teal-400 mt-1">Processados pela plataforma</p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-start gap-3 p-4 rounded-lg bg-teal-500/10">
+              <Info className="w-5 h-5 text-teal-400 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-teal-300">
+                  Todos os pagamentos dos seus clientes sao processados automaticamente pela plataforma via PagSeguro. 
+                  Voce nao precisa configurar nada para receber pagamentos!
+                </p>
+                <p className="text-sm text-gray-400 mt-2">
+                  O valor das vendas sera creditado no seu saldo e voce pode solicitar saque via Pix a qualquer momento.
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Chave PIX para Saques */}
       <Card
         style={{
           background: "rgba(30, 30, 30, 0.4)",
@@ -132,140 +140,84 @@ export function VendorSettings() {
         }}
       >
         <CardHeader>
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div>
-              <CardTitle className="text-white">Integracao PagSeguro</CardTitle>
-              <p className="text-sm text-gray-400 mt-1">Conecte sua conta PagSeguro para receber pagamentos PIX automaticamente</p>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
+              <Wallet className="w-5 h-5 text-green-400" />
             </div>
-            {isLoadingStatus ? (
-              <Badge variant="secondary">
-                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                Verificando...
-              </Badge>
-            ) : pagSeguroStatus?.connected ? (
-              <Badge variant="default" className="bg-green-600">
-                <Check className="w-3 h-3 mr-1" />
-                Conectado
-              </Badge>
-            ) : (
-              <Badge variant="secondary">
-                <X className="w-3 h-3 mr-1" />
-                Desconectado
-              </Badge>
-            )}
+            <div>
+              <CardTitle className="text-white">Chave PIX para Saques</CardTitle>
+              <p className="text-sm text-gray-400 mt-1">Configure onde receber seus saques</p>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {pagSeguroStatus?.connected ? (
-            <div className="space-y-4">
-              <div className="p-4 rounded-md bg-green-500/10 border border-green-500/20">
-                <p className="text-sm text-green-400">
-                  Sua conta PagSeguro esta conectada. Os pagamentos PIX serao processados automaticamente usando sua conta.
-                </p>
-                {pagSeguroStatus.accountId && (
-                  <p className="text-xs text-gray-400 mt-2">
-                    ID da conta: {pagSeguroStatus.accountId}
-                  </p>
-                )}
-              </div>
-              
-              <Button
-                variant="destructive"
-                onClick={handleDisconnectPagSeguro}
-                disabled={isDisconnecting}
-                data-testid="button-disconnect-pagseguro"
-              >
-                {isDisconnecting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Desconectando...
-                  </>
-                ) : (
-                  "Desconectar PagSeguro"
-                )}
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="p-4 rounded-md bg-blue-500/10 border border-blue-500/20">
-                <p className="text-sm text-blue-400">
-                  Clique no botao abaixo para conectar sua conta PagSeguro. Voce sera redirecionado para autorizar o acesso.
-                </p>
-              </div>
-              
-              <Button
-                onClick={handleConnectPagSeguro}
-                disabled={isConnecting}
-                style={{
-                  background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)",
-                  color: "#FFFFFF",
-                  border: "1px solid rgba(255, 255, 255, 0.2)",
-                }}
-                data-testid="button-connect-pagseguro"
-              >
-                {isConnecting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Conectando...
-                  </>
-                ) : (
-                  "Conectar PagSeguro"
-                )}
-              </Button>
+          <div className="space-y-2">
+            <Label className="text-white">Nome do Titular</Label>
+            <Input
+              value={settings.pixHolderName}
+              onChange={(e) => setSettings({ ...settings, pixHolderName: e.target.value })}
+              placeholder="Nome completo do titular da chave PIX"
+              style={{
+                background: "rgba(30, 30, 40, 0.4)",
+                backdropFilter: "blur(10px)",
+                borderColor: "rgba(255,255,255,0.1)",
+                color: "#FFFFFF",
+              }}
+              data-testid="input-pix-holder-name"
+            />
+          </div>
 
-              <div className="border-t border-gray-700 pt-4 mt-4">
-                <p className="text-xs text-gray-500 mb-3">
-                  Ou configure manualmente com seu token de API:
-                </p>
-                <div className="space-y-2">
-                  <Label className="text-white text-sm">Token de Autenticacao (opcional)</Label>
-                  <div className="relative">
-                    <Input
-                      type={showToken ? "text" : "password"}
-                      value={settings.pagseguroToken}
-                      onChange={(e) => setSettings({ ...settings, pagseguroToken: e.target.value })}
-                      placeholder="Seu token do PagSeguro"
-                      className="pr-10"
-                      style={{
-                        background: "rgba(30, 30, 40, 0.4)",
-                        backdropFilter: "blur(10px)",
-                        borderColor: "rgba(255,255,255,0.1)",
-                        color: "#FFFFFF",
-                      }}
-                      data-testid="input-pagseguro-token"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowToken(!showToken)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300"
-                      data-testid="button-toggle-token"
-                    >
-                      {showToken ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    Encontre seu token em: Configuracoes - Integracoes - API
-                  </p>
-                </div>
+          <div className="space-y-2">
+            <Label className="text-white">Tipo de Chave PIX</Label>
+            <select
+              value={settings.pixKeyType}
+              onChange={(e) => setSettings({ ...settings, pixKeyType: e.target.value })}
+              className="w-full h-10 px-3 rounded-md"
+              style={{
+                background: "rgba(30, 30, 40, 0.4)",
+                backdropFilter: "blur(10px)",
+                borderColor: "rgba(255,255,255,0.1)",
+                color: "#FFFFFF",
+                border: "1px solid rgba(255,255,255,0.1)",
+              }}
+              data-testid="select-pix-key-type"
+            >
+              <option value="cpf">CPF</option>
+              <option value="cnpj">CNPJ</option>
+              <option value="email">E-mail</option>
+              <option value="phone">Telefone</option>
+              <option value="random">Chave Aleatoria</option>
+            </select>
+          </div>
 
-                <Button
-                  onClick={handleSaveSettings}
-                  variant="outline"
-                  className="mt-3"
-                  data-testid="button-save-pagseguro"
-                >
-                  Salvar Token Manual
-                </Button>
-              </div>
-            </div>
-          )}
+          <div className="space-y-2">
+            <Label className="text-white">Chave PIX</Label>
+            <Input
+              value={settings.pixKey}
+              onChange={(e) => setSettings({ ...settings, pixKey: e.target.value })}
+              placeholder={
+                settings.pixKeyType === "cpf" ? "000.000.000-00" :
+                settings.pixKeyType === "cnpj" ? "00.000.000/0000-00" :
+                settings.pixKeyType === "email" ? "seu@email.com" :
+                settings.pixKeyType === "phone" ? "+5585999999999" :
+                "Chave aleatoria"
+              }
+              style={{
+                background: "rgba(30, 30, 40, 0.4)",
+                backdropFilter: "blur(10px)",
+                borderColor: "rgba(255,255,255,0.1)",
+                color: "#FFFFFF",
+              }}
+              data-testid="input-pix-key"
+            />
+            <p className="text-xs text-gray-400">
+              Esta chave sera usada para receber seus saques
+            </p>
+          </div>
         </CardContent>
       </Card>
 
+      {/* Informacoes da Loja */}
       <Card
         style={{
           background: "rgba(30, 30, 30, 0.4)",
@@ -293,50 +245,30 @@ export function VendorSettings() {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-white">Email</Label>
-            <Input
-              value={settings.email}
-              onChange={(e) => setSettings({ ...settings, email: e.target.value })}
-              placeholder="seu@email.com"
-              style={{
-                background: "rgba(30, 30, 40, 0.4)",
-                backdropFilter: "blur(10px)",
-                borderColor: "rgba(255,255,255,0.1)",
-                color: "#FFFFFF",
-              }}
-              data-testid="input-email-settings"
-            />
-          </div>
-
-          <Button
-            onClick={handleSaveSettings}
-            variant="outline"
-            data-testid="button-save-store-info"
-          >
-            Salvar Informacoes
-          </Button>
+          {profile && (
+            <div className="pt-4 border-t border-gray-700 space-y-2">
+              <p className="text-sm text-gray-400">E-mail: {profile.email}</p>
+              <p className="text-sm text-gray-400">Link da loja: /{profile.slug}</p>
+              <p className="text-sm text-gray-400">
+                Membro desde: {new Date(profile.createdAt).toLocaleDateString('pt-BR')}
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      <Card
-        style={{
-          background: "rgba(30, 30, 30, 0.4)",
-          backdropFilter: "blur(12px)",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
-        }}
+      {/* Botao Salvar */}
+      <Button
+        onClick={() => updateMutation.mutate(settings)}
+        disabled={updateMutation.isPending}
+        className="w-full bg-teal-600 hover:bg-teal-700 text-white h-10"
+        data-testid="button-save-settings"
       >
-        <CardHeader>
-          <CardTitle className="text-white">Informacoes da Conta</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <p className="text-sm text-gray-400">Membro desde: 01 de Dezembro, 2025</p>
-            <p className="text-sm text-gray-400">Vendas totais: R$ 0,00</p>
-            <p className="text-sm text-gray-400">Comissao acumulada: R$ 0,00</p>
-          </div>
-        </CardContent>
-      </Card>
+        {updateMutation.isPending ? (
+          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+        ) : null}
+        Salvar Configuracoes
+      </Button>
     </div>
   );
 }
