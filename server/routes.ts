@@ -623,6 +623,30 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/pedidos/:id/status", async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.id);
+      
+      if (isNaN(orderId)) {
+        return res.status(400).json({ error: "Invalid order ID" });
+      }
+      
+      const order = await storage.getOrder(orderId);
+
+      if (!order) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+
+      res.json({ 
+        status: order.status,
+        deliveredContent: order.status === "paid" ? order.deliveredContent : null 
+      });
+    } catch (error) {
+      console.error("[GET /api/pedidos/:id/status] Error:", error);
+      res.status(500).json({ error: "Failed to check order status" });
+    }
+  });
+
   app.post("/api/orders/:id/simulate-payment", async (req, res) => {
     try {
       const orderId = parseInt(req.params.id);

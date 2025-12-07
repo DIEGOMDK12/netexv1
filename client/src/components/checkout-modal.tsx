@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { X, Copy, Loader2, Package, Plus, Minus, Trash2, Store } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Copy, Loader2, Package, Plus, Minus, Trash2, Store, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useStore } from "@/lib/store-context";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useLocation } from "wouter";
 
 interface CheckoutModalProps {
   open: boolean;
@@ -18,6 +19,7 @@ interface CheckoutModalProps {
 export function CheckoutModal({ open, onClose, themeColor, textColor }: CheckoutModalProps) {
   const { cart, cartTotal, clearCart, updateQuantity, removeFromCart } = useStore();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [settings, setSettings] = useState<any>(null);
 
   const [email, setEmail] = useState("");
@@ -36,8 +38,73 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
     checkoutUrl?: string;
   } | null>(null);
   const [isProcessingPix, setIsProcessingPix] = useState(false);
+  
+  const [paymentStatus, setPaymentStatus] = useState<"pending" | "paid" | "checking">("pending");
+  const [deliveredContent, setDeliveredContent] = useState<string | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const finalTotal = Math.max(0, cartTotal - discount);
+  
+  const checkPaymentStatus = useCallback(async () => {
+    if (!order?.id) return;
+    
+    try {
+      const response = await fetch(`/api/pedidos/${order.id}/status`);
+      if (!response.ok) return;
+      
+      const data = await response.json();
+      console.log("[CheckoutModal] Payment status check:", data.status);
+      
+      if (data.status === "paid") {
+        setPaymentStatus("paid");
+        setDeliveredContent(data.deliveredContent || null);
+        
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+        
+        toast({
+          title: "Pagamento Confirmado!",
+          description: "Seu pedido foi aprovado com sucesso.",
+        });
+        
+        setTimeout(() => {
+          clearCart();
+          onClose();
+          setLocation(`/pedidos?email=${encodeURIComponent(email)}`);
+        }, 2500);
+      }
+    } catch (error) {
+      console.error("[CheckoutModal] Error checking payment status:", error);
+    }
+  }, [order?.id, toast, clearCart, onClose, setLocation, email]);
+
+  useEffect(() => {
+    if (order?.id && paymentStatus === "pending") {
+      console.log("[CheckoutModal] Starting payment status polling for order:", order.id);
+      
+      pollingIntervalRef.current = setInterval(() => {
+        checkPaymentStatus();
+      }, 3000);
+      
+      return () => {
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+      };
+    }
+  }, [order?.id, paymentStatus, checkPaymentStatus]);
+
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, []);
 
   // Get reseller ID from cart (all items should be from same reseller)
   const resellerId = cart.length > 0 ? cart[0].product.resellerId : null;
@@ -245,6 +312,8 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
       setWhatsapp("");
       setCouponCode("");
       setDiscount(0);
+      setPaymentStatus("pending");
+      setDeliveredContent(null);
       onClose();
     }
   };
@@ -501,13 +570,39 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
             </>
           ) : (
             <div className="space-y-4">
-              {isProcessingPix ? (
+              {paymentStatus === "paid" ? (
+                <div className="p-6 bg-green-900/30 border-2 border-green-500 rounded-lg text-center animate-in fade-in zoom-in duration-300">
+                  <CheckCircle2 className="w-16 h-16 mx-auto text-green-400 mb-4" />
+                  <h3 className="text-2xl font-bold text-green-400 mb-2" data-testid="text-payment-success">
+                    Pagamento Recebido!
+                  </h3>
+                  <p className="text-gray-300 text-sm mb-2">
+                    Seu pedido foi confirmado com sucesso.
+                  </p>
+                  <p className="text-gray-400 text-xs">
+                    Redirecionando para seus pedidos...
+                  </p>
+                  <Loader2 className="w-5 h-5 animate-spin mx-auto mt-3 text-green-400" />
+                </div>
+              ) : isProcessingPix ? (
                 <div className="p-4 bg-zinc-900 border border-zinc-700 rounded-lg text-center">
                   <Loader2 className="w-8 h-8 animate-spin mx-auto text-green-400 mb-2" />
                   <p className="text-white">Gerando QR Code PIX...</p>
                 </div>
               ) : pixPayment ? (
                 <>
+                  <div className="p-4 bg-amber-900/20 border border-amber-500/50 rounded-lg text-center mb-3">
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin text-amber-400" />
+                      <span className="text-amber-400 font-semibold" data-testid="text-waiting-payment">
+                        Aguardando confirmação do pagamento...
+                      </span>
+                    </div>
+                    <p className="text-xs text-amber-300/70 mt-1">
+                      O status será atualizado automaticamente
+                    </p>
+                  </div>
+                  
                   <div className="p-4 bg-zinc-900 border border-zinc-700 rounded-lg text-center">
                     <h3 className="text-white font-bold mb-3">Pagamento via PIX</h3>
                     
@@ -548,6 +643,18 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
                 </>
               ) : PIX_KEY && PIX_KEY !== "Chave PIX não configurada" ? (
                 <>
+                  <div className="p-4 bg-amber-900/20 border border-amber-500/50 rounded-lg text-center mb-3">
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin text-amber-400" />
+                      <span className="text-amber-400 font-semibold" data-testid="text-waiting-payment-manual">
+                        Aguardando confirmação do pagamento...
+                      </span>
+                    </div>
+                    <p className="text-xs text-amber-300/70 mt-1">
+                      O status será atualizado automaticamente
+                    </p>
+                  </div>
+                  
                   <div className="p-4 bg-zinc-900 border border-zinc-700 rounded-lg text-center">
                     <h3 className="text-white font-bold mb-2">Pagamento via PIX</h3>
                     <p className="text-gray-400 text-sm mb-1">Chave PIX:</p>
@@ -572,31 +679,41 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
                 </div>
               )}
 
-              <div
-                className="p-3 rounded-lg bg-gray-800 text-center"
-                style={{ color: textColor || "#FFFFFF" }}
-              >
-                <p className="text-sm">Pedido #{order.id} criado com sucesso!</p>
-                <p className="text-xs opacity-70 mt-1">Aguardando confirmação de pagamento pelo administrador</p>
-              </div>
+              {paymentStatus !== "paid" && (
+                <div
+                  className="p-3 rounded-lg bg-gray-800 text-center"
+                  style={{ color: textColor || "#FFFFFF" }}
+                >
+                  <p className="text-sm">Pedido #{order.id} criado com sucesso!</p>
+                  <p className="text-xs opacity-70 mt-1">Aguardando confirmação de pagamento</p>
+                </div>
+              )}
 
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => {
-                  clearCart();
-                  setEmail("");
-                  setWhatsapp("");
-                  setCouponCode("");
-                  setDiscount(0);
-                  setOrder(null);
-                  setPixPayment(null);
-                  onClose();
-                }}
-                data-testid="button-close-order"
-              >
-                Fechar
-              </Button>
+              {paymentStatus !== "paid" && (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    if (pollingIntervalRef.current) {
+                      clearInterval(pollingIntervalRef.current);
+                      pollingIntervalRef.current = null;
+                    }
+                    clearCart();
+                    setEmail("");
+                    setWhatsapp("");
+                    setCouponCode("");
+                    setDiscount(0);
+                    setOrder(null);
+                    setPixPayment(null);
+                    setPaymentStatus("pending");
+                    setDeliveredContent(null);
+                    onClose();
+                  }}
+                  data-testid="button-close-order"
+                >
+                  Fechar
+                </Button>
+              )}
             </div>
           )}
         </div>
