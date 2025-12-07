@@ -750,6 +750,141 @@ export async function registerRoutes(
     }
   });
 
+  // PagSeguro OAuth Connect - Start OAuth flow to connect seller account
+  app.get("/api/pagseguro/connect/:resellerId", async (req, res) => {
+    try {
+      const resellerId = parseInt(req.params.resellerId);
+      const token = req.headers.authorization?.replace("Bearer ", "");
+      
+      if (!isVendorAuthenticated(token)) {
+        return res.status(401).json({ error: "Não autorizado" });
+      }
+      
+      const vendorId = tokenToVendor.get(token!);
+      if (vendorId !== resellerId) {
+        return res.status(403).json({ error: "Acesso negado" });
+      }
+
+      const { getConnectUrl } = await import("./pagSeguroOAuth");
+      
+      const protocol = req.headers["x-forwarded-proto"] || "https";
+      const host = req.headers.host;
+      const redirectUri = `${protocol}://${host}/api/pagseguro/callback`;
+      
+      const connectUrl = await getConnectUrl(resellerId, redirectUri);
+      
+      if (!connectUrl) {
+        return res.status(400).json({ 
+          error: "PagSeguro não configurado. O administrador precisa configurar o Client ID da aplicação."
+        });
+      }
+      
+      res.json({ connectUrl });
+    } catch (error: any) {
+      console.error("[PagSeguro OAuth] Connect error:", error.message);
+      res.status(500).json({ error: "Erro ao iniciar conexão com PagSeguro" });
+    }
+  });
+
+  // PagSeguro OAuth Callback - Handle authorization callback
+  app.get("/api/pagseguro/callback", async (req, res) => {
+    try {
+      const { code, state, error: oauthError } = req.query;
+      
+      if (oauthError) {
+        console.error("[PagSeguro OAuth] Authorization denied:", oauthError);
+        return res.redirect("/vendor?pagseguro=error&message=authorization_denied");
+      }
+      
+      if (!code || !state) {
+        return res.redirect("/vendor?pagseguro=error&message=missing_params");
+      }
+      
+      let stateData: { resellerId: number };
+      try {
+        stateData = JSON.parse(Buffer.from(state as string, "base64").toString());
+      } catch (e) {
+        return res.redirect("/vendor?pagseguro=error&message=invalid_state");
+      }
+      
+      const { exchangeCodeForToken, saveOAuthTokens } = await import("./pagSeguroOAuth");
+      
+      const protocol = req.headers["x-forwarded-proto"] || "https";
+      const host = req.headers.host;
+      const redirectUri = `${protocol}://${host}/api/pagseguro/callback`;
+      
+      const tokens = await exchangeCodeForToken(code as string, redirectUri);
+      
+      if (!tokens) {
+        return res.redirect("/vendor?pagseguro=error&message=token_exchange_failed");
+      }
+      
+      const saved = await saveOAuthTokens(stateData.resellerId, tokens);
+      
+      if (!saved) {
+        return res.redirect("/vendor?pagseguro=error&message=save_failed");
+      }
+      
+      console.log(`[PagSeguro OAuth] Successfully connected reseller ${stateData.resellerId}`);
+      res.redirect("/vendor?pagseguro=success");
+    } catch (error: any) {
+      console.error("[PagSeguro OAuth] Callback error:", error.message);
+      res.redirect("/vendor?pagseguro=error&message=unknown_error");
+    }
+  });
+
+  // PagSeguro OAuth Disconnect - Disconnect seller account
+  app.post("/api/pagseguro/disconnect/:resellerId", async (req, res) => {
+    try {
+      const resellerId = parseInt(req.params.resellerId);
+      const token = req.headers.authorization?.replace("Bearer ", "");
+      
+      if (!isVendorAuthenticated(token)) {
+        return res.status(401).json({ error: "Não autorizado" });
+      }
+      
+      const vendorId = tokenToVendor.get(token!);
+      if (vendorId !== resellerId) {
+        return res.status(403).json({ error: "Acesso negado" });
+      }
+
+      const { disconnectPagSeguro } = await import("./pagSeguroOAuth");
+      
+      const success = await disconnectPagSeguro(resellerId);
+      
+      if (success) {
+        res.json({ success: true, message: "PagSeguro desconectado com sucesso" });
+      } else {
+        res.status(500).json({ error: "Erro ao desconectar PagSeguro" });
+      }
+    } catch (error: any) {
+      console.error("[PagSeguro OAuth] Disconnect error:", error.message);
+      res.status(500).json({ error: "Erro ao desconectar PagSeguro" });
+    }
+  });
+
+  // PagSeguro OAuth Status - Check connection status
+  app.get("/api/pagseguro/status/:resellerId", async (req, res) => {
+    try {
+      const resellerId = parseInt(req.params.resellerId);
+      
+      const reseller = await storage.getReseller(resellerId);
+      
+      if (!reseller) {
+        return res.status(404).json({ error: "Revendedor não encontrado" });
+      }
+      
+      res.json({
+        connected: reseller.pagseguroConnected || false,
+        accountId: reseller.pagseguroAccountId || null,
+        hasManualToken: !!reseller.pagseguroToken,
+      });
+    } catch (error: any) {
+      console.error("[PagSeguro OAuth] Status error:", error.message);
+      res.status(500).json({ error: "Erro ao verificar status" });
+    }
+  });
+
   // Abacate Pay PIX Payment - Create PIX payment using Abacate Pay API
   app.post("/api/pay/abacatepay", async (req, res) => {
     try {
