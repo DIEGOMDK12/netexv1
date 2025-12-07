@@ -23,7 +23,6 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
   const [email, setEmail] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [customerName, setCustomerName] = useState("");
-  const [customerCpf, setCustomerCpf] = useState("");
   const [couponCode, setCouponCode] = useState("");
   const [discount, setDiscount] = useState(0);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
@@ -161,7 +160,6 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
         email,
         whatsapp,
         customerName: customerName.trim() || undefined,
-        customerCpf: customerCpf.trim() || undefined,
         items: cart.map((item) => ({
           productId: item.product.id,
           productName: item.product.name,
@@ -189,7 +187,6 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
             email,
             description: `Pedido #${data.id}`,
             resellerId: resellerId || undefined,
-            customerCpf: customerCpf.trim() || undefined,
             customerName: customerName.trim() || email.split("@")[0],
           });
           const pixData = await pixResponse.json();
@@ -479,23 +476,6 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
                   }}
                   data-testid="input-customer-name"
                 />
-              </div>
-
-              <div className="space-y-2">
-                <Label style={{ color: textColor || "#FFFFFF" }}>CPF ou CNPJ</Label>
-                <Input
-                  type="text"
-                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
-                  value={customerCpf}
-                  onChange={(e) => setCustomerCpf(e.target.value)}
-                  style={{
-                    backgroundColor: "#242424",
-                    borderColor: "rgba(255,255,255,0.1)",
-                    color: textColor || "#FFFFFF",
-                  }}
-                  data-testid="input-customer-cpf"
-                />
-                <p className="text-xs text-gray-400">Obrigatório para pagamento via PIX</p>
               </div>
 
               <Button
