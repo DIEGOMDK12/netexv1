@@ -141,41 +141,13 @@ export const settings = pgTable("settings", {
   resellerWhatsapp: text("reseller_whatsapp").default(""),
 });
 
-export const insertProductSchema = createInsertSchema(products, {
-  id: z.number().optional(),
-});
-export const insertOrderSchema = createInsertSchema(orders, {
-  id: z.number().optional(),
-  createdAt: z.date().optional(),
-});
-export const insertOrderItemSchema = createInsertSchema(orderItems, {
-  id: z.number().optional(),
-});
-export const insertCouponSchema = createInsertSchema(coupons, {
-  id: z.number().optional(),
-});
-export const insertSettingsSchema = createInsertSchema(settings, {
-  id: z.number().optional(),
-});
+export const insertProductSchema = createInsertSchema(products);
+export const insertOrderSchema = createInsertSchema(orders);
+export const insertOrderItemSchema = createInsertSchema(orderItems);
+export const insertCouponSchema = createInsertSchema(coupons);
+export const insertSettingsSchema = createInsertSchema(settings);
 
-export const insertResellersSchema = createInsertSchema(resellers, {
-  createdAt: z.date().optional(),
-  pixKey: z.string().optional().default(""),
-  phone: z.string().optional(),
-  cpf: z.string().optional(),
-  mpAccessToken: z.string().optional().default(""),
-  customDomain: z.string().optional(),
-  storeName: z.string().optional(),
-  logoUrl: z.string().optional(),
-  themeColor: z.string().optional(),
-  backgroundColor: z.string().optional(),
-  buttonRadius: z.number().optional(),
-  subscriptionStatus: z.string().optional().default("pending"),
-  subscriptionExpiresAt: z.date().optional(),
-  supportEmail: z.string().optional(),
-  whatsappContact: z.string().optional(),
-  footerDescription: z.string().optional(),
-});
+export const insertResellersSchema = createInsertSchema(resellers);
 
 export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
@@ -196,7 +168,23 @@ export type Reseller = typeof resellers.$inferSelect;
 export type InsertReseller = z.infer<typeof insertResellersSchema>;
 
 export type Category = typeof categories.$inferSelect;
-export const insertCategorySchema = createInsertSchema(categories, {
-  id: z.number().optional(),
-});
+export const insertCategorySchema = createInsertSchema(categories);
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
+
+// Tabela de solicitações de retirada de saldo
+export const withdrawalRequests = pgTable("withdrawal_requests", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  resellerId: integer("reseller_id").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  pixKey: text("pix_key").notNull(),
+  pixKeyType: text("pix_key_type").notNull().default("cpf"),
+  status: text("status").notNull().default("pending"),
+  adminNotes: text("admin_notes"),
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertWithdrawalRequestSchema = createInsertSchema(withdrawalRequests);
+
+export type WithdrawalRequest = typeof withdrawalRequests.$inferSelect;
+export type InsertWithdrawalRequest = z.infer<typeof insertWithdrawalRequestSchema>;
