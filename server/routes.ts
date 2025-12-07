@@ -96,8 +96,8 @@ function readSettings() {
       resellerPixKey: "",
       pagseguroToken: "",
       pagseguroEmail: "",
-      pagseguroSandbox: true,
-      pagseguroApiUrl: "",
+      pagseguroSandbox: false,
+      pagseguroApiUrl: "https://api.pagseguro.com",
       supportEmail: "suporte@nexstore.com",
       whatsappContact: "5585988007000",
       resellerWhatsapp: ""
@@ -214,8 +214,8 @@ export async function registerRoutes(
       resellerPixKey: resellerPixKey || currentSettings.resellerPixKey || "",
       pagseguroToken: pagseguroToken || currentSettings.pagseguroToken || "",
       pagseguroEmail: pagseguroEmail || currentSettings.pagseguroEmail || "",
-      pagseguroSandbox: pagseguroSandbox !== undefined ? pagseguroSandbox : (currentSettings.pagseguroSandbox !== undefined ? currentSettings.pagseguroSandbox : true),
-      pagseguroApiUrl: pagseguroApiUrl || currentSettings.pagseguroApiUrl || "",
+      pagseguroSandbox: false,
+      pagseguroApiUrl: "https://api.pagseguro.com",
       supportEmail: supportEmail || currentSettings.supportEmail || "suporte@nexstore.com",
       whatsappContact: whatsappContact || currentSettings.whatsappContact || "5585988007000",
       resellerWhatsapp: resellerWhatsapp || currentSettings.resellerWhatsapp || ""
@@ -565,10 +565,7 @@ export async function registerRoutes(
 
       const settings = readSettings();
       const pagseguroToken = settings?.pagseguroToken;
-      const isSandbox = settings?.pagseguroSandbox ?? true;
-      const baseUrl = isSandbox 
-        ? "https://sandbox.api.pagseguro.com" 
-        : "https://api.pagseguro.com";
+      const baseUrl = "https://api.pagseguro.com";
       
       if (pagseguroToken && order.pagseguroOrderId) {
         try {
@@ -682,7 +679,6 @@ export async function registerRoutes(
       let resellerConfig: { 
         resellerPagseguroToken?: string; 
         resellerPagseguroEmail?: string; 
-        resellerPagseguroSandbox?: boolean;
       } = {};
       
       if (resellerId) {
@@ -691,9 +687,8 @@ export async function registerRoutes(
           resellerConfig = {
             resellerPagseguroToken: reseller.pagseguroToken,
             resellerPagseguroEmail: reseller.pagseguroEmail || undefined,
-            resellerPagseguroSandbox: reseller.pagseguroSandbox ?? true,
           };
-          console.log(`[PagSeguro] Using reseller ${resellerId} credentials for payment`);
+          console.log(`[PagSeguro] Using reseller ${resellerId} credentials for payment (PRODUCAO)`);
         }
       }
       
@@ -1248,8 +1243,7 @@ export async function registerRoutes(
       
       const status = await checkOrderStatus(
         pagseguroOrderId,
-        reseller.pagseguroAccessToken,
-        reseller.pagseguroSandbox ?? true
+        reseller.pagseguroAccessToken
       );
       
       res.json(status);
@@ -1543,8 +1537,8 @@ export async function registerRoutes(
         pixKey: req.body.pixKey || null,
         pagseguroToken: req.body.pagseguroToken || null,
         pagseguroEmail: req.body.pagseguroEmail || null,
-        pagseguroSandbox: req.body.pagseguroSandbox !== undefined ? req.body.pagseguroSandbox : true,
-        pagseguroApiUrl: req.body.pagseguroApiUrl || null,
+        pagseguroSandbox: false,
+        pagseguroApiUrl: "https://api.pagseguro.com",
         supportEmail: req.body.supportEmail || null,
         whatsappContact: req.body.whatsappContact || null,
       };
@@ -1743,7 +1737,7 @@ export async function registerRoutes(
         subscriptionExpiresAt: vendor.subscriptionExpiresAt,
         pagseguroToken: vendor.pagseguroToken || null,
         pagseguroEmail: vendor.pagseguroEmail || null,
-        pagseguroSandbox: vendor.pagseguroSandbox ?? true,
+        pagseguroSandbox: false,
         preferredPaymentMethod: vendor.preferredPaymentMethod || "abacatepay",
       });
     } catch (error) {
@@ -1928,7 +1922,7 @@ export async function registerRoutes(
       if (footerDescription !== undefined) updateData.footerDescription = footerDescription;
       if (pagseguroToken !== undefined) updateData.pagseguroToken = pagseguroToken;
       if (pagseguroEmail !== undefined) updateData.pagseguroEmail = pagseguroEmail;
-      if (pagseguroSandbox !== undefined) updateData.pagseguroSandbox = pagseguroSandbox;
+      updateData.pagseguroSandbox = false;
       if (preferredPaymentMethod !== undefined) updateData.preferredPaymentMethod = preferredPaymentMethod;
 
       console.log("[Update Settings] Update data to save:", updateData);
@@ -2829,7 +2823,6 @@ export async function registerRoutes(
         tokenLength: settings?.pagseguroToken?.length,
         tokenPreview: settings?.pagseguroToken?.substring(0, 20) + "...",
         email: settings?.pagseguroEmail,
-        sandbox: settings?.pagseguroSandbox,
       });
       
       if (!settings || !settings.pagseguroToken) {
@@ -2837,13 +2830,10 @@ export async function registerRoutes(
         return res.status(500).json({ error: "PagSeguro not configured - Token missing" });
       }
 
-      const { pagseguroToken, pagseguroSandbox } = settings;
-      const isSandbox = pagseguroSandbox ?? true;
-      const baseUrl = isSandbox 
-        ? "https://sandbox.api.pagseguro.com" 
-        : "https://api.pagseguro.com";
+      const { pagseguroToken } = settings;
+      const baseUrl = "https://api.pagseguro.com";
 
-      console.log("[PagSeguro] Using API:", baseUrl, "| Sandbox mode:", isSandbox);
+      console.log("[PagSeguro] Using API:", baseUrl, "| PRODUCAO");
 
       const amountInCents = 1000; // R$ 10,00
       const referenceId = `subscription-vendor-${vendorId}-${Date.now()}`;
@@ -2951,11 +2941,8 @@ export async function registerRoutes(
         return res.status(500).json({ error: "PagSeguro not configured" });
       }
 
-      const { pagseguroToken, pagseguroSandbox } = settings;
-      const isSandbox = pagseguroSandbox ?? true;
-      const baseUrl = isSandbox 
-        ? "https://sandbox.api.pagseguro.com" 
-        : "https://api.pagseguro.com";
+      const { pagseguroToken } = settings;
+      const baseUrl = "https://api.pagseguro.com";
 
       const axios = (await import("axios")).default;
       const response = await axios.get(

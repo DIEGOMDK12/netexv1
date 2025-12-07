@@ -71,7 +71,7 @@ function getPagSeguroConfig() {
   
   const pagseguroToken = process.env.PAGSEGURO_TOKEN || settings.pagseguroToken;
   const pagseguroEmail = process.env.PAGSEGURO_EMAIL || settings.pagseguroEmail;
-  const pagseguroSandbox = settings.pagseguroSandbox ?? true;
+  const pagseguroSandbox = false;
   
   return { pagseguroToken, pagseguroEmail, pagseguroSandbox };
 }
@@ -87,17 +87,15 @@ function formatTaxId(cpf?: string): string {
 
 async function getTokenForPayment(params: CreatePixPaymentParams): Promise<{
   token: string;
-  isSandbox: boolean;
   source: 'platform';
 }> {
   // TODOS os pagamentos usam as credenciais da PLATAFORMA
   // Os valores caem na conta da plataforma e as revendas solicitam saque via Pix
   const defaultConfig = getPagSeguroConfig();
   if (defaultConfig.pagseguroToken) {
-    console.log(`[PagSeguro] Usando token da PLATAFORMA para todos os pagamentos`);
+    console.log(`[PagSeguro] Usando token da PLATAFORMA para todos os pagamentos (PRODUCAO)`);
     return {
       token: defaultConfig.pagseguroToken,
-      isSandbox: defaultConfig.pagseguroSandbox ?? true,
       source: 'platform'
     };
   }
@@ -108,11 +106,9 @@ async function getTokenForPayment(params: CreatePixPaymentParams): Promise<{
 export async function createPixPayment(params: CreatePixPaymentParams) {
   const { orderId, amount, email, description, customerCpf, customerName } = params;
 
-  const { token: pagseguroToken, isSandbox } = await getTokenForPayment(params);
+  const { token: pagseguroToken } = await getTokenForPayment(params);
 
-  const baseUrl = isSandbox 
-    ? "https://sandbox.api.pagseguro.com" 
-    : "https://api.pagseguro.com";
+  const baseUrl = "https://api.pagseguro.com";
 
   const amountInCents = Math.round(amount * 100);
   const taxId = formatTaxId(customerCpf);
@@ -143,9 +139,8 @@ export async function createPixPayment(params: CreatePixPaymentParams) {
     notification_urls: [],
   };
 
-  console.log(`[PagSeguro] Creating PIX payment for order ${orderId}`, {
+  console.log(`[PagSeguro] Creating PIX payment for order ${orderId} (PRODUCAO)`, {
     amount: amountInCents,
-    sandbox: isSandbox,
     baseUrl,
     tokenLength: pagseguroToken.length,
   });
@@ -222,17 +217,14 @@ export async function checkPaymentStatus(params: CheckPaymentStatusParams | stri
   // TODOS os pagamentos usam as credenciais da PLATAFORMA
   const defaultConfig = getPagSeguroConfig();
   const pagseguroToken = defaultConfig.pagseguroToken;
-  const isSandbox = defaultConfig.pagseguroSandbox ?? true;
 
   if (!pagseguroToken) {
     throw new Error("Configuracoes do PagSeguro nao encontradas");
   }
   
-  console.log(`[PagSeguro] Verificando status com token da PLATAFORMA`);
+  console.log(`[PagSeguro] Verificando status com token da PLATAFORMA (PRODUCAO)`);
 
-  const baseUrl = isSandbox 
-    ? "https://sandbox.api.pagseguro.com" 
-    : "https://api.pagseguro.com";
+  const baseUrl = "https://api.pagseguro.com";
 
   try {
     const response = await axios.get<PagSeguroOrderResponse>(

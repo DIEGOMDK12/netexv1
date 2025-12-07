@@ -18,7 +18,6 @@ export default function AdminSettings() {
     pixKey: "",
     pagseguroToken: "",
     pagseguroEmail: "",
-    pagseguroSandbox: true,
     pagseguroApiUrl: "",
     supportEmail: "",
     whatsappContact: "",
@@ -50,7 +49,6 @@ export default function AdminSettings() {
         pixKey: (settings as any).pixKey || "",
         pagseguroToken: settings.pagseguroToken || "",
         pagseguroEmail: (settings as any).pagseguroEmail || "",
-        pagseguroSandbox: (settings as any).pagseguroSandbox !== undefined ? (settings as any).pagseguroSandbox : true,
         pagseguroApiUrl: settings.pagseguroApiUrl || "",
         supportEmail: (settings as any).supportEmail || "",
         whatsappContact: (settings as any).whatsappContact || "",
@@ -69,9 +67,8 @@ export default function AdminSettings() {
         },
         body: JSON.stringify({
           ...data,
-          pagseguroApiUrl: data.pagseguroSandbox 
-            ? "https://sandbox.api.pagseguro.com" 
-            : "https://api.pagseguro.com",
+          pagseguroSandbox: false,
+          pagseguroApiUrl: "https://api.pagseguro.com",
         }),
       });
 
@@ -252,34 +249,11 @@ export default function AdminSettings() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 p-3 rounded-lg" style={{ backgroundColor: "#242424" }}>
-            <input
-              type="checkbox"
-              id="pagseguroSandbox"
-              checked={formData.pagseguroSandbox}
-              onChange={(e) => setFormData({ ...formData, pagseguroSandbox: e.target.checked })}
-              className="w-5 h-5 rounded accent-teal-500"
-              data-testid="checkbox-pagseguro-sandbox"
-            />
-            <div>
-              <Label htmlFor="pagseguroSandbox" className="text-white cursor-pointer font-medium">
-                Modo Sandbox (Teste)
-              </Label>
-              <p className="text-xs text-gray-400">
-                {formData.pagseguroSandbox 
-                  ? "Ativo - Pagamentos de teste, nao processam valores reais" 
-                  : "Desativado - Pagamentos REAIS serao processados"}
-              </p>
-            </div>
+          <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
+            <p className="text-sm text-green-300">
+              Modo de producao ativo! Todos os pagamentos serao processados com valores reais.
+            </p>
           </div>
-
-          {!formData.pagseguroSandbox && (
-            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
-              <p className="text-sm text-yellow-300">
-                Modo de producao ativo! Todos os pagamentos serao processados com valores reais.
-              </p>
-            </div>
-          )}
         </div>
       </div>
 

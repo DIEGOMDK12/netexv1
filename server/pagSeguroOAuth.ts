@@ -24,7 +24,7 @@ async function getOAuthConfig(): Promise<PagSeguroOAuthConfig | null> {
   return {
     clientId: settings.pagseguroClientId,
     appAccountId: settings.pagseguroAppAccountId || "",
-    isSandbox: settings.pagseguroSandbox ?? true,
+    isSandbox: false,
   };
 }
 

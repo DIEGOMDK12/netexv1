@@ -1,35 +1,31 @@
 import axios from "axios";
 
-const PAGSEGURO_SANDBOX_URL = "https://sandbox.api.pagseguro.com";
-const PAGSEGURO_PRODUCTION_URL = "https://api.pagseguro.com";
-const PAGSEGURO_CONNECT_SANDBOX = "https://connect.sandbox.pagseguro.uol.com.br";
-const PAGSEGURO_CONNECT_PRODUCTION = "https://connect.pagseguro.uol.com.br";
+const PAGSEGURO_API_URL = "https://api.pagseguro.com";
+const PAGSEGURO_CONNECT_URL = "https://connect.pagseguro.uol.com.br";
 
 interface PagSeguroConfig {
   clientId: string;
   clientSecret: string;
-  sandbox: boolean;
 }
 
 function getConfig(): PagSeguroConfig {
   return {
     clientId: process.env.PAGSEGURO_CLIENT_ID || "",
     clientSecret: process.env.PAGSEGURO_CLIENT_SECRET || "",
-    sandbox: process.env.PAGSEGURO_SANDBOX === "true" || process.env.PAGSEGURO_SANDBOX === undefined,
   };
 }
 
-function getApiUrl(sandbox: boolean): string {
-  return sandbox ? PAGSEGURO_SANDBOX_URL : PAGSEGURO_PRODUCTION_URL;
+function getApiUrl(): string {
+  return PAGSEGURO_API_URL;
 }
 
-function getConnectUrl(sandbox: boolean): string {
-  return sandbox ? PAGSEGURO_CONNECT_SANDBOX : PAGSEGURO_CONNECT_PRODUCTION;
+function getConnectUrl(): string {
+  return PAGSEGURO_CONNECT_URL;
 }
 
 export function generateAuthorizationUrl(redirectUri: string, state: string): string {
   const config = getConfig();
-  const connectUrl = getConnectUrl(config.sandbox);
+  const connectUrl = getConnectUrl();
   
   const params = new URLSearchParams({
     response_type: "code",
@@ -52,7 +48,7 @@ export async function exchangeCodeForToken(
   accountId?: string;
 }> {
   const config = getConfig();
-  const apiUrl = getApiUrl(config.sandbox);
+  const apiUrl = getApiUrl();
   
   console.log("[PagSeguro Connect] Exchanging code for token...");
   
@@ -94,7 +90,7 @@ export async function refreshAccessToken(
   expiresIn: number;
 }> {
   const config = getConfig();
-  const apiUrl = getApiUrl(config.sandbox);
+  const apiUrl = getApiUrl();
   
   console.log("[PagSeguro Connect] Refreshing access token...");
   
@@ -134,7 +130,6 @@ interface CreatePixOrderParams {
   customerCpf: string;
   accessToken: string;
   webhookUrl: string;
-  sandbox?: boolean;
 }
 
 interface PixOrderResponse {
@@ -154,10 +149,9 @@ export async function createPixOrder(params: CreatePixOrderParams): Promise<PixO
     customerCpf,
     accessToken,
     webhookUrl,
-    sandbox = true,
   } = params;
   
-  const apiUrl = getApiUrl(sandbox);
+  const apiUrl = getApiUrl();
   const amountInCents = Math.round(amount * 100);
   
   const expirationDate = new Date();
@@ -236,13 +230,12 @@ export async function createPixOrder(params: CreatePixOrderParams): Promise<PixO
 
 export async function checkOrderStatus(
   pagseguroOrderId: string,
-  accessToken: string,
-  sandbox: boolean = true
+  accessToken: string
 ): Promise<{
   status: string;
   isPaid: boolean;
 }> {
-  const apiUrl = getApiUrl(sandbox);
+  const apiUrl = getApiUrl();
   
   try {
     const response = await axios.get(
