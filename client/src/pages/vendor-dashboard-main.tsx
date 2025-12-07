@@ -1,10 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
-import { Loader2, TrendingUp, ShoppingBag, DollarSign, Copy, Check, CheckCircle, Clock, Eye, AlertTriangle } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Loader2, TrendingUp, ShoppingBag, DollarSign, Copy, Check, CheckCircle, Clock, Eye, AlertTriangle, Wallet, XCircle, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
-import type { Reseller, Order } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
+import type { Reseller, Order, WithdrawalRequest } from "@shared/schema";
 
 interface DashboardMainProps {
   vendorId: number;
@@ -28,6 +32,13 @@ export function DashboardMain({ vendorId, isAdmin, subscriptionExpiresAt }: Dash
   const [recentOrders, setRecentOrders] = useState<OrderWithDetails[]>([]);
   const [productsCount, setProductsCount] = useState(0);
   const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
+  const [withdrawalDialogOpen, setWithdrawalDialogOpen] = useState(false);
+  const [withdrawalAmount, setWithdrawalAmount] = useState("");
+  const [pixKey, setPixKey] = useState("");
+  const [pixKeyType, setPixKeyType] = useState("cpf");
+  
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   useEffect(() => {
     if (subscriptionExpiresAt) {
@@ -43,7 +54,6 @@ export function DashboardMain({ vendorId, isAdmin, subscriptionExpiresAt }: Dash
     queryKey: ["/api/vendor/profile", vendorId],
   });
 
-  // Fetch vendor stats (total sales only from paid orders)
   const { data: stats } = useQuery<VendorStats>({
     queryKey: ["/api/vendor/stats"],
     queryFn: async () => {
@@ -68,14 +78,73 @@ export function DashboardMain({ vendorId, isAdmin, subscriptionExpiresAt }: Dash
     enabled: !!localStorage.getItem("vendor_token"),
   });
 
-  // Fetch recent orders for this vendor
+  const { data: withdrawals, isLoading: isLoadingWithdrawals } = useQuery<WithdrawalRequest[]>({
+    queryKey: ["/api/vendor/withdrawals"],
+    queryFn: async () => {
+      const token = localStorage.getItem("vendor_token");
+      if (!token) throw new Error("No auth token");
+      
+      const response = await fetch("/api/vendor/withdrawals", {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch withdrawals");
+      }
+      return response.json();
+    },
+    enabled: !!localStorage.getItem("vendor_token"),
+  });
+
+  const createWithdrawalMutation = useMutation({
+    mutationFn: async (data: { amount: string; pixKey: string; pixKeyType: string }) => {
+      const token = localStorage.getItem("vendor_token");
+      if (!token) throw new Error("No auth token");
+      
+      const response = await fetch("/api/vendor/withdrawals", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Erro ao solicitar retirada");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Solicitacao enviada!",
+        description: "Sua solicitacao de retirada foi enviada para analise.",
+      });
+      setWithdrawalDialogOpen(false);
+      setWithdrawalAmount("");
+      setPixKey("");
+      setPixKeyType("cpf");
+      queryClient.invalidateQueries({ queryKey: ["/api/vendor/withdrawals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/vendor/profile", vendorId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/vendor/stats"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   useEffect(() => {
     const fetchOrders = async () => {
       try {
         const response = await fetch(`/api/vendor/orders?vendorId=${vendorId}`);
         if (response.ok) {
           const data = await response.json();
-          // Get only last 5 orders
           setRecentOrders(data.slice(0, 5));
         }
       } catch (error) {
@@ -110,6 +179,7 @@ export function DashboardMain({ vendorId, isAdmin, subscriptionExpiresAt }: Dash
   }
 
   const storeLink = vendor?.slug ? `${window.location.origin}/loja/${vendor.slug}` : "";
+  const availableBalance = vendor?.totalCommission ? parseFloat(vendor.totalCommission.toString()) : 0;
 
   const handleCopyLink = () => {
     if (storeLink) {
@@ -117,6 +187,83 @@ export function DashboardMain({ vendorId, isAdmin, subscriptionExpiresAt }: Dash
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2000);
     }
+  };
+
+  const handleWithdrawalSubmit = () => {
+    const amount = parseFloat(withdrawalAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: "Valor invalido",
+        description: "Digite um valor valido para retirada.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (amount > availableBalance) {
+      toast({
+        title: "Saldo insuficiente",
+        description: "O valor solicitado e maior que seu saldo disponivel.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!pixKey.trim()) {
+      toast({
+        title: "Chave PIX obrigatoria",
+        description: "Digite sua chave PIX para receber o pagamento.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    createWithdrawalMutation.mutate({
+      amount: withdrawalAmount,
+      pixKey: pixKey.trim(),
+      pixKeyType,
+    });
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "pending":
+        return {
+          bg: "rgba(245, 158, 11, 0.2)",
+          color: "#f59e0b",
+          icon: <Clock className="w-3 h-3" />,
+          text: "Pendente",
+        };
+      case "approved":
+        return {
+          bg: "rgba(16, 185, 129, 0.2)",
+          color: "#10b981",
+          icon: <CheckCircle className="w-3 h-3" />,
+          text: "Aprovado",
+        };
+      case "rejected":
+        return {
+          bg: "rgba(239, 68, 68, 0.2)",
+          color: "#ef4444",
+          icon: <XCircle className="w-3 h-3" />,
+          text: "Rejeitado",
+        };
+      default:
+        return {
+          bg: "rgba(156, 163, 175, 0.2)",
+          color: "#9ca3af",
+          icon: <Clock className="w-3 h-3" />,
+          text: status,
+        };
+    }
+  };
+
+  const formatDate = (dateString: string | Date | null) => {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
   };
 
   return (
@@ -173,8 +320,40 @@ export function DashboardMain({ vendorId, isAdmin, subscriptionExpiresAt }: Dash
         </Card>
       )}
 
-      {/* Stats Grid - 3 Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      {/* Stats Grid - 4 Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Saldo Disponível */}
+        <Card
+          style={{
+            background: "linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.15) 100%)",
+            backdropFilter: "blur(12px)",
+            border: "1px solid rgba(16, 185, 129, 0.3)",
+          }}
+          className="shadow-lg"
+          data-testid="card-saldo-disponivel"
+        >
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium text-gray-400">Saldo Disponivel</CardTitle>
+              <Wallet className="w-5 h-5 text-emerald-500" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold text-emerald-400">
+              R$ {availableBalance.toFixed(2)}
+            </p>
+            <Button
+              onClick={() => setWithdrawalDialogOpen(true)}
+              disabled={availableBalance <= 0}
+              className="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+              data-testid="button-solicitar-retirada"
+            >
+              <ArrowUpRight className="w-4 h-4 mr-2" />
+              Solicitar Retirada
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Total Vendido */}
         <Card
           style={{
@@ -192,7 +371,7 @@ export function DashboardMain({ vendorId, isAdmin, subscriptionExpiresAt }: Dash
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-4xl font-bold text-white">
+            <p className="text-3xl font-bold text-white">
               R$ {stats?.totalRevenue ? parseFloat(stats.totalRevenue).toFixed(2) : "0.00"}
             </p>
             <p className="text-xs text-gray-500 mt-2">{stats?.paidOrders ?? 0} pedidos confirmados</p>
@@ -216,8 +395,8 @@ export function DashboardMain({ vendorId, isAdmin, subscriptionExpiresAt }: Dash
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-4xl font-bold text-white">{stats?.pendingOrders ?? 0}</p>
-            <p className="text-xs text-gray-500 mt-2">Aguardando aprovação</p>
+            <p className="text-3xl font-bold text-white">{stats?.pendingOrders ?? 0}</p>
+            <p className="text-xs text-gray-500 mt-2">Aguardando aprovacao</p>
           </CardContent>
         </Card>
 
@@ -238,11 +417,81 @@ export function DashboardMain({ vendorId, isAdmin, subscriptionExpiresAt }: Dash
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-4xl font-bold text-white">{productsCount}</p>
+            <p className="text-3xl font-bold text-white">{productsCount}</p>
             <p className="text-xs text-gray-500 mt-2">Prontos para venda</p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Withdrawal History */}
+      <Card
+        style={{
+          background: "rgba(30, 30, 30, 0.4)",
+          backdropFilter: "blur(12px)",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
+        }}
+        className="shadow-lg"
+        data-testid="card-historico-retiradas"
+      >
+        <CardHeader>
+          <CardTitle className="text-white text-lg">Historico de Retiradas</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoadingWithdrawals ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+            </div>
+          ) : !withdrawals || withdrawals.length === 0 ? (
+            <p className="text-center text-gray-400 py-8">Nenhuma solicitacao de retirada</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="text-left py-3 px-3 text-gray-400 font-medium">Data</th>
+                    <th className="text-right py-3 px-3 text-gray-400 font-medium">Valor</th>
+                    <th className="text-left py-3 px-3 text-gray-400 font-medium hidden md:table-cell">Chave PIX</th>
+                    <th className="text-center py-3 px-3 text-gray-400 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {withdrawals.map((withdrawal) => {
+                    const badge = getStatusBadge(withdrawal.status);
+                    return (
+                      <tr key={withdrawal.id} className="border-b border-white/5 hover:bg-white/5 transition">
+                        <td className="py-3 px-3 text-white text-sm">
+                          {formatDate(withdrawal.createdAt)}
+                        </td>
+                        <td className="py-3 px-3 text-right font-semibold text-emerald-400">
+                          R$ {parseFloat(withdrawal.amount.toString()).toFixed(2)}
+                        </td>
+                        <td className="py-3 px-3 text-gray-400 hidden md:table-cell text-sm truncate max-w-[200px]">
+                          {withdrawal.pixKey}
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          <span
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium"
+                            style={{
+                              background: badge.bg,
+                              color: badge.color,
+                            }}
+                          >
+                            {badge.icon}
+                            {badge.text}
+                          </span>
+                          {withdrawal.status === "rejected" && withdrawal.adminNotes && (
+                            <p className="text-xs text-red-400 mt-1">{withdrawal.adminNotes}</p>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Últimas Vendas - Table */}
       <Card
@@ -255,7 +504,7 @@ export function DashboardMain({ vendorId, isAdmin, subscriptionExpiresAt }: Dash
         data-testid="card-ultimas-vendas"
       >
         <CardHeader>
-          <CardTitle className="text-white text-lg">Últimas Vendas</CardTitle>
+          <CardTitle className="text-white text-lg">Ultimas Vendas</CardTitle>
         </CardHeader>
         <CardContent>
           {recentOrders.length === 0 ? (
@@ -269,7 +518,7 @@ export function DashboardMain({ vendorId, isAdmin, subscriptionExpiresAt }: Dash
                     <th className="text-left py-3 px-3 text-gray-400 font-medium hidden md:table-cell">Produto</th>
                     <th className="text-right py-3 px-3 text-gray-400 font-medium">Valor</th>
                     <th className="text-center py-3 px-3 text-gray-400 font-medium">Status</th>
-                    <th className="text-center py-3 px-3 text-gray-400 font-medium">Ação</th>
+                    <th className="text-center py-3 px-3 text-gray-400 font-medium">Acao</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -322,6 +571,98 @@ export function DashboardMain({ vendorId, isAdmin, subscriptionExpiresAt }: Dash
           )}
         </CardContent>
       </Card>
+
+      {/* Withdrawal Request Dialog */}
+      <Dialog open={withdrawalDialogOpen} onOpenChange={setWithdrawalDialogOpen}>
+        <DialogContent 
+          className="sm:max-w-md"
+          style={{
+            background: "#1A1A1A",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle className="text-white">Solicitar Retirada</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Preencha os dados para solicitar uma retirada de saldo via PIX.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="p-3 rounded-lg" style={{ background: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.3)" }}>
+              <p className="text-sm text-gray-400">Saldo disponivel</p>
+              <p className="text-2xl font-bold text-emerald-400">R$ {availableBalance.toFixed(2)}</p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="amount" className="text-gray-300">Valor da retirada</Label>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                min="0"
+                max={availableBalance}
+                placeholder="0.00"
+                value={withdrawalAmount}
+                onChange={(e) => setWithdrawalAmount(e.target.value)}
+                className="bg-zinc-900 border-zinc-700 text-white"
+                data-testid="input-withdrawal-amount"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="pixKeyType" className="text-gray-300">Tipo de chave PIX</Label>
+              <Select value={pixKeyType} onValueChange={setPixKeyType}>
+                <SelectTrigger className="bg-zinc-900 border-zinc-700 text-white" data-testid="select-pix-key-type">
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-700">
+                  <SelectItem value="cpf" data-testid="select-item-cpf">CPF</SelectItem>
+                  <SelectItem value="cnpj" data-testid="select-item-cnpj">CNPJ</SelectItem>
+                  <SelectItem value="email" data-testid="select-item-email">E-mail</SelectItem>
+                  <SelectItem value="phone" data-testid="select-item-phone">Telefone</SelectItem>
+                  <SelectItem value="random" data-testid="select-item-random">Chave aleatoria</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="pixKey" className="text-gray-300">Chave PIX</Label>
+              <Input
+                id="pixKey"
+                type="text"
+                placeholder={pixKeyType === "cpf" ? "000.000.000-00" : pixKeyType === "email" ? "email@exemplo.com" : "Digite sua chave PIX"}
+                value={pixKey}
+                onChange={(e) => setPixKey(e.target.value)}
+                className="bg-zinc-900 border-zinc-700 text-white"
+                data-testid="input-pix-key"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setWithdrawalDialogOpen(false)}
+              className="border-zinc-700 text-gray-300"
+              data-testid="button-cancel-withdrawal"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleWithdrawalSubmit}
+              disabled={createWithdrawalMutation.isPending}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              data-testid="button-confirm-withdrawal"
+            >
+              {createWithdrawalMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : null}
+              Confirmar Solicitacao
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

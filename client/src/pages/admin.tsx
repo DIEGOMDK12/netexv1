@@ -1,15 +1,16 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Home, Package, Settings, LogOut, Store } from "lucide-react";
+import { Home, Package, Settings, LogOut, Store, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AdminHome from "./admin-home";
 import AdminProductsModeration from "./admin-products-moderation";
 import AdminSettings from "./admin-settings";
 import AdminResellers from "./admin-resellers";
+import AdminWithdrawals from "./admin-withdrawals";
 
 export default function Admin() {
   const [, setLocation] = useLocation();
-  const [currentPage, setCurrentPage] = useState<"home" | "products" | "settings" | "resellers">("home");
+  const [currentPage, setCurrentPage] = useState<"home" | "products" | "settings" | "resellers" | "withdrawals">("home");
 
   useEffect(() => {
     const token = localStorage.getItem("admin_token");
@@ -27,6 +28,7 @@ export default function Admin() {
     { id: "home" as const, label: "Dashboard", icon: Home },
     { id: "resellers" as const, label: "Lojas/Revendas", icon: Store },
     { id: "products" as const, label: "Produtos", icon: Package },
+    { id: "withdrawals" as const, label: "Retiradas", icon: Wallet },
     { id: "settings" as const, label: "Configurações", icon: Settings },
   ];
 
@@ -76,6 +78,7 @@ export default function Admin() {
         {currentPage === "home" && <AdminHome />}
         {currentPage === "resellers" && <AdminResellers />}
         {currentPage === "products" && <AdminProductsModeration />}
+        {currentPage === "withdrawals" && <AdminWithdrawals />}
         {currentPage === "settings" && <AdminSettings />}
       </div>
     </div>
