@@ -57,7 +57,7 @@ export default function VendorLogin() {
       const expiresAt = subscriptionExpiresAt ? new Date(subscriptionExpiresAt) : null;
       const now = new Date();
       const isExpired = expiresAt ? expiresAt.getTime() < now.getTime() : true;
-      const isActive = subscriptionStatus === "active" && !isExpired;
+      const isActive = (subscriptionStatus === "active" || subscriptionStatus === "trial") && !isExpired;
 
       console.log("[🟢 VendorLogin] Subscription validation:", {
         status: subscriptionStatus,
@@ -69,7 +69,7 @@ export default function VendorLogin() {
       });
 
       if (isActive) {
-        console.log("[🟢 VendorLogin] ✅ SUBSCRIPTION ATIVA - Acesso permitido ao dashboard");
+        console.log("[🟢 VendorLogin] ✅ SUBSCRIPTION ATIVA/TRIAL - Acesso permitido ao dashboard");
         toast({
           title: "Sucesso!",
           description: "Bem-vindo ao seu painel de vendedor",
@@ -79,7 +79,7 @@ export default function VendorLogin() {
       } else {
         console.log("[🟢 VendorLogin] ❌ Subscription inativa/expirada - redirecionando para pagamento");
         console.log("[🟢 VendorLogin] Motivo:", {
-          statusNotActive: subscriptionStatus !== "active",
+          statusNotActive: subscriptionStatus !== "active" && subscriptionStatus !== "trial",
           dateExpired: isExpired,
         });
         toast({
