@@ -94,6 +94,8 @@ export const orders = pgTable("orders", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   email: text("email").notNull(),
   whatsapp: text("whatsapp"),
+  customerCpf: text("customer_cpf"),
+  customerName: text("customer_name"),
   status: text("status").notNull().default("pending"),
   paymentMethod: text("payment_method").notNull().default("pix_auto"),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),

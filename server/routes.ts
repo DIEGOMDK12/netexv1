@@ -489,9 +489,9 @@ export async function registerRoutes(
 
   app.post("/api/orders", async (req, res) => {
     try {
-      const { email, whatsapp, items, couponCode, discountAmount, totalAmount } = req.body;
+      const { email, whatsapp, customerName, customerCpf, items, couponCode, discountAmount, totalAmount } = req.body;
 
-      console.log("[POST /api/orders] Received order request:", { email, whatsapp, itemCount: items?.length });
+      console.log("[POST /api/orders] Received order request:", { email, whatsapp, customerName, customerCpf: customerCpf ? "PROVIDED" : "NOT PROVIDED", itemCount: items?.length });
 
       if (!email || !whatsapp || !items || items.length === 0) {
         return res.status(400).json({ error: "Missing required fields" });
@@ -515,6 +515,8 @@ export async function registerRoutes(
         const order = await storage.createOrder({
           email,
           whatsapp: whatsapp || null,
+          customerName: customerName || null,
+          customerCpf: customerCpf || null,
           status: "pending",
           paymentMethod: "pix_manual",
           totalAmount,
@@ -685,9 +687,10 @@ export async function registerRoutes(
 
   // PagSeguro PIX Payment - Create PIX payment using PagSeguro API v4
   // Supports both admin config (global) and reseller config (individual accounts)
+  // Accepts customerCpf for CPF/CNPJ (pessoa física or jurídica)
   app.post("/api/pay/pagseguro", async (req, res) => {
     try {
-      const { orderId, amount, email, description, resellerId } = req.body;
+      const { orderId, amount, email, description, resellerId, customerCpf, customerName } = req.body;
 
       if (!orderId || !amount || !email) {
         return res.status(400).json({ error: "Campos obrigatórios: orderId, amount, email" });
@@ -718,6 +721,8 @@ export async function registerRoutes(
         amount: parseFloat(amount),
         email,
         description,
+        customerCpf,
+        customerName,
         ...resellerConfig,
       });
 

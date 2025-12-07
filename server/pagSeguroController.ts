@@ -7,6 +7,8 @@ interface CreatePixPaymentParams {
   amount: number;
   email: string;
   description?: string;
+  customerCpf?: string;
+  customerName?: string;
   resellerPagseguroToken?: string;
   resellerPagseguroEmail?: string;
   resellerPagseguroSandbox?: boolean;
@@ -71,8 +73,17 @@ function getPagSeguroConfig() {
   return { pagseguroToken, pagseguroEmail, pagseguroSandbox };
 }
 
+function formatTaxId(cpf?: string): string {
+  if (!cpf) return "12345678909";
+  const cleanCpf = cpf.replace(/\D/g, "");
+  if (cleanCpf.length === 11 || cleanCpf.length === 14) {
+    return cleanCpf;
+  }
+  return "12345678909";
+}
+
 export async function createPixPayment(params: CreatePixPaymentParams) {
-  const { orderId, amount, email, description, resellerPagseguroToken, resellerPagseguroEmail, resellerPagseguroSandbox } = params;
+  const { orderId, amount, email, description, customerCpf, customerName, resellerPagseguroToken, resellerPagseguroEmail, resellerPagseguroSandbox } = params;
 
   const defaultConfig = getPagSeguroConfig();
   
@@ -90,13 +101,14 @@ export async function createPixPayment(params: CreatePixPaymentParams) {
     : "https://api.pagseguro.com";
 
   const amountInCents = Math.round(amount * 100);
+  const taxId = formatTaxId(customerCpf);
 
   const orderPayload = {
     reference_id: `order-${orderId}`,
     customer: {
-      name: email.split("@")[0] || "Cliente",
+      name: customerName || email.split("@")[0] || "Cliente",
       email: email,
-      tax_id: "12345678909",
+      tax_id: taxId,
     },
     items: [
       {
