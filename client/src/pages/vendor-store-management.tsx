@@ -309,10 +309,21 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
       return;
     }
 
+    const slug = categoryForm.name.toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
+
+    const categoryData = {
+      ...categoryForm,
+      slug,
+    };
+
     if (editingCategory) {
-      updateCategoryMutation.mutate({ id: editingCategory.id, data: categoryForm });
+      updateCategoryMutation.mutate({ id: editingCategory.id, data: categoryData });
     } else {
-      createCategoryMutation.mutate(categoryForm);
+      createCategoryMutation.mutate(categoryData);
     }
   };
 
