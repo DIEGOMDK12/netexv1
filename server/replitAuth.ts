@@ -61,6 +61,11 @@ async function upsertUser(claims: any) {
 }
 
 export async function setupAuth(app: Express) {
+  if (!process.env.REPL_ID) {
+    console.log("[Auth] REPL_ID not found - Replit Auth disabled (running outside Replit)");
+    return;
+  }
+
   app.set("trust proxy", 1);
   app.use(getSession());
   app.use(passport.initialize());
@@ -138,6 +143,10 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  if (!process.env.REPL_ID) {
+    return res.status(401).json({ message: "Authentication not available outside Replit" });
+  }
+
   const user = req.user as any;
 
   if (!req.isAuthenticated() || !user.expires_at) {
