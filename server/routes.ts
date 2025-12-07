@@ -1080,8 +1080,21 @@ export async function registerRoutes(
     try {
       const { billingId } = req.params;
       
+      // Look up order by billingId (stored as pagseguroOrderId) to get reseller token
+      let resellerToken: string | undefined;
+      const orders = await storage.getOrders();
+      const order = orders.find(o => o.pagseguroOrderId === billingId);
+      
+      if (order?.resellerId) {
+        const reseller = await storage.getReseller(order.resellerId);
+        if (reseller?.abacatePayToken) {
+          resellerToken = reseller.abacatePayToken;
+          console.log(`[AbacatePay Status] Using reseller ${order.resellerId} token`);
+        }
+      }
+      
       const { checkPaymentStatus } = await import("./abacatePayController");
-      const status = await checkPaymentStatus(billingId);
+      const status = await checkPaymentStatus(billingId, resellerToken);
       
       res.json(status);
     } catch (error: any) {
