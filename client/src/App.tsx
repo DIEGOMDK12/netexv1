@@ -44,6 +44,7 @@ function Router() {
 function AppContent() {
   const [location] = useLocation();
   const isResellerStore = location.startsWith("/loja/");
+  const isHomePage = location === "/";
   
   return (
     <div className="flex flex-col min-h-screen" style={{ backgroundColor: "#121212" }}>
@@ -51,7 +52,7 @@ function AppContent() {
         <Toaster />
         <Router />
       </div>
-      {!isResellerStore && <Footer />}
+      {!isResellerStore && !isHomePage && <Footer />}
     </div>
   );
 }
