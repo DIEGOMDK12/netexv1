@@ -71,11 +71,13 @@ Preferred communication style: Simple, everyday language.
 - Schema-first approach with `drizzle-zod` for validation
 
 **Database Schema**
-- **products**: Digital product catalog (name, description, images, pricing, stock as newline-separated text, active flag)
+- **products**: Digital product catalog (name, slug, description, images, pricing, stock as newline-separated license keys, categoryId, active flag, limitPerUser toggle)
+- **categories**: Vendor-specific product categories (name, slug, icon, resellerId for vendor isolation)
 - **orders**: Order records with email, status, payment details (PIX codes, PagSeguro IDs), coupon information
 - **orderItems**: Line items linking orders to products with pricing snapshots
 - **coupons**: Discount codes with percentage-based discounts and active flags
 - **settings**: Single-row configuration (store name, logo, theme colors, PagSeguro token)
+- **resellers**: Multi-vendor support with individual store branding and subscription management
 
 **Data Access Pattern**
 - DatabaseStorage class implementing IStorage interface
