@@ -861,7 +861,124 @@ export async function registerRoutes(
     }
   });
 
-  // Abacate Pay PIX Payment - Create PIX payment using Abacate Pay API
+  // ============== ABACATEPAY INTEGRATION (NEW) ==============
+
+  // Endpoint principal para criar cobrança PIX via AbacatePay
+  // POST /api/pagamento/criar
+  app.post("/api/pagamento/criar", async (req, res) => {
+    try {
+      const { valor, id_produto, id_revendedor, email, customerName, customerCpf, whatsapp } = req.body;
+
+      console.log("[AbacatePay] /api/pagamento/criar - Request:", { valor, id_produto, id_revendedor, email });
+
+      if (!valor || !id_produto) {
+        return res.status(400).json({ error: "Campos obrigatórios: valor, id_produto" });
+      }
+
+      // Buscar produto
+      const product = await storage.getProduct(parseInt(id_produto));
+      if (!product) {
+        return res.status(404).json({ error: "Produto não encontrado" });
+      }
+
+      // Validar estoque
+      if (!product.stock || !product.stock.trim()) {
+        return res.status(400).json({ error: "Produto sem estoque disponível" });
+      }
+
+      // Determinar revendedor (do produto ou do request)
+      const resellerId = id_revendedor ? parseInt(id_revendedor) : product.resellerId;
+      let reseller = null;
+      let commissionPercent = 10; // Padrão: 10% para plataforma
+
+      if (resellerId) {
+        reseller = await storage.getReseller(resellerId);
+        if (reseller) {
+          commissionPercent = reseller.commissionPercent || 10;
+        }
+      }
+
+      // Calcular split (comissão plataforma e valor revendedor)
+      const valorTotal = parseFloat(valor);
+      const comissaoPlataforma = (valorTotal * commissionPercent) / 100;
+      const valorRevendedor = valorTotal - comissaoPlataforma;
+
+      console.log(`[AbacatePay] Split calculado: Total=${valorTotal}, Plataforma=${comissaoPlataforma} (${commissionPercent}%), Revendedor=${valorRevendedor}`);
+
+      // Criar pedido no banco
+      const order = await storage.createOrder({
+        email: email || "cliente@exemplo.com",
+        whatsapp: whatsapp || null,
+        customerName: customerName || null,
+        customerCpf: customerCpf || null,
+        status: "pending",
+        paymentMethod: "pix_abacatepay",
+        totalAmount: valorTotal.toFixed(2),
+        comissaoPlataforma: comissaoPlataforma.toFixed(2),
+        valorRevendedor: valorRevendedor.toFixed(2),
+        resellerId: resellerId || null,
+        pixCode: null,
+        pixQrCode: null,
+        pagseguroOrderId: null,
+        abacatepayBillingId: null,
+        deliveredContent: null,
+        couponCode: null,
+        discountAmount: null,
+      });
+
+      // Criar item do pedido
+      await storage.createOrderItem({
+        orderId: order.id,
+        productId: product.id,
+        productName: product.name,
+        price: valorTotal.toFixed(2),
+        quantity: 1,
+      });
+
+      console.log(`[AbacatePay] Pedido ${order.id} criado com split`);
+
+      // Criar cobrança PIX via AbacatePay
+      const { createPixPayment } = await import("./abacatePayController");
+      
+      const result = await createPixPayment({
+        orderId: order.id,
+        amount: valorTotal,
+        email: email || "cliente@exemplo.com",
+        description: `Pedido #${order.id} - ${product.name}`,
+        customerName: customerName || "Cliente",
+      });
+
+      // Atualizar pedido com dados do AbacatePay
+      await storage.updateOrder(order.id, {
+        abacatepayBillingId: result.billingId,
+        pixCode: result.pixCode,
+        pixQrCode: result.pixQrCodeUrl || result.checkoutUrl,
+      });
+
+      console.log(`[AbacatePay] Payment created for order ${order.id}:`, result.billingId);
+
+      res.json({
+        success: true,
+        orderId: order.id,
+        billingId: result.billingId,
+        url: result.checkoutUrl,
+        pixCopyPaste: result.pixCode,
+        pixQrCodeUrl: result.pixQrCodeUrl,
+        status: result.status,
+        split: {
+          valorTotal,
+          comissaoPlataforma,
+          valorRevendedor,
+          comissaoPercent: commissionPercent,
+        },
+      });
+    } catch (error: any) {
+      console.error("[AbacatePay] /api/pagamento/criar Error:", error.message);
+      res.status(500).json({ error: error.message || "Falha ao criar pagamento PIX" });
+    }
+  });
+
+  // Abacate Pay PIX Payment (legacy endpoint) - Create PIX payment using Abacate Pay API
   app.post("/api/pay/abacatepay", async (req, res) => {
     try {
       const { orderId, amount, email, description, customerName, resellerId } = req.body;
@@ -886,7 +1003,7 @@ export async function registerRoutes(
 
       // Update order with Abacate Pay data
       await storage.updateOrder(parseInt(orderId), {
-        pagseguroOrderId: result.billingId,
+        abacatepayBillingId: result.billingId,
         pixCode: result.pixCode,
         pixQrCode: result.pixQrCodeUrl || result.checkoutUrl,
         paymentMethod: "pix_abacatepay",
@@ -908,7 +1025,170 @@ export async function registerRoutes(
     }
   });
 
-  // Abacate Pay Webhook - Receives payment confirmations and auto-delivers products
+  // ============== NEW ABACATEPAY WEBHOOK (RECOMMENDED) ==============
+  // Webhook para confirmar pagamento e adicionar saldo na carteira do revendedor
+  // POST /api/webhook/abacatepay
+  app.post("/api/webhook/abacatepay", async (req, res) => {
+    try {
+      // Validar secret via query param (método simples) ou header (método HMAC)
+      const webhookSecret = req.query.webhookSecret as string;
+      const expectedSecret = process.env.ABACATEPAY_WEBHOOK_SECRET || process.env.ABACATEPAY_API_KEY;
+
+      // Verificação por query param (mais simples)
+      if (webhookSecret && expectedSecret && webhookSecret !== expectedSecret) {
+        console.error("[AbacatePay Webhook] Invalid webhook secret");
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const payload = req.body;
+      console.log("[AbacatePay Webhook] Received event:", payload.event);
+      console.log("[AbacatePay Webhook] Full payload:", JSON.stringify(payload, null, 2));
+
+      // Verificar se é evento de pagamento confirmado
+      const isPaid = payload.event === "billing.paid" || 
+                     payload.event === "BILLING.PAID" ||
+                     payload.event === "payment.confirmed";
+
+      if (!isPaid) {
+        console.log("[AbacatePay Webhook] Event ignored (not a payment confirmation):", payload.event);
+        return res.status(200).json({ received: true, action: "ignored" });
+      }
+
+      // Extrair orderId dos metadados ou externalId do produto
+      let orderId: number | null = null;
+      
+      // Tentar extrair do metadata
+      if (payload.data?.billing?.metadata?.orderId) {
+        orderId = parseInt(payload.data.billing.metadata.orderId);
+      }
+      // Tentar extrair do externalId do produto (formato: "order-123")
+      else if (payload.data?.billing?.products?.[0]?.externalId) {
+        const externalId = payload.data.billing.products[0].externalId;
+        if (externalId.startsWith("order-")) {
+          orderId = parseInt(externalId.replace("order-", ""));
+        }
+      }
+      // Tentar buscar pelo billingId
+      else if (payload.data?.billing?.id || payload.data?.pixQrCode?.id) {
+        const billingId = payload.data?.billing?.id || payload.data?.pixQrCode?.id;
+        const orders = await storage.getOrders();
+        const matchingOrder = orders.find((o: any) => o.abacatepayBillingId === billingId);
+        if (matchingOrder) {
+          orderId = matchingOrder.id;
+        }
+      }
+
+      if (!orderId) {
+        console.error("[AbacatePay Webhook] Could not extract orderId from payload");
+        return res.status(200).json({ received: true, error: "No orderId found" });
+      }
+
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        console.error(`[AbacatePay Webhook] Order ${orderId} not found`);
+        return res.status(200).json({ received: true, error: "Order not found" });
+      }
+
+      // Verificar se já foi processado
+      if (order.status === "paid") {
+        console.log(`[AbacatePay Webhook] Order ${orderId} already paid, skipping`);
+        return res.status(200).json({ received: true, action: "already_paid" });
+      }
+
+      console.log(`[AbacatePay Webhook] Processing payment for order ${orderId}`);
+
+      // 1. ENTREGAR PRODUTO
+      const orderItems = await storage.getOrderItems(orderId);
+      let deliveredContent = "";
+
+      for (const item of orderItems) {
+        const product = await storage.getProduct(item.productId);
+        const quantity = item.quantity || 1;
+
+        if (product && product.stock) {
+          const stockLines = product.stock.split("\n").filter((line: string) => line.trim());
+
+          if (stockLines.length >= quantity) {
+            // FIFO: Pegar quantidade de itens do estoque
+            for (let i = 0; i < quantity; i++) {
+              deliveredContent += stockLines[i] + "\n";
+            }
+            // Remover linhas entregues do estoque
+            const remainingStock = stockLines.slice(quantity).join("\n");
+            await storage.updateProduct(item.productId, { stock: remainingStock });
+            console.log(`[AbacatePay Webhook] ✓ Delivered ${quantity} item(s) for product ${product.name}`);
+          } else {
+            console.error(`[AbacatePay Webhook] ❌ Insufficient stock for ${product.name}`);
+          }
+        }
+      }
+
+      // 2. ATUALIZAR STATUS DO PEDIDO
+      const settings = readSettings();
+      const storeName = settings?.storeName || "NexStore";
+      const whatsappMessage = `Ola! Seu pagamento foi confirmado. Aqui esta sua entrega do pedido #${orderId} na ${storeName}:\n\n${deliveredContent.trim()}\n\nObrigado pela compra!`;
+      const whatsappLink = order.whatsapp 
+        ? generateWhatsAppLink(order.whatsapp, whatsappMessage)
+        : null;
+
+      await storage.updateOrder(orderId, {
+        status: "paid",
+        deliveredContent: deliveredContent.trim(),
+        whatsappDeliveryLink: whatsappLink,
+      });
+
+      // 3. ADICIONAR SALDO NA CARTEIRA DO REVENDEDOR (SPLIT)
+      if (order.resellerId && order.valorRevendedor) {
+        const reseller = await storage.getReseller(order.resellerId);
+        if (reseller) {
+          const valorRevendedor = parseFloat(order.valorRevendedor as string);
+          const currentBalance = parseFloat(reseller.walletBalance as string || "0");
+          const newBalance = currentBalance + valorRevendedor;
+
+          await storage.updateReseller(order.resellerId, {
+            walletBalance: newBalance.toFixed(2),
+            totalSales: (parseFloat(reseller.totalSales as string || "0") + parseFloat(order.totalAmount as string)).toFixed(2),
+            totalCommission: (parseFloat(reseller.totalCommission as string || "0") + valorRevendedor).toFixed(2),
+          });
+
+          console.log(`[AbacatePay Webhook] ✅ Reseller ${order.resellerId} balance updated: +R$${valorRevendedor.toFixed(2)} (New balance: R$${newBalance.toFixed(2)})`);
+        }
+      }
+
+      // 4. ENVIAR EMAIL DE ENTREGA
+      if (order.email) {
+        const productNames = orderItems.map((item: any) => item.productName || "Produto Digital").join(", ");
+        sendDeliveryEmail({
+          to: order.email,
+          orderId,
+          productName: productNames,
+          deliveredContent: deliveredContent.trim(),
+          storeName,
+        }).then(result => {
+          if (result.success) {
+            console.log(`[AbacatePay Webhook] ✓ Email sent to ${order.email}`);
+          } else {
+            console.error(`[AbacatePay Webhook] ❌ Email failed: ${result.error}`);
+          }
+        });
+      }
+
+      console.log(`[AbacatePay Webhook] ✅ Order ${orderId} fully processed`);
+
+      res.status(200).json({ 
+        received: true, 
+        orderId,
+        status: "paid",
+        productDelivered: true,
+        resellerBalanceUpdated: !!order.resellerId,
+      });
+    } catch (error: any) {
+      console.error("[AbacatePay Webhook] Error:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Abacate Pay Webhook (legacy endpoint) - Receives payment confirmations and auto-delivers products
   // Note: Raw body is captured via rawBody property attached by middleware in index.ts
   app.post("/api/webhooks/abacatepay", async (req, res) => {
     try {
@@ -918,22 +1198,22 @@ export async function registerRoutes(
       // Use raw body if available (attached by middleware), fallback to stringified body
       const rawBody = (req as any).rawBody || JSON.stringify(req.body);
       
-      console.log("[AbacatePay Webhook] Received event:", req.body.event);
-      console.log("[AbacatePay Webhook] Signature present:", !!signature);
-      console.log("[AbacatePay Webhook] Raw body available:", !!(req as any).rawBody);
+      console.log("[AbacatePay Webhook Legacy] Received event:", req.body.event);
+      console.log("[AbacatePay Webhook Legacy] Signature present:", !!signature);
+      console.log("[AbacatePay Webhook Legacy] Raw body available:", !!(req as any).rawBody);
       
       // Verify signature - in dev mode (no ABACATEPAY_WEBHOOK_SECRET), skip verification
       const { verifyAbacateSignature } = await import("./abacatePayController");
       const isValid = verifyAbacateSignature(rawBody, signature);
       if (!isValid) {
-        console.error("[AbacatePay Webhook] Invalid signature - rejecting request");
+        console.error("[AbacatePay Webhook Legacy] Invalid signature - rejecting request");
         return res.status(401).json({ error: "Invalid webhook signature" });
       }
 
       const { parseWebhookPayload } = await import("./abacatePayController");
       const webhookData = parseWebhookPayload(req.body);
       
-      console.log("[AbacatePay Webhook] Parsed data:", webhookData);
+      console.log("[AbacatePay Webhook Legacy] Parsed data:", webhookData);
 
       // Process payment confirmation
       if (webhookData.isPaid && webhookData.orderId) {
@@ -941,7 +1221,7 @@ export async function registerRoutes(
         const order = await storage.getOrder(orderId);
         
         if (order && order.status === "pending") {
-          console.log(`[AbacatePay Webhook] Processing auto-delivery for order ${orderId}`);
+          console.log(`[AbacatePay Webhook Legacy] Processing auto-delivery for order ${orderId}`);
           
           const orderItems = await storage.getOrderItems(orderId);
           
@@ -951,7 +1231,7 @@ export async function registerRoutes(
             const quantity = item.quantity || 1;
             
             if (!product || !product.stock) {
-              console.error(`[AbacatePay Webhook] ❌ Product ${item.productId} has no stock field`);
+              console.error(`[AbacatePay Webhook Legacy] ❌ Product ${item.productId} has no stock field`);
               return res.status(400).json({ 
                 error: `Insufficient stock for product ${item.productName}`,
                 orderId,
@@ -961,7 +1241,7 @@ export async function registerRoutes(
             
             const stockLines = product.stock.split("\n").filter(line => line.trim());
             if (stockLines.length < quantity) {
-              console.error(`[AbacatePay Webhook] ❌ Insufficient stock for ${product.name} (have ${stockLines.length}, need ${quantity})`);
+              console.error(`[AbacatePay Webhook Legacy] ❌ Insufficient stock for ${product.name} (have ${stockLines.length}, need ${quantity})`);
               return res.status(400).json({ 
                 error: `Insufficient stock for ${product.name}: have ${stockLines.length}, need ${quantity}`,
                 orderId,
@@ -975,7 +1255,7 @@ export async function registerRoutes(
           for (const item of orderItems) {
             const product = await storage.getProduct(item.productId);
             const quantity = item.quantity || 1;
-            console.log(`[AbacatePay Webhook] Delivering item: ${product?.name} (qty: ${quantity})`);
+            console.log(`[AbacatePay Webhook Legacy] Delivering item: ${product?.name} (qty: ${quantity})`);
             
             if (product && product.stock) {
               const stockLines = product.stock.split("\n").filter(line => line.trim());
@@ -983,13 +1263,13 @@ export async function registerRoutes(
               // FIFO: Take quantity items from stock
               for (let i = 0; i < quantity; i++) {
                 deliveredContent += stockLines[i] + "\n";
-                console.log(`[AbacatePay Webhook] ✓ Delivered: ${stockLines[i]}`);
+                console.log(`[AbacatePay Webhook Legacy] ✓ Delivered: ${stockLines[i]}`);
               }
 
               // Remove delivered lines from stock and update
               const remainingStock = stockLines.slice(quantity).join("\n");
               await storage.updateProduct(item.productId, { stock: remainingStock });
-              console.log(`[AbacatePay Webhook] ✓ Stock updated. Remaining lines: ${stockLines.length - quantity}`);
+              console.log(`[AbacatePay Webhook Legacy] ✓ Stock updated. Remaining lines: ${stockLines.length - quantity}`);
             }
           }
 
@@ -1008,6 +1288,24 @@ export async function registerRoutes(
             whatsappDeliveryLink: whatsappLink,
           });
 
+          // Update reseller wallet balance (SPLIT)
+          if (order.resellerId && order.valorRevendedor) {
+            const reseller = await storage.getReseller(order.resellerId);
+            if (reseller) {
+              const valorRevendedor = parseFloat(order.valorRevendedor as string);
+              const currentBalance = parseFloat(reseller.walletBalance as string || "0");
+              const newBalance = currentBalance + valorRevendedor;
+
+              await storage.updateReseller(order.resellerId, {
+                walletBalance: newBalance.toFixed(2),
+                totalSales: (parseFloat(reseller.totalSales as string || "0") + parseFloat(order.totalAmount as string)).toFixed(2),
+                totalCommission: (parseFloat(reseller.totalCommission as string || "0") + valorRevendedor).toFixed(2),
+              });
+
+              console.log(`[AbacatePay Webhook Legacy] ✅ Reseller ${order.resellerId} balance updated: +R$${valorRevendedor.toFixed(2)}`);
+            }
+          }
+
           // Send delivery email automatically
           if (order.email) {
             const productNames = orderItems.map((item: any) => item.productName || "Produto Digital").join(", ");
@@ -1019,27 +1317,27 @@ export async function registerRoutes(
               storeName,
             }).then(result => {
               if (result.success) {
-                console.log(`[AbacatePay Webhook] ✓ Email sent to ${order.email}`);
+                console.log(`[AbacatePay Webhook Legacy] ✓ Email sent to ${order.email}`);
               } else {
-                console.error(`[AbacatePay Webhook] ❌ Email failed: ${result.error}`);
+                console.error(`[AbacatePay Webhook Legacy] ❌ Email failed: ${result.error}`);
               }
             });
           }
 
-          console.log(`[AbacatePay Webhook] ✅ Order ${orderId} auto-approved and delivered`);
+          console.log(`[AbacatePay Webhook Legacy] ✅ Order ${orderId} auto-approved and delivered`);
           if (whatsappLink) {
-            console.log(`[AbacatePay Webhook] 📱 WhatsApp link generated: ${whatsappLink}`);
+            console.log(`[AbacatePay Webhook Legacy] 📱 WhatsApp link generated: ${whatsappLink}`);
           }
         } else if (order) {
-          console.log(`[AbacatePay Webhook] Order ${orderId} already processed (status: ${order.status})`);
+          console.log(`[AbacatePay Webhook Legacy] Order ${orderId} already processed (status: ${order.status})`);
         } else {
-          console.log(`[AbacatePay Webhook] Order ${orderId} not found`);
+          console.log(`[AbacatePay Webhook Legacy] Order ${orderId} not found`);
         }
       }
 
       res.status(200).json({ received: true });
     } catch (error: any) {
-      console.error("[AbacatePay Webhook] Error:", error.message);
+      console.error("[AbacatePay Webhook Legacy] Error:", error.message);
       res.status(500).json({ error: error.message });
     }
   });
