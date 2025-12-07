@@ -13,6 +13,7 @@ interface CreatePixPaymentParams {
   email: string;
   description?: string;
   customerName?: string;
+  resellerToken?: string;
 }
 
 interface AbacatePayBillingResponse {
@@ -149,8 +150,12 @@ export async function createPixPayment(params: CreatePixPaymentParams): Promise<
   checkoutUrl: string;
   status: string;
 }> {
-  const { orderId, amount, email, description, customerName } = params;
-  const token = getAbacatePayToken();
+  const { orderId, amount, email, description, customerName, resellerToken } = params;
+  
+  // Use reseller's token if provided, otherwise fall back to global token
+  const token = resellerToken || getAbacatePayToken();
+  
+  console.log(`[AbacatePay] Using ${resellerToken ? 'reseller' : 'global'} token for payment`);
 
   const amountInCents = Math.round(amount * 100);
 
@@ -216,12 +221,14 @@ export async function createPixPayment(params: CreatePixPaymentParams): Promise<
   }
 }
 
-export async function checkPaymentStatus(billingId: string): Promise<{
+export async function checkPaymentStatus(billingId: string, resellerToken?: string): Promise<{
   status: string;
   isPaid: boolean;
   billingId: string;
 }> {
-  const token = getAbacatePayToken();
+  // Use reseller's token if provided, otherwise fall back to global token
+  const token = resellerToken || getAbacatePayToken();
+  console.log(`[AbacatePay] Checking status using ${resellerToken ? 'reseller' : 'global'} token`);
 
   try {
     // Try pixQrCode list first (for PIX payments created with pixQrCode/create)

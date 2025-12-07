@@ -888,7 +888,7 @@ export async function registerRoutes(
   // Abacate Pay PIX Payment - Create PIX payment using Abacate Pay API
   app.post("/api/pay/abacatepay", async (req, res) => {
     try {
-      const { orderId, amount, email, description, customerName } = req.body;
+      const { orderId, amount, email, description, customerName, resellerId } = req.body;
 
       if (!orderId || !amount || !email) {
         return res.status(400).json({ error: "Campos obrigatórios: orderId, amount, email" });
@@ -896,12 +896,23 @@ export async function registerRoutes(
 
       const { createPixPayment } = await import("./abacatePayController");
       
+      // Get reseller's Abacate Pay token if available
+      let resellerToken: string | undefined;
+      if (resellerId) {
+        const reseller = await storage.getReseller(parseInt(resellerId));
+        if (reseller?.abacatePayToken) {
+          resellerToken = reseller.abacatePayToken;
+          console.log(`[AbacatePay] Using reseller ${resellerId} token for payment`);
+        }
+      }
+      
       const result = await createPixPayment({
         orderId: parseInt(orderId),
         amount: parseFloat(amount),
         email,
         description,
         customerName,
+        resellerToken,
       });
 
       // Update order with Abacate Pay data

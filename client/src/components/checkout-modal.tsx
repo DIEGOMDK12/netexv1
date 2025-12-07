@@ -215,13 +215,14 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
             }
           } else {
             // Use Abacate Pay (default)
-            console.log("[CheckoutModal] Calling AbacatePay API");
+            console.log("[CheckoutModal] Calling AbacatePay API for reseller:", resellerId);
             pixResponse = await apiRequest("POST", "/api/pay/abacatepay", {
               orderId: data.id,
               amount: finalTotal,
               email,
               description: `Pedido #${data.id}`,
-              customerName: email.split("@")[0],
+              customerName: customerName.trim() || email.split("@")[0],
+              resellerId: resellerId,
             });
             pixData = await pixResponse.json();
             

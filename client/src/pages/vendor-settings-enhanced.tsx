@@ -22,6 +22,7 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
     pagseguroToken: vendorData?.pagseguroToken || "",
     pagseguroEmail: vendorData?.pagseguroEmail || "",
     pagseguroSandbox: vendorData?.pagseguroSandbox ?? true,
+    abacatePayToken: vendorData?.abacatePayToken || "",
     preferredPaymentMethod: vendorData?.preferredPaymentMethod || "abacatepay",
   });
 
@@ -57,6 +58,7 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
       pagseguroToken: settings.pagseguroToken,
       pagseguroEmail: settings.pagseguroEmail,
       pagseguroSandbox: settings.pagseguroSandbox,
+      abacatePayToken: settings.abacatePayToken,
       preferredPaymentMethod: settings.preferredPaymentMethod,
     });
   };
@@ -264,6 +266,56 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
                 : "Pagamentos via PagSeguro - você recebe diretamente na sua conta"}
             </p>
           </div>
+
+          {/* AbacatePay Config - Only show if abacatepay is selected */}
+          {settings.preferredPaymentMethod === "abacatepay" && (
+            <div className="space-y-4 p-4 rounded-lg border border-purple-500/30 bg-purple-500/5">
+              <div className="flex items-center gap-2 mb-2">
+                <Wallet className="h-4 w-4 text-purple-500" />
+                <span className="text-sm font-medium text-purple-400">Configuracao AbacatePay</span>
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-white">Token da API AbacatePay</Label>
+                <Input
+                  type="password"
+                  value={settings.abacatePayToken}
+                  onChange={(e) => setSettings({ ...settings, abacatePayToken: e.target.value })}
+                  placeholder="Seu token de API do AbacatePay"
+                  style={{
+                    background: "rgba(30, 30, 40, 0.4)",
+                    backdropFilter: "blur(10px)",
+                    borderColor: "rgba(255,255,255,0.1)",
+                    color: "#FFFFFF",
+                  }}
+                  data-testid="input-abacatepay-token"
+                />
+                <p className="text-xs text-gray-500">
+                  Encontre seu token em: AbacatePay &gt; Configuracoes &gt; API &gt; Gerar Token
+                </p>
+              </div>
+
+              {settings.abacatePayToken ? (
+                <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/30">
+                  <p className="text-sm text-purple-400 font-medium">
+                    Token Configurado
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Pagamentos PIX serao enviados diretamente para sua conta AbacatePay
+                  </p>
+                </div>
+              ) : (
+                <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
+                  <p className="text-sm text-yellow-400 font-medium">
+                    Token Nao Configurado
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Configure seu token para receber pagamentos diretamente na sua conta
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* PagSeguro Config - Only show if pagseguro is selected */}
           {settings.preferredPaymentMethod === "pagseguro" && (

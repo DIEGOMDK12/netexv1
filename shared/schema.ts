@@ -63,6 +63,7 @@ export const resellers = pgTable("resellers", {
   pagseguroTokenExpiresAt: timestamp("pagseguro_token_expires_at"),
   pagseguroAccountId: text("pagseguro_account_id"),
   pagseguroConnected: boolean("pagseguro_connected").default(false),
+  abacatePayToken: text("abacate_pay_token"),
   preferredPaymentMethod: text("preferred_payment_method").default("abacatepay"),
   commissionPercent: integer("commission_percent").default(10),
   totalSales: decimal("total_sales", { precision: 12, scale: 2 }).default("0"),
