@@ -69,7 +69,11 @@ async function cleanupExpiredOrders() {
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     const expiredOrders = await db
-      .select()
+      .select({
+        id: orders.id,
+        status: orders.status,
+        createdAt: orders.createdAt,
+      })
       .from(orders)
       .where(
         and(
