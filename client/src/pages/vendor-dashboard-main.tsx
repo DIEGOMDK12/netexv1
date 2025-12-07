@@ -38,8 +38,9 @@ export function DashboardMain({ vendorId, isAdmin, subscriptionExpiresAt }: Dash
   const [pixKeyType, setPixKeyType] = useState("cpf");
   const [pixHolderName, setPixHolderName] = useState("");
   
-  const WITHDRAWAL_FEE = 0.80;
-  const SALE_FEE = 0.80;
+  // NOVA LÓGICA: Taxa cobrada apenas no SAQUE (não na venda)
+  // O revendedor recebe 100% do valor da venda, taxa descontada apenas na retirada
+  const TAXA_DE_SAQUE_FIXA = 1.60;
   const MIN_WITHDRAWAL = 5.00;
   
   const { toast } = useToast();
@@ -618,22 +619,22 @@ export function DashboardMain({ vendorId, isAdmin, subscriptionExpiresAt }: Dash
             </div>
             
             <div className="p-3 rounded-lg space-y-2" style={{ background: "rgba(245, 158, 11, 0.1)", border: "1px solid rgba(245, 158, 11, 0.3)" }}>
-              <p className="text-sm font-medium text-yellow-400">Informacoes de Taxas</p>
+              <p className="text-sm font-medium text-yellow-400">Como funciona</p>
               <div className="text-xs text-gray-400 space-y-1">
-                <p>Taxa por venda: <span className="text-white">R$ {SALE_FEE.toFixed(2)}</span></p>
-                <p>Taxa por retirada: <span className="text-white">R$ {WITHDRAWAL_FEE.toFixed(2)}</span></p>
+                <p>Voce recebe <span className="text-emerald-400 font-medium">100% do valor</span> de cada venda!</p>
+                <p>Taxa fixa de saque: <span className="text-white font-medium">R$ {TAXA_DE_SAQUE_FIXA.toFixed(2)}</span> (cobrada apenas na retirada)</p>
                 <p>Valor minimo para retirada: <span className="text-white">R$ {MIN_WITHDRAWAL.toFixed(2)}</span></p>
               </div>
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="amount" className="text-gray-300">Valor da retirada (minimo R$ {MIN_WITHDRAWAL.toFixed(2)})</Label>
+              <Label htmlFor="amount" className="text-gray-300">Valor que deseja receber via PIX (minimo R$ {MIN_WITHDRAWAL.toFixed(2)})</Label>
               <Input
                 id="amount"
                 type="number"
                 step="0.01"
                 min={MIN_WITHDRAWAL}
-                max={availableBalance}
+                max={Math.max(0, availableBalance - TAXA_DE_SAQUE_FIXA)}
                 placeholder={MIN_WITHDRAWAL.toFixed(2)}
                 value={withdrawalAmount}
                 onChange={(e) => setWithdrawalAmount(e.target.value)}
@@ -641,10 +642,10 @@ export function DashboardMain({ vendorId, isAdmin, subscriptionExpiresAt }: Dash
                 data-testid="input-withdrawal-amount"
               />
               {withdrawalAmount && parseFloat(withdrawalAmount) >= MIN_WITHDRAWAL && (
-                <div className="text-xs text-gray-400 mt-1">
-                  <p>Valor solicitado: <span className="text-white">R$ {parseFloat(withdrawalAmount).toFixed(2)}</span></p>
-                  <p>Taxa de retirada: <span className="text-yellow-400">- R$ {WITHDRAWAL_FEE.toFixed(2)}</span></p>
-                  <p className="text-emerald-400 font-medium">Valor liquido a receber: R$ {(parseFloat(withdrawalAmount) - WITHDRAWAL_FEE).toFixed(2)}</p>
+                <div className="text-xs text-gray-400 mt-1 p-2 rounded" style={{ background: "rgba(16, 185, 129, 0.1)" }}>
+                  <p>Voce recebera via PIX: <span className="text-emerald-400 font-bold text-sm">R$ {parseFloat(withdrawalAmount).toFixed(2)}</span></p>
+                  <p>Taxa de saque (descontada do saldo): <span className="text-yellow-400">R$ {TAXA_DE_SAQUE_FIXA.toFixed(2)}</span></p>
+                  <p className="mt-1 text-white">Total a debitar do seu saldo: <span className="font-medium">R$ {(parseFloat(withdrawalAmount) + TAXA_DE_SAQUE_FIXA).toFixed(2)}</span></p>
                 </div>
               )}
             </div>

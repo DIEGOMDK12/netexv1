@@ -1137,21 +1137,23 @@ export async function registerRoutes(
         whatsappDeliveryLink: whatsappLink,
       });
 
-      // 3. ADICIONAR SALDO NA CARTEIRA DO REVENDEDOR (SPLIT)
-      if (order.resellerId && order.valorRevendedor) {
+      // 3. ADICIONAR SALDO NA CARTEIRA DO REVENDEDOR (100% DO VALOR - TAXA COBRADA NO SAQUE)
+      // Nova lógica: 100% do valor da venda vai para o saldo do revendedor
+      // A taxa da plataforma é cobrada apenas no momento do SAQUE
+      if (order.resellerId) {
         const reseller = await storage.getReseller(order.resellerId);
         if (reseller) {
-          const valorRevendedor = parseFloat(order.valorRevendedor as string);
+          const valorVenda = parseFloat(order.totalAmount as string || "0");
           const currentBalance = parseFloat(reseller.walletBalance as string || "0");
-          const newBalance = currentBalance + valorRevendedor;
+          const newBalance = currentBalance + valorVenda;
 
           await storage.updateReseller(order.resellerId, {
             walletBalance: newBalance.toFixed(2),
-            totalSales: (parseFloat(reseller.totalSales as string || "0") + parseFloat(order.totalAmount as string)).toFixed(2),
-            totalCommission: (parseFloat(reseller.totalCommission as string || "0") + valorRevendedor).toFixed(2),
+            totalSales: (parseFloat(reseller.totalSales as string || "0") + valorVenda).toFixed(2),
+            totalCommission: (parseFloat(reseller.totalCommission as string || "0") + valorVenda).toFixed(2),
           });
 
-          console.log(`[AbacatePay Webhook] ✅ Reseller ${order.resellerId} balance updated: +R$${valorRevendedor.toFixed(2)} (New balance: R$${newBalance.toFixed(2)})`);
+          console.log(`[AbacatePay Webhook] ✅ Reseller ${order.resellerId} balance updated: +R$${valorVenda.toFixed(2)} (100% da venda) (New balance: R$${newBalance.toFixed(2)})`);
         }
       }
 
@@ -3398,6 +3400,7 @@ export async function registerRoutes(
   // ========== WITHDRAWAL REQUESTS ROUTES ==========
   
   // Vendor: Create withdrawal request
+  // NOVA LÓGICA: Taxa cobrada apenas no saque (não na venda)
   app.post("/api/vendor/withdrawals", async (req, res) => {
     const token = req.headers.authorization?.replace("Bearer ", "");
     
@@ -3407,7 +3410,8 @@ export async function registerRoutes(
     
     const vendorId = tokenToVendor.get(token)!;
     
-    const WITHDRAWAL_FEE = 0.80;
+    // Taxa fixa de saque - cobrada uma vez por retirada para cobrir custos bancários
+    const TAXA_DE_SAQUE_FIXA = 1.60;
     const MIN_WITHDRAWAL = 5.00;
     
     try {
@@ -3431,38 +3435,48 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Chave PIX é obrigatória" });
       }
       
-      // Get vendor's available balance
+      // Get vendor's available balance (usando walletBalance que acumula 100% das vendas)
       const vendor = await storage.getReseller(vendorId);
       if (!vendor) {
         return res.status(404).json({ error: "Revendedor não encontrado" });
       }
       
-      const availableBalance = parseFloat(vendor.totalCommission || "0");
+      const availableBalance = parseFloat(vendor.walletBalance as string || "0");
       
-      if (numericAmount > availableBalance) {
+      // NOVA LÓGICA: Verificar se saldo >= (valor solicitado + taxa de saque)
+      const totalRequired = numericAmount + TAXA_DE_SAQUE_FIXA;
+      
+      if (totalRequired > availableBalance) {
         return res.status(400).json({ 
-          error: `Saldo insuficiente. Disponível: R$ ${availableBalance.toFixed(2)}` 
+          error: `Saldo insuficiente. Disponível: R$ ${availableBalance.toFixed(2)}. Necessário: R$ ${totalRequired.toFixed(2)} (R$ ${numericAmount.toFixed(2)} + R$ ${TAXA_DE_SAQUE_FIXA.toFixed(2)} de taxa)` 
         });
       }
       
-      // Calculate net amount after fee
-      const netAmount = numericAmount - WITHDRAWAL_FEE;
+      // O valor líquido que o revendedor receberá via PIX é o valor solicitado
+      // A taxa é descontada do saldo, mas não do valor transferido
+      const netAmount = numericAmount; // Valor que será transferido via PIX
       
       // Create withdrawal request
       const withdrawal = await storage.createWithdrawalRequest({
         resellerId: vendorId,
-        amount: numericAmount.toFixed(2),
+        amount: totalRequired.toFixed(2), // Total descontado do saldo (valor + taxa)
         pixKey,
         pixKeyType: pixKeyType || "cpf",
         pixHolderName: pixHolderName.trim(),
-        withdrawalFee: WITHDRAWAL_FEE.toFixed(2),
-        netAmount: netAmount.toFixed(2),
+        withdrawalFee: TAXA_DE_SAQUE_FIXA.toFixed(2),
+        netAmount: netAmount.toFixed(2), // Valor que será transferido via PIX
         status: "pending",
       });
       
-      console.log(`[Withdrawal] Created request for vendor ${vendorId}: R$ ${numericAmount} (líquido: R$ ${netAmount.toFixed(2)})`);
+      console.log(`[Withdrawal] Created request for vendor ${vendorId}: Saque R$ ${numericAmount.toFixed(2)} + Taxa R$ ${TAXA_DE_SAQUE_FIXA.toFixed(2)} = Total R$ ${totalRequired.toFixed(2)} (líquido via PIX: R$ ${netAmount.toFixed(2)})`);
       
-      res.json(withdrawal);
+      res.json({
+        ...withdrawal,
+        valorSolicitado: numericAmount.toFixed(2),
+        taxaSaque: TAXA_DE_SAQUE_FIXA.toFixed(2),
+        totalDescontado: totalRequired.toFixed(2),
+        valorLiquidoPix: netAmount.toFixed(2),
+      });
     } catch (error: any) {
       console.error("[Withdrawal] Error creating request:", error);
       res.status(500).json({ error: "Erro ao criar solicitação de retirada" });
@@ -3544,19 +3558,19 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Solicitação já processada" });
       }
       
-      // If approving, deduct from reseller's balance
+      // If approving, deduct from reseller's walletBalance (total incluindo taxa)
       if (status === "approved") {
         const reseller = await storage.getReseller(withdrawal.resellerId);
         if (reseller) {
-          const currentBalance = parseFloat(reseller.totalCommission || "0");
-          const withdrawalAmount = parseFloat(withdrawal.amount);
+          const currentBalance = parseFloat(reseller.walletBalance as string || "0");
+          const withdrawalAmount = parseFloat(withdrawal.amount); // Já inclui valor + taxa
           const newBalance = Math.max(0, currentBalance - withdrawalAmount);
           
           await storage.updateReseller(withdrawal.resellerId, {
-            totalCommission: newBalance.toFixed(2),
+            walletBalance: newBalance.toFixed(2),
           });
           
-          console.log(`[Withdrawal] Approved ${withdrawalId}: R$ ${withdrawalAmount} deducted from vendor ${withdrawal.resellerId}. New balance: R$ ${newBalance.toFixed(2)}`);
+          console.log(`[Withdrawal] Approved ${withdrawalId}: R$ ${withdrawalAmount} deducted from vendor ${withdrawal.resellerId}. New walletBalance: R$ ${newBalance.toFixed(2)}`);
         }
       }
       
