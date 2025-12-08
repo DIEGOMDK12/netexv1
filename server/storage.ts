@@ -11,7 +11,7 @@ import {
   type WithdrawalRequest, type InsertWithdrawalRequest
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, isNotNull, inArray, and, sql } from "drizzle-orm";
 
 export interface IStorage {
   getCustomerUser(id: string): Promise<CustomerUser | undefined>;
@@ -66,6 +66,10 @@ export interface IStorage {
   getWithdrawalRequest(id: number): Promise<WithdrawalRequest | undefined>;
   createWithdrawalRequest(request: InsertWithdrawalRequest): Promise<WithdrawalRequest>;
   updateWithdrawalRequest(id: number, data: Partial<WithdrawalRequest>): Promise<WithdrawalRequest | undefined>;
+
+  // Sanitization
+  sanitizeOrphanProducts(): Promise<{ deleted: number; orphanIds: number[] }>;
+  getValidProducts(): Promise<Product[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -360,6 +364,55 @@ export class DatabaseStorage implements IStorage {
   async updateWithdrawalRequest(id: number, data: Partial<WithdrawalRequest>): Promise<WithdrawalRequest | undefined> {
     const [updated] = await db.update(withdrawalRequests).set(data).where(eq(withdrawalRequests.id, id)).returning();
     return updated || undefined;
+  }
+
+  async sanitizeOrphanProducts(): Promise<{ deleted: number; orphanIds: number[] }> {
+    console.log("[Sanitize] Starting orphan product cleanup...");
+    
+    const allResellerIds = await db.select({ id: resellers.id }).from(resellers);
+    const validResellerIds = allResellerIds.map(r => r.id);
+    console.log("[Sanitize] Valid reseller IDs:", validResellerIds);
+
+    const allProducts = await db.select({ id: products.id, resellerId: products.resellerId, name: products.name }).from(products);
+    
+    const orphanProducts = allProducts.filter(p => {
+      if (p.resellerId === null || p.resellerId === undefined) {
+        return true;
+      }
+      if (!validResellerIds.includes(p.resellerId)) {
+        return true;
+      }
+      return false;
+    });
+
+    const orphanIds = orphanProducts.map(p => p.id);
+    console.log("[Sanitize] Orphan products found:", orphanIds.length, orphanProducts);
+
+    if (orphanIds.length > 0) {
+      await db.delete(products).where(inArray(products.id, orphanIds));
+      console.log("[Sanitize] Deleted", orphanIds.length, "orphan products");
+    }
+
+    return { deleted: orphanIds.length, orphanIds };
+  }
+
+  async getValidProducts(): Promise<Product[]> {
+    const allResellerIds = await db.select({ id: resellers.id }).from(resellers);
+    const validResellerIds = allResellerIds.map(r => r.id);
+
+    if (validResellerIds.length === 0) {
+      return [];
+    }
+
+    const validProducts = await db.select().from(products)
+      .where(and(
+        isNotNull(products.resellerId),
+        inArray(products.resellerId, validResellerIds),
+        eq(products.active, true)
+      ))
+      .orderBy(desc(products.id));
+
+    return validProducts;
   }
 }
 

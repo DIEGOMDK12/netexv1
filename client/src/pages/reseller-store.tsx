@@ -47,8 +47,14 @@ export default function ResellerStore() {
     return Array.from(cats);
   }, [products]);
 
+  const validProducts = useMemo(() => {
+    return products.filter(p => 
+      p && p.id && p.name && p.resellerId && p.active !== false
+    );
+  }, [products]);
+
   const filteredProducts = useMemo(() => {
-    let filtered = products;
+    let filtered = validProducts;
     if (selectedCategory) {
       filtered = filtered.filter(p => p.category === selectedCategory);
     }
@@ -60,11 +66,11 @@ export default function ResellerStore() {
       );
     }
     return filtered;
-  }, [products, selectedCategory, searchQuery]);
+  }, [validProducts, selectedCategory, searchQuery]);
 
   const productsWithDiscount = useMemo(() => {
-    return products.filter(p => Number(p.originalPrice) > Number(p.currentPrice));
-  }, [products]);
+    return validProducts.filter(p => Number(p.originalPrice) > Number(p.currentPrice));
+  }, [validProducts]);
 
   const handleBuyClick = (product: Product) => {
     const productWithSeller = {

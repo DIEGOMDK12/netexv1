@@ -161,26 +161,46 @@ export async function registerRoutes(
 
   app.get("/api/products", async (req, res) => {
     try {
-      const products = await storage.getProducts();
-      // Return ALL products (including out of stock), but exclude deleted ones
-      // Product visibility logic moved to frontend - show all, even with stock=0
-      console.log("[GET /api/products] Returning", products.length, "products (including out of stock)");
+      const products = await storage.getValidProducts();
+      console.log("[GET /api/products] Returning", products.length, "valid products (with active reseller)");
       res.json(products);
     } catch (error) {
+      console.error("[GET /api/products] Error:", error);
       res.status(500).json({ error: "Failed to fetch products" });
+    }
+  });
+
+  app.post("/api/admin/sanitize-products", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!isAuthenticated(token)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      console.log("[Sanitize] Admin requested product cleanup");
+      const result = await storage.sanitizeOrphanProducts();
+      console.log("[Sanitize] Cleanup completed:", result);
+      res.json({ 
+        success: true, 
+        message: `Removed ${result.deleted} orphan products`,
+        ...result 
+      });
+    } catch (error: any) {
+      console.error("[Sanitize] Error:", error);
+      res.status(500).json({ error: "Failed to sanitize products", details: error.message });
     }
   });
 
   app.get("/api/products/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const products = await storage.getProducts();
-      const product = products.find(p => p.id === id);
-      if (!product) {
+      const product = await storage.getProduct(id);
+      if (!product || !product.resellerId || !product.active) {
         return res.status(404).json({ error: "Product not found" });
       }
       res.json(product);
     } catch (error) {
+      console.error("[GET /api/products/:id] Error:", error);
       res.status(500).json({ error: "Failed to fetch product" });
     }
   });
