@@ -2179,11 +2179,14 @@ export async function registerRoutes(
   });
 
   app.post("/api/vendor/products", async (req, res) => {
-    const { name, description, imageUrl, originalPrice, currentPrice, stock, category, resellerId, deliveryContent } = req.body;
+    const { name, description, imageUrl, originalPrice, currentPrice, stock, category, resellerId, deliveryContent, active, slug, categoryId: reqCategoryId, limitPerUser } = req.body;
 
     console.log("[Create Product] Request body:", { 
       name, 
       resellerId,
+      active,
+      slug,
+      categoryId: reqCategoryId,
       deliveryContent: deliveryContent ? deliveryContent.substring(0, 50) : "MISSING"
     });
 
@@ -2200,9 +2203,9 @@ export async function registerRoutes(
 
       console.log("[Create Product] Auto-counted stock items:", stockItems, "from stock string");
 
-      // Auto-create or get category
-      let categoryId: number | undefined;
-      if (category && category.trim()) {
+      // Use provided categoryId or auto-create category
+      let categoryId: number | undefined = reqCategoryId || undefined;
+      if (!categoryId && category && category.trim()) {
         let cat = await storage.getCategoryByName(category);
         if (!cat) {
           cat = await storage.createCategory({ name: category, slug: category.toLowerCase().replace(/\s+/g, "-") });
@@ -2210,8 +2213,13 @@ export async function registerRoutes(
         categoryId = cat.id;
       }
 
+      // IMPORTANT: Respect the active flag from frontend, default to true
+      // Products should be visible unless explicitly set to inactive
+      const isActive = active !== undefined ? active : true;
+
       const product = await storage.createResellerProduct({
         name,
+        slug: slug || name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""),
         description,
         imageUrl,
         originalPrice,
@@ -2220,11 +2228,12 @@ export async function registerRoutes(
         deliveryContent: deliveryContent || "",
         category: category || "Outros",
         categoryId,
-        active: stockItems > 0, // Auto-set active based on stock
+        active: isActive,
+        limitPerUser: limitPerUser || false,
         resellerId,
       });
 
-      console.log("[Create Product] Product created successfully:", { id: product.id, resellerId: product.resellerId, stockCount: stockItems });
+      console.log("[Create Product] Product created successfully:", { id: product.id, resellerId: product.resellerId, stockCount: stockItems, active: isActive });
       res.json(product);
     } catch (error) {
       console.error("[Create Product] Error:", error);
@@ -2234,9 +2243,15 @@ export async function registerRoutes(
 
   app.patch("/api/vendor/products/:id", async (req, res) => {
     const productId = parseInt(req.params.id);
-    const { name, description, imageUrl, currentPrice, originalPrice, stock, category, deliveryContent } = req.body;
+    const { name, description, imageUrl, currentPrice, originalPrice, stock, category, deliveryContent, active, slug, categoryId: reqCategoryId, limitPerUser } = req.body;
 
-    console.log("[Update Product] Updating product", productId, "with:", { name, deliveryContent: deliveryContent ? deliveryContent.substring(0, 50) : "MISSING" });
+    console.log("[Update Product] Updating product", productId, "with:", { 
+      name, 
+      active,
+      slug,
+      categoryId: reqCategoryId,
+      deliveryContent: deliveryContent ? deliveryContent.substring(0, 50) : "MISSING" 
+    });
 
     try {
       // Auto-count stock items: count non-empty lines
@@ -2246,9 +2261,9 @@ export async function registerRoutes(
 
       console.log("[Update Product] Auto-counted stock items:", stockItems, "from stock string");
 
-      // Auto-create or get category
-      let categoryId: number | undefined;
-      if (category && category.trim()) {
+      // Use provided categoryId or auto-create category
+      let categoryId: number | undefined = reqCategoryId || undefined;
+      if (!categoryId && category && category.trim()) {
         let cat = await storage.getCategoryByName(category);
         if (!cat) {
           cat = await storage.createCategory({ name: category, slug: category.toLowerCase().replace(/\s+/g, "-") });
@@ -2256,18 +2271,22 @@ export async function registerRoutes(
         categoryId = cat.id;
       }
 
-      const product = await storage.updateProduct(productId, {
-        name,
-        description,
-        imageUrl,
-        currentPrice,
-        originalPrice,
-        stock: stock || "", // Keep original text for FIFO
-        deliveryContent: deliveryContent || "",
-        category: category || "Outros",
-        categoryId,
-        active: stockItems > 0, // Auto-set active based on stock
-      });
+      // Build update object - only include fields that were provided
+      const updateData: any = {};
+      if (name !== undefined) updateData.name = name;
+      if (slug !== undefined) updateData.slug = slug;
+      if (description !== undefined) updateData.description = description;
+      if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+      if (currentPrice !== undefined) updateData.currentPrice = currentPrice;
+      if (originalPrice !== undefined) updateData.originalPrice = originalPrice;
+      if (stock !== undefined) updateData.stock = stock || "";
+      if (deliveryContent !== undefined) updateData.deliveryContent = deliveryContent || "";
+      if (category !== undefined) updateData.category = category || "Outros";
+      if (categoryId !== undefined) updateData.categoryId = categoryId;
+      if (active !== undefined) updateData.active = active;
+      if (limitPerUser !== undefined) updateData.limitPerUser = limitPerUser;
+
+      const product = await storage.updateProduct(productId, updateData);
 
       console.log("[Update Product] Product updated successfully:", productId, "with stock count:", stockItems);
       res.json(product);
@@ -2900,6 +2919,7 @@ export async function registerRoutes(
   // IMPORTANT: This route MUST come before /api/reseller/:slug to avoid route conflict
   app.get("/api/reseller/products/:slug", async (req, res) => {
     const slug = req.params.slug;
+    console.log("[Reseller Products] ========== PUBLIC STORE REQUEST ==========");
     console.log("[Reseller Products] Fetching products for slug:", slug);
 
     try {
@@ -2909,10 +2929,20 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Reseller not found" });
       }
 
+      console.log("[Reseller Products] Found reseller:", { id: reseller.id, storeName: reseller.storeName });
+
       const products = await storage.getResellerProducts(reseller.id);
+      console.log("[Reseller Products] Total products in DB for reseller:", products.length);
+      
+      // Debug: Log each product's visibility status
+      products.forEach((p: any) => {
+        console.log(`[Reseller Products] Product ID ${p.id}: "${p.name}" - active: ${p.active}, hasStock: ${p.stock ? 'yes' : 'no'}`);
+      });
+
       const activeProducts = products.filter((p: { active: boolean }) => p.active);
       
-      console.log("[Reseller Products] Found", activeProducts.length, "active products for", reseller.storeName);
+      console.log("[Reseller Products] Active products (filtered):", activeProducts.length, "for", reseller.storeName);
+      console.log("[Reseller Products] ========================================");
       res.json(activeProducts);
     } catch (error) {
       console.error("[Reseller Products] Error:", error);
