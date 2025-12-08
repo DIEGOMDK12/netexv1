@@ -123,3 +123,17 @@ Preferred communication style: Simple, everyday language.
 **Session Management**
 - `connect-pg-simple` and `express-session` packages present but not actively used in visible code
 - Current auth uses simple token-based system instead of sessions
+
+## Recent Changes
+
+**December 2024 - Drag-and-Drop Category Ordering**
+- Implemented drag-and-drop category reordering using @dnd-kit library
+- SortableCategoryItem component with GripVertical drag handle
+- POST /api/vendor/categories/reorder endpoint persists displayOrder in database
+- Optimistic UI updates with automatic rollback on error
+- Categories use displayOrder field for persistent ordering
+
+**December 2024 - Product Image Display Fix**
+- All product images use object-fit: contain with bg-gray-900 background
+- Prevents image cropping and shows full images properly
+- Applied to: product cards, product details, vendor management, reseller store
