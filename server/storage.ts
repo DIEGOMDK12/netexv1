@@ -29,6 +29,7 @@ export interface IStorage {
   updateCategory(id: number, category: Partial<InsertCategory>): Promise<Category | undefined>;
   deleteCategory(id: number): Promise<void>;
   getResellerCategories(resellerId: number): Promise<Category[]>;
+  reorderCategories(resellerId: number, orderedIds: number[]): Promise<void>;
 
   getOrders(): Promise<Order[]>;
   getOrder(id: number): Promise<Order | undefined>;
@@ -137,6 +138,14 @@ export class DatabaseStorage implements IStorage {
 
   async getResellerCategories(resellerId: number): Promise<Category[]> {
     return db.select().from(categories).where(eq(categories.resellerId, resellerId)).orderBy(categories.displayOrder);
+  }
+
+  async reorderCategories(resellerId: number, orderedIds: number[]): Promise<void> {
+    for (let i = 0; i < orderedIds.length; i++) {
+      await db.update(categories)
+        .set({ displayOrder: i })
+        .where(eq(categories.id, orderedIds[i]));
+    }
   }
 
   async getOrders(): Promise<Order[]> {
