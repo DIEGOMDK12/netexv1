@@ -59,6 +59,10 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
 
+  const vendorId = localStorage.getItem("vendor_id");
+  const vendorToken = localStorage.getItem("vendor_token");
+  const isLoggedIn = !!vendorId && !!vendorToken;
+
   const { data: products = [], isLoading } = useQuery<ProductWithSeller[]>({
     queryKey: ["/api/marketplace/products"],
   });
@@ -176,16 +180,33 @@ export default function Home() {
       {isMenuOpen && (
         <div className="fixed inset-0 z-40 bg-[#0f172a]/95 backdrop-blur-md pt-14">
           <div className="p-4 space-y-4">
-            <Link href="/login">
-              <Button variant="outline" className="w-full border-gray-700 text-white" data-testid="link-login">
-                Entrar
-              </Button>
-            </Link>
-            <Link href="/register">
-              <Button className="w-full bg-blue-600" data-testid="link-register">
-                Criar Conta
-              </Button>
-            </Link>
+            {isLoggedIn ? (
+              <>
+                <Link href="/vendor/dashboard">
+                  <Button className="w-full bg-blue-600" data-testid="link-back-dashboard">
+                    Voltar para o Painel
+                  </Button>
+                </Link>
+                <Link href="/vendor/my-purchases">
+                  <Button variant="outline" className="w-full border-gray-700 text-white" data-testid="link-my-purchases">
+                    Minhas Compras
+                  </Button>
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="outline" className="w-full border-gray-700 text-white" data-testid="link-login">
+                    Entrar
+                  </Button>
+                </Link>
+                <Link href="/register">
+                  <Button className="w-full bg-blue-600" data-testid="link-register">
+                    Criar Conta
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -388,24 +409,49 @@ export default function Home() {
 
       <section className="px-4 py-12">
         <div className="max-w-2xl mx-auto text-center">
-          <h2 className="text-2xl font-bold text-white mb-4">
-            Quer vender seus produtos?
-          </h2>
-          <p className="text-gray-400 mb-6">
-            Crie sua conta e comece a vender hoje mesmo
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/register">
-              <Button size="lg" className="bg-blue-600 px-8" data-testid="button-cta-register">
-                Criar Conta Gratis
-              </Button>
-            </Link>
-            <Link href="/login">
-              <Button size="lg" variant="outline" className="border-gray-700 text-white px-8" data-testid="button-cta-login">
-                Ja tenho conta
-              </Button>
-            </Link>
-          </div>
+          {isLoggedIn ? (
+            <>
+              <h2 className="text-2xl font-bold text-white mb-4">
+                Gerencie sua loja
+              </h2>
+              <p className="text-gray-400 mb-6">
+                Acesse seu painel para gerenciar produtos e pedidos
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link href="/vendor/dashboard">
+                  <Button size="lg" className="bg-blue-600 px-8" data-testid="button-cta-dashboard">
+                    Ir para o Painel
+                  </Button>
+                </Link>
+                <Link href="/vendor/my-purchases">
+                  <Button size="lg" variant="outline" className="border-gray-700 text-white px-8" data-testid="button-cta-purchases">
+                    Ver Minhas Compras
+                  </Button>
+                </Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="text-2xl font-bold text-white mb-4">
+                Quer vender seus produtos?
+              </h2>
+              <p className="text-gray-400 mb-6">
+                Crie sua conta e comece a vender hoje mesmo
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link href="/register">
+                  <Button size="lg" className="bg-blue-600 px-8" data-testid="button-cta-register">
+                    Criar Conta Gratis
+                  </Button>
+                </Link>
+                <Link href="/login">
+                  <Button size="lg" variant="outline" className="border-gray-700 text-white px-8" data-testid="button-cta-login">
+                    Ja tenho conta
+                  </Button>
+                </Link>
+              </div>
+            </>
+          )}
         </div>
       </section>
 

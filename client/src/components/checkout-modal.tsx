@@ -72,7 +72,13 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
         setTimeout(() => {
           clearCart();
           onClose();
-          setLocation(`/pedidos?email=${encodeURIComponent(email)}`);
+          const vendorId = localStorage.getItem("vendor_id");
+          const vendorToken = localStorage.getItem("vendor_token");
+          if (vendorId && vendorToken) {
+            setLocation("/vendor/my-purchases");
+          } else {
+            setLocation(`/pedidos?email=${encodeURIComponent(email)}`);
+          }
         }, 2500);
       }
     } catch (error) {
