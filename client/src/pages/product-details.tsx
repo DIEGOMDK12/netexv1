@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ShoppingCart, Zap, Shield, Star, Truck } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Zap, Shield, Star, User, CheckCircle, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,7 +9,7 @@ import { CheckoutModal } from "@/components/checkout-modal";
 import { ProductCard } from "@/components/product-card";
 import { useStore } from "@/lib/store-context";
 import { SiPix } from "react-icons/si";
-import type { Product, Settings } from "@shared/schema";
+import type { Product, Settings, Reseller } from "@shared/schema";
 
 export default function ProductDetails() {
   const [, setLocation] = useLocation();
@@ -34,8 +34,14 @@ export default function ProductDetails() {
     queryKey: ["/api/settings"],
   });
 
-  const themeColor = settings?.themeColor || "#3B82F6";
-  const textColor = settings?.textColor || "#FFFFFF";
+  // Fetch reseller info for the product
+  const { data: reseller } = useQuery<Reseller>({
+    queryKey: ["/api/resellers", product?.resellerId],
+    enabled: !!product?.resellerId,
+  });
+
+  const themeColor = "#2563eb"; // GGMAX blue
+  const textColor = "#FFFFFF";
 
   // Get related products (random 2-4 products excluding current)
   const relatedProducts = (allProducts || [])
@@ -44,12 +50,12 @@ export default function ProductDetails() {
     .slice(0, 4);
 
   if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#121212" }}>Carregando...</div>;
+    return <div className="min-h-screen flex items-center justify-center bg-[#0f172a] text-white">Carregando...</div>;
   }
 
   if (!product) {
     return (
-      <div style={{ backgroundColor: "#121212" }}>
+      <div className="min-h-screen bg-[#0f172a]">
         <div className="max-w-4xl mx-auto px-4 py-8">
           <Button variant="ghost" onClick={() => setLocation("/")} className="text-white mb-4">
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -79,262 +85,263 @@ export default function ProductDetails() {
     }
   };
 
+  const sellerName = reseller?.storeName || reseller?.name || "Vendedor";
+
   return (
-    <div style={{ backgroundColor: "#121212" }}>
-      <div className="max-w-5xl mx-auto px-4 py-8 pb-40 md:pb-8">
+    <div className="min-h-screen bg-[#0f172a]">
+      <div className="max-w-6xl mx-auto px-4 py-6 pb-40 md:pb-8">
         {/* Back Button */}
         <Button
           variant="ghost"
           onClick={() => setLocation("/")}
-          className="text-white mb-6 hover:bg-zinc-800"
+          className="text-gray-400 hover:text-white mb-4"
           data-testid="button-back"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Voltar
         </Button>
 
-        {/* Product Image - Full Width at Top */}
-        <div className="mb-8 flex items-center justify-center">
-          {product.imageUrl ? (
-            <img
-              src={product.imageUrl}
-              alt={product.name}
-              className="w-full max-h-96 object-contain bg-gray-900 rounded-lg"
-              data-testid="img-product-detail"
-            />
-          ) : (
-            <div
-              className="w-full h-96 rounded-lg flex items-center justify-center"
-              style={{ backgroundColor: "#1E1E1E" }}
-            >
-              <ShoppingCart className="w-16 h-16 text-zinc-600" />
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column - Product Image & Info */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Product Image */}
+            <div className="bg-[#1e293b] rounded-xl overflow-hidden">
+              {product.imageUrl ? (
+                <img
+                  src={product.imageUrl}
+                  alt={product.name}
+                  className="w-full aspect-video object-cover"
+                  data-testid="img-product-detail"
+                />
+              ) : (
+                <div className="w-full aspect-video flex items-center justify-center bg-gradient-to-br from-blue-900/50 to-slate-800">
+                  <ShoppingCart className="w-16 h-16 text-gray-600" />
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        {/* Product Info Section */}
-        <div className="mb-8">
-          {/* Title */}
-          <h1 className="text-4xl font-bold mb-6" style={{ color: themeColor }} data-testid="text-product-title">
-            {product.name}
-          </h1>
+            {/* Product Title & Badges */}
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-white mb-4" data-testid="text-product-title">
+                {product.name}
+              </h1>
 
-          {/* Badge: Entrega Automática */}
-          <div
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-sm mb-6"
-            style={{ backgroundColor: "#10B981", color: "#FFFFFF" }}
-            data-testid="badge-delivery"
-          >
-            <Zap className="w-4 h-4" />
-            Entrega Automática
-          </div>
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                {/* Badge: Entrega Automática */}
+                <div
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-medium text-xs bg-green-500/20 text-green-400 border border-green-500/30"
+                  data-testid="badge-delivery"
+                >
+                  <Zap className="w-3 h-3" />
+                  Entrega Automatica
+                </div>
 
-          {/* Stock Status */}
-          <p className="mb-6 text-lg font-semibold" data-testid="text-stock-status">
-            <span className="text-green-400">🟢 Disponível: </span>
-            <span style={{ color: textColor }}>{hasStock ? `${stockLines.length} unidades` : "Indisponível"}</span>
-          </p>
-
-          {/* Price Section */}
-          <div className="mb-8">
-            {hasDiscount && (
-              <p className="text-lg line-through text-gray-400 mb-2" data-testid="text-original-price">
-                R$ {Number(product.originalPrice).toFixed(2)}
-              </p>
-            )}
-            <p className="text-5xl font-bold" style={{ color: themeColor }} data-testid="text-current-price">
-              R$ {Number(product.currentPrice).toFixed(2)}
-            </p>
-          </div>
-        </div>
-
-        {/* Desktop Buttons - Inside Content */}
-        <div className="hidden md:block mb-8">
-          <div className="space-y-3">
-            {/* PRIMARY: Add to Cart */}
-            <Button
-              onClick={handleAddToCart}
-              disabled={!hasStock}
-              className="w-full py-3 text-white font-bold rounded-lg transition-all"
-              style={{
-                backgroundColor: hasStock ? "#10B981" : "#4B5563",
-              }}
-              data-testid="button-add-to-cart-primary"
-            >
-              <ShoppingCart className="w-4 h-4 mr-2" />
-              Adicionar ao Carrinho
-            </Button>
-
-            {/* SECONDARY: Buy Now */}
-            <Button
-              onClick={handleBuyNow}
-              disabled={!hasStock}
-              variant="outline"
-              className="w-full py-3 font-bold rounded-lg transition-all"
-              style={{
-                borderColor: themeColor,
-                color: themeColor,
-                borderWidth: "2px",
-              }}
-              data-testid="button-buy-now-desktop"
-            >
-              Comprar Agora
-            </Button>
-          </div>
-        </div>
-
-        {/* Tabs Section */}
-        <div className="mt-12 mb-12">
-          <Tabs defaultValue="description" className="w-full">
-            <TabsList
-              className="w-full justify-start mb-6 h-auto flex-wrap gap-1 p-1"
-              style={{ backgroundColor: "#1E1E1E" }}
-            >
-              <TabsTrigger
-                value="description"
-                className="data-[state=active]:text-white data-[state=inactive]:text-gray-400"
-                data-testid="tab-description"
-              >
-                Descrição
-              </TabsTrigger>
-              <TabsTrigger
-                value="instructions"
-                className="data-[state=active]:text-white data-[state=inactive]:text-gray-400"
-                data-testid="tab-instructions"
-              >
-                Suporte/Ativação
-              </TabsTrigger>
-              <TabsTrigger
-                value="warranty"
-                className="data-[state=active]:text-white data-[state=inactive]:text-gray-400"
-                data-testid="tab-warranty"
-              >
-                Termos
-              </TabsTrigger>
-            </TabsList>
-
-            {/* Description Tab */}
-            <TabsContent value="description" className="mt-6">
-              <div
-                className="p-6 rounded-lg"
-                style={{ backgroundColor: "#1E1E1E", color: textColor }}
-                data-testid="content-description"
-              >
-                {product.description ? (
-                  <p className="whitespace-pre-wrap text-base leading-relaxed">{product.description}</p>
-                ) : (
-                  <p className="text-gray-400 italic">Nenhuma descrição disponível para este produto.</p>
+                {/* Badge: Category */}
+                {product.category && (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-medium text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                    {product.category}
+                  </div>
                 )}
               </div>
-            </TabsContent>
+            </div>
 
-            {/* Instructions Tab */}
-            <TabsContent value="instructions" className="mt-6">
-              <div
-                className="p-6 rounded-lg"
-                style={{ backgroundColor: "#1E1E1E", color: textColor }}
-                data-testid="content-instructions"
+            {/* Tabs Section */}
+            <Tabs defaultValue="description" className="w-full">
+              <TabsList
+                className="w-full justify-start mb-4 h-auto flex-wrap gap-1 p-1 bg-[#1e293b] rounded-lg"
               >
-                {product.instructions ? (
-                  <p className="whitespace-pre-wrap text-base leading-relaxed">{product.instructions}</p>
-                ) : (
-                  <p className="text-gray-400 italic">
-                    1. Após a compra, você receberá a chave/código por email
-                    <br />
-                    2. Acesse a plataforma com sua conta
-                    <br />
-                    3. Cole a chave no campo de ativação
-                    <br />
-                    4. Clique em "Ativar" e aproveite!
+                <TabsTrigger
+                  value="description"
+                  className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=inactive]:text-gray-400 rounded-md px-4 py-2"
+                  data-testid="tab-description"
+                >
+                  Descricao
+                </TabsTrigger>
+                <TabsTrigger
+                  value="instructions"
+                  className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=inactive]:text-gray-400 rounded-md px-4 py-2"
+                  data-testid="tab-instructions"
+                >
+                  Suporte
+                </TabsTrigger>
+                <TabsTrigger
+                  value="warranty"
+                  className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=inactive]:text-gray-400 rounded-md px-4 py-2"
+                  data-testid="tab-warranty"
+                >
+                  Termos
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Description Tab */}
+              <TabsContent value="description" className="mt-4">
+                <div
+                  className="p-4 rounded-lg bg-[#1e293b] text-gray-300"
+                  data-testid="content-description"
+                >
+                  {product.description ? (
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed">{product.description}</p>
+                  ) : (
+                    <p className="text-gray-500 italic">Nenhuma descricao disponivel para este produto.</p>
+                  )}
+                </div>
+              </TabsContent>
+
+              {/* Instructions Tab */}
+              <TabsContent value="instructions" className="mt-4">
+                <div
+                  className="p-4 rounded-lg bg-[#1e293b] text-gray-300"
+                  data-testid="content-instructions"
+                >
+                  {product.instructions ? (
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed">{product.instructions}</p>
+                  ) : (
+                    <p className="text-gray-500 italic text-sm">
+                      1. Apos a compra, voce recebera a chave/codigo por email<br />
+                      2. Acesse a plataforma com sua conta<br />
+                      3. Cole a chave no campo de ativacao<br />
+                      4. Clique em "Ativar" e aproveite!
+                    </p>
+                  )}
+                </div>
+              </TabsContent>
+
+              {/* Warranty Tab */}
+              <TabsContent value="warranty" className="mt-4">
+                <div
+                  className="p-4 rounded-lg bg-[#1e293b] text-gray-300"
+                  data-testid="content-warranty"
+                >
+                  {product.warranty ? (
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed">{product.warranty}</p>
+                  ) : (
+                    <p className="text-gray-500 italic text-sm">
+                      Garantia de 7 dias para suporte e reembolso total caso o produto nao funcione.
+                    </p>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+
+          {/* Right Column - Seller Box & Purchase Panel */}
+          <div className="space-y-4">
+            {/* Seller Box */}
+            <div className="bg-[#1e293b] rounded-xl p-4" data-testid="card-seller">
+              <div className="flex items-center gap-3 mb-4">
+                {/* Seller Avatar */}
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                  {reseller?.logoUrl ? (
+                    <img src={reseller.logoUrl} alt={sellerName} className="w-full h-full rounded-full object-cover" />
+                  ) : (
+                    <User className="w-6 h-6 text-white" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-white" data-testid="text-seller-name">{sellerName}</span>
+                    <CheckCircle className="w-4 h-4 text-blue-500" />
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-green-400">
+                    <span className="w-2 h-2 rounded-full bg-green-400"></span>
+                    Online
+                  </div>
+                </div>
+              </div>
+
+              {/* Seller Stats */}
+              <div className="grid grid-cols-3 gap-2 text-center mb-4">
+                <div className="bg-[#0f172a] rounded-lg p-2">
+                  <div className="text-lg font-bold text-white">4.8</div>
+                  <div className="text-xs text-gray-500">Avaliacao</div>
+                </div>
+                <div className="bg-[#0f172a] rounded-lg p-2">
+                  <div className="text-lg font-bold text-white">147</div>
+                  <div className="text-xs text-gray-500">Vendas</div>
+                </div>
+                <div className="bg-[#0f172a] rounded-lg p-2">
+                  <div className="text-lg font-bold text-white">98%</div>
+                  <div className="text-xs text-gray-500">Positivo</div>
+                </div>
+              </div>
+
+              {/* Contact Seller Button */}
+              <Button 
+                variant="outline" 
+                className="w-full border-gray-600 text-gray-300 hover:bg-gray-700"
+                data-testid="button-contact-seller"
+              >
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Contatar Vendedor
+              </Button>
+            </div>
+
+            {/* Purchase Panel */}
+            <div className="bg-[#1e293b] rounded-xl p-4" data-testid="card-purchase">
+              {/* Price */}
+              <div className="mb-4">
+                {hasDiscount && (
+                  <p className="text-sm line-through text-gray-500" data-testid="text-original-price">
+                    R$ {Number(product.originalPrice).toFixed(2)}
                   </p>
                 )}
+                <p className="text-3xl font-bold text-blue-500" data-testid="text-current-price">
+                  R$ {Number(product.currentPrice).toFixed(2)}
+                </p>
               </div>
-            </TabsContent>
 
-            {/* Warranty Tab */}
-            <TabsContent value="warranty" className="mt-6">
-              <div
-                className="p-6 rounded-lg"
-                style={{ backgroundColor: "#1E1E1E", color: textColor }}
-                data-testid="content-warranty"
-              >
-                {product.warranty ? (
-                  <p className="whitespace-pre-wrap text-base leading-relaxed">{product.warranty}</p>
+              {/* Stock Status */}
+              <div className="flex items-center gap-2 mb-4 text-sm" data-testid="text-stock-status">
+                {hasStock ? (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-green-400"></span>
+                    <span className="text-green-400">Disponivel:</span>
+                    <span className="text-white">{stockLines.length} unidades</span>
+                  </>
                 ) : (
-                  <p className="text-gray-400 italic">
-                    🛡️ Garantia de 7 dias para suporte e reembolso total caso o produto não funcione.
-                  </p>
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-red-400"></span>
+                    <span className="text-red-400">Indisponivel</span>
+                  </>
                 )}
               </div>
-            </TabsContent>
-          </Tabs>
-        </div>
 
-        {/* Trust & Info Section */}
-        <div className="mt-12 mb-12">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Card 1: Compra Segura */}
-            <div
-              className="p-6 rounded-lg flex items-start gap-4"
-              style={{ backgroundColor: "#1E1E1E" }}
-              data-testid="card-secure-purchase"
-            >
-              <Shield className="w-6 h-6 flex-shrink-0" style={{ color: themeColor }} />
-              <div>
-                <h3 className="font-bold text-white mb-2">Compra Segura</h3>
-                <p className="text-gray-400 text-sm">Sua compra é protegida por criptografia SSL e garantida.</p>
-              </div>
+              {/* Buy Button */}
+              <Button
+                onClick={handleBuyNow}
+                disabled={!hasStock}
+                className="w-full py-6 text-lg font-bold rounded-xl transition-all bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600"
+                data-testid="button-buy-now-desktop"
+              >
+                <ShoppingCart className="w-5 h-5 mr-2" />
+                COMPRAR
+              </Button>
+
+              {/* Add to Cart Link */}
+              <button
+                onClick={handleAddToCart}
+                disabled={!hasStock}
+                className="w-full mt-3 text-center text-sm text-blue-400 hover:text-blue-300 disabled:text-gray-500"
+                data-testid="button-add-to-cart-primary"
+              >
+                Adicionar ao carrinho
+              </button>
             </div>
 
-            {/* Card 2: Entrega Automática */}
-            <div
-              className="p-6 rounded-lg flex items-start gap-4"
-              style={{ backgroundColor: "#1E1E1E" }}
-              data-testid="card-instant-delivery"
-            >
-              <Truck className="w-6 h-6 flex-shrink-0" style={{ color: themeColor }} />
-              <div>
-                <h3 className="font-bold text-white mb-2">Entrega automática</h3>
-                <p className="text-gray-400 text-sm">Receba o seu pacote imediatamente após o pagamento.</p>
+            {/* Trust Badges */}
+            <div className="bg-[#1e293b] rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-3 text-sm">
+                <Shield className="w-5 h-5 text-green-500 flex-shrink-0" />
+                <span className="text-gray-300">Compra Segura</span>
               </div>
-            </div>
-
-            {/* Card 3: Métodos de Pagamentos */}
-            <div
-              className="p-6 rounded-lg flex items-start gap-4"
-              style={{ backgroundColor: "#1E1E1E" }}
-              data-testid="card-payment-methods"
-            >
-              <SiPix className="w-6 h-6 flex-shrink-0" style={{ color: "#10B981" }} />
-              <div>
-                <h3 className="font-bold text-white mb-2">Métodos de pagamentos</h3>
-                <p className="text-gray-400 text-sm">À vista com PIX, Cartão de Crédito</p>
+              <div className="flex items-center gap-3 text-sm">
+                <Zap className="w-5 h-5 text-blue-500 flex-shrink-0" />
+                <span className="text-gray-300">Entrega Automatica</span>
               </div>
-            </div>
-
-            {/* Card 4: Avaliações */}
-            <div
-              className="p-6 rounded-lg flex items-start gap-4"
-              style={{ backgroundColor: "#1E1E1E" }}
-              data-testid="card-ratings"
-            >
-              <Star className="w-6 h-6 flex-shrink-0" style={{ color: "#F59E0B" }} fill="#F59E0B" />
-              <div>
-                <h3 className="font-bold text-white mb-2">Avaliações</h3>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xl font-bold text-white">4.8 de 5</span>
-                </div>
-                <div className="flex items-center gap-1 mb-2">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className="w-4 h-4"
-                      style={{ color: i < 5 ? "#F59E0B" : "#4B5563" }}
-                      fill={i < 5 ? "#F59E0B" : "none"}
-                    />
-                  ))}
-                </div>
-                <p className="text-gray-400 text-xs">Baseado em 147 avaliações</p>
+              <div className="flex items-center gap-3 text-sm">
+                <SiPix className="w-5 h-5 text-green-400 flex-shrink-0" />
+                <span className="text-gray-300">PIX ou Cartao</span>
               </div>
             </div>
           </div>
@@ -342,11 +349,11 @@ export default function ProductDetails() {
 
         {/* Related Products Section */}
         {relatedProducts.length > 0 && (
-          <div className="mt-16 mb-8">
-            <h2 className="text-3xl font-bold mb-8" style={{ color: textColor }} data-testid="section-related-products">
-              Você também pode gostar
+          <div className="mt-12">
+            <h2 className="text-xl font-bold text-white mb-6" data-testid="section-related-products">
+              Voce tambem pode gostar
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {relatedProducts.map((relatedProduct) => (
                 <ProductCard
                   key={relatedProduct.id}
@@ -362,38 +369,28 @@ export default function ProductDetails() {
 
       {/* Sticky Buttons - Fixed at Bottom on Mobile */}
       <div
-        className="fixed md:hidden bottom-0 left-0 right-0 p-4 flex flex-row gap-3 z-50"
-        style={{ backgroundColor: "#1A1A1A", borderTop: "1px solid rgba(255,255,255,0.1)" }}
+        className="fixed lg:hidden bottom-0 left-0 right-0 p-4 flex flex-row gap-3 z-50 bg-[#0f172a] border-t border-white/10"
       >
-        {/* Cart Icon Button - Small Square */}
+        {/* Cart Icon Button */}
         <Button
           onClick={handleAddToCart}
           disabled={!hasStock}
           variant="outline"
           size="icon"
-          className="w-16 h-12 rounded-lg flex-shrink-0 transition-all"
-          style={{
-            borderColor: hasStock ? "#10B981" : "#4B5563",
-            color: hasStock ? "#10B981" : "#4B5563",
-            borderWidth: "2px",
-            backgroundColor: "transparent",
-          }}
+          className="w-14 h-12 rounded-xl flex-shrink-0 border-blue-500 text-blue-500 disabled:border-gray-600 disabled:text-gray-600"
           data-testid="button-add-to-cart-mobile"
         >
           <ShoppingCart className="w-5 h-5" />
         </Button>
 
-        {/* Buy Now Button - Dominant Wide */}
+        {/* Buy Now Button */}
         <Button
           onClick={handleBuyNow}
           disabled={!hasStock}
-          className="flex-1 py-3 text-white font-bold rounded-lg transition-all"
-          style={{
-            backgroundColor: hasStock ? "#10B981" : "#4B5563",
-          }}
+          className="flex-1 py-3 text-white font-bold rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600"
           data-testid="button-buy-now-mobile"
         >
-          Comprar Agora
+          COMPRAR
         </Button>
       </div>
 

@@ -9,7 +9,8 @@ import {
   ChevronRight,
   Star,
   Shield,
-  Zap
+  Zap,
+  User
 } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -308,9 +309,12 @@ function ProductCardMini({ product }: { product: Product }) {
             </span>
           </div>
 
-          <p className="text-xs text-gray-500 mt-2 truncate" data-testid={`text-seller-${product.id}`}>
-            Vendedor Verificado
-          </p>
+          <div className="flex items-center gap-1.5 mt-2" data-testid={`text-seller-${product.id}`}>
+            <User className="w-3 h-3 text-gray-500" />
+            <p className="text-xs text-gray-500 truncate">
+              Vendedor Verificado
+            </p>
+          </div>
         </div>
       </div>
     </Link>
