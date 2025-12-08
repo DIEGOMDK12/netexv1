@@ -62,15 +62,23 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
       return apiRequest("POST", "/api/vendor/products", data);
     },
     onSuccess: () => {
+      // Invalidar cache para forçar atualização da lista
+      queryClient.invalidateQueries({ queryKey: ["/api/vendor/products", vendorId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/vendor/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketplace/products"] });
+      
+      // Limpar formulário
+      setIsAddingProduct(false);
+      setSelectedCategoryId(null);
+      setFormData({ name: "", price: "", originalPrice: "", description: "", imageUrl: "", stock: "", category: "", subcategory: "", deliveryContent: "" });
+      
       toast({
         title: "✓ Sucesso!",
-        description: "Produto adicionado! Recarregando...",
+        description: "Produto adicionado com sucesso!",
       });
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
     },
     onError: (error: any) => {
+      console.error("[createMutation] Erro ao criar produto:", error);
       toast({
         title: "Erro",
         description: error?.message || "Não foi possível adicionar o produto",
