@@ -2869,10 +2869,12 @@ export async function registerRoutes(
 
       res.json({
         logoUrl: vendor.logoUrl || "",
-        themeColor: vendor.themeColor || "#3B82F6",
+        themeColor: vendor.themeColor || "#8B5CF6",
         backgroundColor: vendor.backgroundColor || "#121212",
-        buttonColor: vendor.buttonColor || "#3B82F6",
+        buttonColor: vendor.buttonColor || "#8B5CF6",
         cardBorderColor: vendor.cardBorderColor || "#374151",
+        textColor: vendor.textColor || "#FFFFFF",
+        cardBackgroundColor: vendor.cardBackgroundColor || "#1A1A2E",
         backgroundImageUrl: vendor.backgroundImageUrl || "",
         buttonRadius: vendor.buttonRadius || 8,
       });
@@ -2893,7 +2895,7 @@ export async function registerRoutes(
       return res.status(401).json({ error: "Invalid token" });
     }
 
-    const { logoUrl, themeColor, backgroundColor, buttonColor, cardBorderColor, backgroundImageUrl, buttonRadius } = req.body;
+    const { logoUrl, themeColor, backgroundColor, buttonColor, cardBorderColor, textColor, cardBackgroundColor, backgroundImageUrl, buttonRadius } = req.body;
 
     try {
       const updateData: any = {};
@@ -2902,6 +2904,8 @@ export async function registerRoutes(
       if (backgroundColor !== undefined) updateData.backgroundColor = backgroundColor;
       if (buttonColor !== undefined) updateData.buttonColor = buttonColor;
       if (cardBorderColor !== undefined) updateData.cardBorderColor = cardBorderColor;
+      if (textColor !== undefined) updateData.textColor = textColor;
+      if (cardBackgroundColor !== undefined) updateData.cardBackgroundColor = cardBackgroundColor;
       if (backgroundImageUrl !== undefined) updateData.backgroundImageUrl = backgroundImageUrl;
       if (buttonRadius !== undefined) updateData.buttonRadius = buttonRadius;
 
@@ -2912,10 +2916,12 @@ export async function registerRoutes(
 
       res.json({
         logoUrl: vendor.logoUrl || "",
-        themeColor: vendor.themeColor || "#3B82F6",
+        themeColor: vendor.themeColor || "#8B5CF6",
         backgroundColor: vendor.backgroundColor || "#121212",
-        buttonColor: vendor.buttonColor || "#3B82F6",
+        buttonColor: vendor.buttonColor || "#8B5CF6",
         cardBorderColor: vendor.cardBorderColor || "#374151",
+        textColor: vendor.textColor || "#FFFFFF",
+        cardBackgroundColor: vendor.cardBackgroundColor || "#1A1A2E",
         backgroundImageUrl: vendor.backgroundImageUrl || "",
         buttonRadius: vendor.buttonRadius || 8,
       });
