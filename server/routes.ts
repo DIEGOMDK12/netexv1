@@ -442,18 +442,232 @@ export async function registerRoutes(
   app.get("/api/coupons/validate", async (req, res) => {
     try {
       const code = req.query.code as string;
+      const resellerId = req.query.resellerId ? parseInt(req.query.resellerId as string) : undefined;
+      const cartTotal = req.query.cartTotal ? parseFloat(req.query.cartTotal as string) : 0;
+      
       if (!code) {
         return res.json({ valid: false });
       }
 
       const coupon = await storage.getCouponByCode(code.toUpperCase());
-      if (coupon && coupon.active) {
-        res.json({ valid: true, discountPercent: coupon.discountPercent });
-      } else {
-        res.json({ valid: false });
+      
+      if (!coupon || !coupon.active) {
+        return res.json({ valid: false, message: "Cupom inválido ou inativo" });
       }
+
+      if (resellerId && coupon.resellerId && coupon.resellerId !== resellerId) {
+        return res.json({ valid: false, message: "Este cupom não é válido para esta loja" });
+      }
+
+      if (coupon.maxUses && coupon.usedCount >= coupon.maxUses) {
+        return res.json({ valid: false, message: "Este cupom já atingiu o limite de uso" });
+      }
+
+      if (coupon.minOrderValue && cartTotal < parseFloat(coupon.minOrderValue)) {
+        return res.json({ 
+          valid: false, 
+          message: `Valor mínimo do pedido: R$ ${parseFloat(coupon.minOrderValue).toFixed(2)}` 
+        });
+      }
+
+      let discountAmount = 0;
+      if (coupon.discountType === "percent") {
+        const percent = coupon.discountPercent || parseFloat(coupon.discountValue || "0");
+        discountAmount = (cartTotal * percent) / 100;
+      } else if (coupon.discountType === "fixed") {
+        discountAmount = parseFloat(coupon.discountValue || "0");
+      }
+
+      res.json({ 
+        valid: true, 
+        couponId: coupon.id,
+        discountType: coupon.discountType,
+        discountValue: coupon.discountValue,
+        discountPercent: coupon.discountPercent,
+        discountAmount: discountAmount.toFixed(2)
+      });
     } catch (error) {
+      console.error("[Coupon Validate] Error:", error);
       res.status(500).json({ error: "Failed to validate coupon" });
+    }
+  });
+
+  app.get("/api/announcement", async (req, res) => {
+    try {
+      const resellerId = req.query.resellerId ? parseInt(req.query.resellerId as string) : undefined;
+      const announcement = await storage.getAnnouncementSettings(resellerId);
+      
+      if (!announcement || !announcement.enabled) {
+        return res.json({ enabled: false });
+      }
+
+      res.json({
+        enabled: true,
+        text: announcement.text,
+        backgroundColor: announcement.backgroundColor,
+        textColor: announcement.textColor,
+      });
+    } catch (error) {
+      console.error("[Announcement] Error:", error);
+      res.status(500).json({ error: "Failed to fetch announcement" });
+    }
+  });
+
+  app.get("/api/vendor/announcement", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!isVendorAuthenticated(token)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const vendorId = tokenToVendor.get(token!);
+      const announcement = await storage.getAnnouncementSettings(vendorId);
+      res.json(announcement || { enabled: false, text: "", backgroundColor: "#9333EA", textColor: "#FFFFFF" });
+    } catch (error) {
+      console.error("[Vendor Announcement GET] Error:", error);
+      res.status(500).json({ error: "Failed to fetch announcement" });
+    }
+  });
+
+  app.post("/api/vendor/announcement", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!isVendorAuthenticated(token)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const vendorId = tokenToVendor.get(token!);
+      const { enabled, text, backgroundColor, textColor } = req.body;
+      
+      const updated = await storage.updateAnnouncementSettings({
+        resellerId: vendorId,
+        enabled: enabled ?? false,
+        text: text || "",
+        backgroundColor: backgroundColor || "#9333EA",
+        textColor: textColor || "#FFFFFF",
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("[Vendor Announcement POST] Error:", error);
+      res.status(500).json({ error: "Failed to update announcement" });
+    }
+  });
+
+  app.get("/api/vendor/coupons", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!isVendorAuthenticated(token)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const vendorId = tokenToVendor.get(token!);
+      const vendorCoupons = await storage.getResellerCoupons(vendorId!);
+      res.json(vendorCoupons);
+    } catch (error) {
+      console.error("[Vendor Coupons GET] Error:", error);
+      res.status(500).json({ error: "Failed to fetch coupons" });
+    }
+  });
+
+  app.post("/api/vendor/coupons", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!isVendorAuthenticated(token)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const vendorId = tokenToVendor.get(token!);
+      const { code, discountType, discountValue, discountPercent, minOrderValue, maxUses, active } = req.body;
+
+      if (!code) {
+        return res.status(400).json({ error: "Código do cupom é obrigatório" });
+      }
+
+      const existingCoupon = await storage.getCouponByCode(code.toUpperCase());
+      if (existingCoupon) {
+        return res.status(400).json({ error: "Este código de cupom já existe" });
+      }
+
+      const coupon = await storage.createCoupon({
+        code: code.toUpperCase(),
+        discountType: discountType || "percent",
+        discountValue: discountValue || "0",
+        discountPercent: discountPercent || 0,
+        minOrderValue: minOrderValue || null,
+        maxUses: maxUses || null,
+        resellerId: vendorId,
+        active: active ?? true,
+      });
+
+      res.json(coupon);
+    } catch (error) {
+      console.error("[Vendor Coupons POST] Error:", error);
+      res.status(500).json({ error: "Failed to create coupon" });
+    }
+  });
+
+  app.put("/api/vendor/coupons/:id", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!isVendorAuthenticated(token)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const vendorId = tokenToVendor.get(token!);
+      const couponId = parseInt(req.params.id);
+      const coupon = await storage.getCoupon(couponId);
+
+      if (!coupon || coupon.resellerId !== vendorId) {
+        return res.status(404).json({ error: "Cupom não encontrado" });
+      }
+
+      const { code, discountType, discountValue, discountPercent, minOrderValue, maxUses, active } = req.body;
+
+      if (code && code.toUpperCase() !== coupon.code) {
+        const existingCoupon = await storage.getCouponByCode(code.toUpperCase());
+        if (existingCoupon) {
+          return res.status(400).json({ error: "Este código de cupom já existe" });
+        }
+      }
+
+      const updated = await storage.updateCoupon(couponId, {
+        code: code?.toUpperCase() || coupon.code,
+        discountType: discountType || coupon.discountType,
+        discountValue: discountValue ?? coupon.discountValue,
+        discountPercent: discountPercent ?? coupon.discountPercent,
+        minOrderValue: minOrderValue,
+        maxUses: maxUses,
+        active: active ?? coupon.active,
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("[Vendor Coupons PUT] Error:", error);
+      res.status(500).json({ error: "Failed to update coupon" });
+    }
+  });
+
+  app.delete("/api/vendor/coupons/:id", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!isVendorAuthenticated(token)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const vendorId = tokenToVendor.get(token!);
+      const couponId = parseInt(req.params.id);
+      const coupon = await storage.getCoupon(couponId);
+
+      if (!coupon || coupon.resellerId !== vendorId) {
+        return res.status(404).json({ error: "Cupom não encontrado" });
+      }
+
+      await storage.deleteCoupon(couponId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[Vendor Coupons DELETE] Error:", error);
+      res.status(500).json({ error: "Failed to delete coupon" });
     }
   });
 

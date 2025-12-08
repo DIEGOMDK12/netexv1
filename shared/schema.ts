@@ -141,8 +141,25 @@ export const orderItems = pgTable("order_items", {
 export const coupons = pgTable("coupons", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   code: text("code").notNull().unique(),
-  discountPercent: integer("discount_percent").notNull(),
+  discountType: text("discount_type").notNull().default("percent"),
+  discountValue: decimal("discount_value", { precision: 10, scale: 2 }).notNull().default("0"),
+  discountPercent: integer("discount_percent").notNull().default(0),
+  minOrderValue: decimal("min_order_value", { precision: 10, scale: 2 }),
+  maxUses: integer("max_uses"),
+  usedCount: integer("used_count").notNull().default(0),
+  resellerId: integer("reseller_id"),
   active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const announcementSettings = pgTable("announcement_settings", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  resellerId: integer("reseller_id"),
+  enabled: boolean("enabled").notNull().default(false),
+  text: text("text").notNull().default(""),
+  backgroundColor: text("background_color").notNull().default("#9333EA"),
+  textColor: text("text_color").notNull().default("#FFFFFF"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const settings = pgTable("settings", {
@@ -168,8 +185,9 @@ export const settings = pgTable("settings", {
 export const insertProductSchema = createInsertSchema(products);
 export const insertOrderSchema = createInsertSchema(orders);
 export const insertOrderItemSchema = createInsertSchema(orderItems);
-export const insertCouponSchema = createInsertSchema(coupons);
+export const insertCouponSchema = createInsertSchema(coupons).omit({ id: true, createdAt: true, usedCount: true });
 export const insertSettingsSchema = createInsertSchema(settings);
+export const insertAnnouncementSettingsSchema = createInsertSchema(announcementSettings).omit({ id: true, createdAt: true });
 
 export const insertResellersSchema = createInsertSchema(resellers);
 
@@ -184,6 +202,9 @@ export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
 
 export type Coupon = typeof coupons.$inferSelect;
 export type InsertCoupon = z.infer<typeof insertCouponSchema>;
+
+export type AnnouncementSetting = typeof announcementSettings.$inferSelect;
+export type InsertAnnouncementSetting = z.infer<typeof insertAnnouncementSettingsSchema>;
 
 export type Settings = typeof settings.$inferSelect;
 export type InsertSettings = z.infer<typeof insertSettingsSchema>;

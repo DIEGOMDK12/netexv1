@@ -173,20 +173,33 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
 
     setIsApplyingCoupon(true);
     try {
-      const response = await fetch(`/api/coupons/validate?code=${encodeURIComponent(couponCode)}`);
+      const params = new URLSearchParams({
+        code: couponCode,
+        cartTotal: cartTotal.toString(),
+      });
+      if (resellerId) {
+        params.append("resellerId", resellerId.toString());
+      }
+      
+      const response = await fetch(`/api/coupons/validate?${params.toString()}`);
       const data = await response.json();
 
       if (data.valid) {
-        const discountAmount = (cartTotal * data.discountPercent) / 100;
+        const discountAmount = parseFloat(data.discountAmount) || 0;
         setDiscount(discountAmount);
+        
+        const discountText = data.discountType === "percent"
+          ? `${data.discountPercent || data.discountValue}%`
+          : `R$ ${parseFloat(data.discountValue).toFixed(2)}`;
+        
         toast({
           title: "Cupom aplicado!",
-          description: `Desconto de ${data.discountPercent}% aplicado`,
+          description: `Desconto de ${discountText} aplicado`,
         });
       } else {
         toast({
-          title: "Cupom inválido",
-          description: "Este cupom não existe ou está inativo",
+          title: "Cupom invalido",
+          description: data.message || "Este cupom nao existe ou esta inativo",
           variant: "destructive",
         });
         setDiscount(0);
@@ -194,7 +207,7 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
     } catch {
       toast({
         title: "Erro",
-        description: "Não foi possível validar o cupom",
+        description: "Nao foi possivel validar o cupom",
         variant: "destructive",
       });
     } finally {

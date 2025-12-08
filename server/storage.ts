@@ -1,5 +1,5 @@
 import { 
-  products, orders, orderItems, coupons, settings, resellers, categories, customerUsers, withdrawalRequests,
+  products, orders, orderItems, coupons, settings, resellers, categories, customerUsers, withdrawalRequests, announcementSettings,
   type Product, type InsertProduct,
   type Order, type InsertOrder,
   type OrderItem, type InsertOrderItem,
@@ -8,7 +8,8 @@ import {
   type Reseller, type InsertReseller,
   type Category, type InsertCategory,
   type CustomerUser, type UpsertCustomerUser,
-  type WithdrawalRequest, type InsertWithdrawalRequest
+  type WithdrawalRequest, type InsertWithdrawalRequest,
+  type AnnouncementSetting, type InsertAnnouncementSetting
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, isNotNull, inArray, and, sql } from "drizzle-orm";
@@ -43,8 +44,15 @@ export interface IStorage {
 
   getCoupons(): Promise<Coupon[]>;
   getCouponByCode(code: string): Promise<Coupon | undefined>;
+  getCoupon(id: number): Promise<Coupon | undefined>;
   createCoupon(coupon: InsertCoupon): Promise<Coupon>;
+  updateCoupon(id: number, coupon: Partial<InsertCoupon>): Promise<Coupon | undefined>;
   deleteCoupon(id: number): Promise<void>;
+  getResellerCoupons(resellerId: number): Promise<Coupon[]>;
+  incrementCouponUsage(id: number): Promise<void>;
+
+  getAnnouncementSettings(resellerId?: number): Promise<AnnouncementSetting | undefined>;
+  updateAnnouncementSettings(data: InsertAnnouncementSetting): Promise<AnnouncementSetting>;
 
   getSettings(): Promise<Settings | undefined>;
   updateSettings(data: InsertSettings): Promise<Settings>;
@@ -199,13 +207,54 @@ export class DatabaseStorage implements IStorage {
     return coupon || undefined;
   }
 
+  async getCoupon(id: number): Promise<Coupon | undefined> {
+    const [coupon] = await db.select().from(coupons).where(eq(coupons.id, id));
+    return coupon || undefined;
+  }
+
   async createCoupon(coupon: InsertCoupon): Promise<Coupon> {
     const [created] = await db.insert(coupons).values(coupon).returning();
     return created;
   }
 
+  async updateCoupon(id: number, coupon: Partial<InsertCoupon>): Promise<Coupon | undefined> {
+    const [updated] = await db.update(coupons).set(coupon).where(eq(coupons.id, id)).returning();
+    return updated || undefined;
+  }
+
   async deleteCoupon(id: number): Promise<void> {
     await db.delete(coupons).where(eq(coupons.id, id));
+  }
+
+  async getResellerCoupons(resellerId: number): Promise<Coupon[]> {
+    return db.select().from(coupons).where(eq(coupons.resellerId, resellerId)).orderBy(desc(coupons.id));
+  }
+
+  async incrementCouponUsage(id: number): Promise<void> {
+    await db.update(coupons).set({
+      usedCount: sql`${coupons.usedCount} + 1`
+    }).where(eq(coupons.id, id));
+  }
+
+  async getAnnouncementSettings(resellerId?: number): Promise<AnnouncementSetting | undefined> {
+    if (resellerId) {
+      const [setting] = await db.select().from(announcementSettings).where(eq(announcementSettings.resellerId, resellerId));
+      return setting || undefined;
+    }
+    const [setting] = await db.select().from(announcementSettings);
+    return setting || undefined;
+  }
+
+  async updateAnnouncementSettings(data: InsertAnnouncementSetting): Promise<AnnouncementSetting> {
+    const existing = await this.getAnnouncementSettings(data.resellerId ?? undefined);
+    
+    if (existing) {
+      const [updated] = await db.update(announcementSettings).set(data).where(eq(announcementSettings.id, existing.id)).returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(announcementSettings).values(data).returning();
+      return created;
+    }
   }
 
   async getSettings(): Promise<Settings | undefined> {

@@ -8,6 +8,7 @@ import type { Product, Reseller } from "@shared/schema";
 import { CheckoutModal } from "@/components/checkout-modal";
 import { useStore } from "@/lib/store-context";
 import { useAuth } from "@/hooks/useAuth";
+import { AnnouncementBar } from "@/components/announcement-bar";
 
 export default function ResellerStore() {
   const [match, params] = useRoute("/loja/:slug");
@@ -117,9 +118,7 @@ export default function ResellerStore() {
         <div className="network-bg" />
 
         <div className="relative z-10">
-          <div className="promo-banner">
-            Use o cupom PROMO10 para ganhar 10% de desconto em compras acima de R$15,00
-          </div>
+          <AnnouncementBar resellerId={reseller.id} />
 
           <header className="store-header sticky top-0 z-50">
             <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
