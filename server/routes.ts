@@ -1283,188 +1283,210 @@ export async function registerRoutes(
     }
   });
 
-  // ============== NEW ABACATEPAY WEBHOOK (RECOMMENDED) ==============
-  // Webhook para confirmar pagamento e adicionar saldo na carteira do revendedor
+  // ============== ABACATEPAY WEBHOOK - VERSÃO ROBUSTA ==============
+  // PRIORIDADE MÁXIMA: Atualizar status do pedido para PAGO
   // POST /api/webhook/abacatepay
   app.post("/api/webhook/abacatepay", async (req, res) => {
+    // ========== PASSO 1: LOG DO PAYLOAD (SEMPRE) ==========
+    console.log("==========================================");
+    console.log("PAYLOAD:", JSON.stringify(req.body));
+    console.log("==========================================");
+
     try {
-      // ========== LOG 1: CHEGADA DO WEBHOOK ==========
-      console.log("==========================================");
-      console.log("WEBHOOK RECEBIDO! Payload:", JSON.stringify(req.body, null, 2));
-      console.log("==========================================");
-
-      // Validar secret via query param (método simples) ou header (método HMAC)
-      const webhookSecret = req.query.webhookSecret as string;
-      const expectedSecret = process.env.ABACATEPAY_WEBHOOK_SECRET || process.env.ABACATEPAY_API_KEY;
-
-      // Verificação por query param (mais simples)
-      if (webhookSecret && expectedSecret && webhookSecret !== expectedSecret) {
-        console.error("[AbacatePay Webhook] Invalid webhook secret");
-        return res.status(401).json({ error: "Unauthorized" });
-      }
-
       const payload = req.body;
-      console.log("[AbacatePay Webhook] Evento recebido:", payload.event);
+      const event = payload.event || payload.eventType || "";
 
       // Verificar se é evento de pagamento confirmado
-      const isPaid = payload.event === "billing.paid" || 
-                     payload.event === "BILLING.PAID" ||
-                     payload.event === "payment.confirmed";
+      const isPaid = event === "billing.paid" || 
+                     event === "BILLING.PAID" ||
+                     event === "payment.confirmed" ||
+                     event === "PAYMENT.CONFIRMED";
 
-      console.log("[AbacatePay Webhook] E pagamento confirmado (isPaid)?:", isPaid);
+      console.log("[Webhook] Evento:", event, "| isPaid:", isPaid);
 
       if (!isPaid) {
-        console.log("[AbacatePay Webhook] Evento IGNORADO (nao e confirmacao de pagamento):", payload.event);
-        return res.status(200).json({ received: true, action: "ignored" });
+        console.log("[Webhook] Evento ignorado (nao e pagamento confirmado)");
+        return res.status(200).send("Webhook processado");
       }
 
-      // Extrair orderId dos metadados ou externalId do produto
+      // ========== PASSO 2: LOCALIZAR PEDIDO ==========
+      // MÉTODO PRIMÁRIO: Buscar pelo billing_id (event.data.id)
+      let order = null;
       let orderId: number | null = null;
-      let metodoExtracao = "";
-      
-      // Tentar extrair do metadata
-      if (payload.data?.billing?.metadata?.orderId) {
-        orderId = parseInt(payload.data.billing.metadata.orderId);
-        metodoExtracao = "metadata.orderId";
-        console.log("[AbacatePay Webhook] OrderId extraido de metadata.orderId:", orderId);
-      }
-      // Tentar extrair do externalId do produto (formato: "order-123")
-      else if (payload.data?.billing?.products?.[0]?.externalId) {
-        const externalId = payload.data.billing.products[0].externalId;
-        console.log("[AbacatePay Webhook] ExternalId encontrado:", externalId);
-        if (externalId.startsWith("order-")) {
-          orderId = parseInt(externalId.replace("order-", ""));
-          metodoExtracao = "products[0].externalId";
-          console.log("[AbacatePay Webhook] OrderId extraido de externalId:", orderId);
-        }
-      }
-      // Tentar buscar pelo billingId
-      else if (payload.data?.billing?.id || payload.data?.pixQrCode?.id) {
-        const billingId = payload.data?.billing?.id || payload.data?.pixQrCode?.id;
-        console.log("[AbacatePay Webhook] Tentando buscar por billingId:", billingId);
-        const orders = await storage.getOrders();
-        console.log("[AbacatePay Webhook] Total de pedidos no banco:", orders.length);
-        const matchingOrder = orders.find((o: any) => o.abacatepayBillingId === billingId);
-        if (matchingOrder) {
-          orderId = matchingOrder.id;
-          metodoExtracao = "billingId match";
-          console.log("[AbacatePay Webhook] Pedido encontrado por billingId! OrderId:", orderId);
+      let metodoEncontrado = "";
+
+      // Extrair billing_id do payload (pode estar em diferentes locais)
+      const billingId = payload.data?.id || 
+                        payload.data?.billing?.id || 
+                        payload.data?.pixQrCode?.id ||
+                        payload.billingId ||
+                        payload.id;
+
+      console.log("[Webhook] billing_id extraido:", billingId);
+
+      if (billingId) {
+        // Buscar pedido onde abacatepayBillingId == billing_id
+        const allOrders = await storage.getOrders();
+        const matchedOrder = allOrders.find((o: any) => o.abacatepayBillingId === billingId);
+        
+        if (matchedOrder) {
+          order = matchedOrder;
+          orderId = matchedOrder.id;
+          metodoEncontrado = "billing_id";
+          console.log("[Webhook] ✓ Pedido encontrado por billing_id! OrderId:", orderId);
         } else {
-          console.log("[AbacatePay Webhook] Nenhum pedido encontrado com billingId:", billingId);
-          console.log("[AbacatePay Webhook] BillingIds existentes:", orders.map((o: any) => ({ id: o.id, billingId: o.abacatepayBillingId })));
+          console.log("[Webhook] Nenhum pedido com billing_id:", billingId);
         }
       }
 
-      // ========== LOG 2: BUSCA DO PEDIDO ==========
-      console.log("Buscando pedido com ID:", orderId, "| Metodo de extracao:", metodoExtracao);
-
-      if (!orderId) {
-        console.error("ERRO: Nao foi possivel extrair orderId do payload!");
-        console.error("[AbacatePay Webhook] Campos disponiveis no payload.data:", Object.keys(payload.data || {}));
-        console.error("[AbacatePay Webhook] payload.data.billing:", JSON.stringify(payload.data?.billing, null, 2));
-        return res.status(200).json({ received: true, error: "No orderId found" });
-      }
-
-      const order = await storage.getOrder(orderId);
-      
-      // ========== LOG 3: RESULTADO DA BUSCA ==========
-      console.log("Pedido encontrado no Banco?:", order ? "SIM" : "NAO");
-      
+      // MÉTODO SECUNDÁRIO: Buscar pelo order_id nos metadados
       if (!order) {
-        console.error("ERRO: ID do Webhook nao bate com nenhum pedido no banco!");
-        console.error(`[AbacatePay Webhook] OrderId buscado: ${orderId}`);
-        return res.status(200).json({ received: true, error: "Order not found" });
-      }
+        const metadataOrderId = payload.data?.metadata?.order_id ||
+                                payload.data?.metadata?.orderId ||
+                                payload.data?.billing?.metadata?.order_id ||
+                                payload.data?.billing?.metadata?.orderId ||
+                                payload.metadata?.order_id ||
+                                payload.metadata?.orderId;
 
-      console.log("[AbacatePay Webhook] Dados do pedido encontrado:", {
-        id: order.id,
-        status: order.status,
-        email: order.email,
-        totalAmount: order.totalAmount,
-        abacatepayBillingId: order.abacatepayBillingId
-      });
+        console.log("[Webhook] metadata.order_id extraido:", metadataOrderId);
 
-      // Verificar se já foi processado
-      if (order.status === "paid") {
-        console.log(`[AbacatePay Webhook] Pedido ${orderId} ja esta pago, ignorando duplicata`);
-        return res.status(200).json({ received: true, action: "already_paid" });
-      }
-
-      console.log(`[AbacatePay Webhook] Iniciando processamento do pagamento para pedido ${orderId}`);
-
-      // 1. ENTREGAR PRODUTO
-      const orderItems = await storage.getOrderItems(orderId);
-      let deliveredContent = "";
-
-      for (const item of orderItems) {
-        const product = await storage.getProduct(item.productId);
-        const quantity = item.quantity || 1;
-
-        if (product && product.stock) {
-          const stockLines = product.stock.split("\n").filter((line: string) => line.trim());
-
-          if (stockLines.length >= quantity) {
-            // FIFO: Pegar quantidade de itens do estoque
-            for (let i = 0; i < quantity; i++) {
-              deliveredContent += stockLines[i] + "\n";
-            }
-            // Remover linhas entregues do estoque
-            const remainingStock = stockLines.slice(quantity).join("\n");
-            await storage.updateProduct(item.productId, { stock: remainingStock });
-            console.log(`[AbacatePay Webhook] ✓ Delivered ${quantity} item(s) for product ${product.name}`);
-          } else {
-            console.error(`[AbacatePay Webhook] ❌ Insufficient stock for ${product.name}`);
+        if (metadataOrderId) {
+          orderId = parseInt(metadataOrderId);
+          order = await storage.getOrder(orderId);
+          if (order) {
+            metodoEncontrado = "metadata.order_id";
+            console.log("[Webhook] ✓ Pedido encontrado por metadata.order_id! OrderId:", orderId);
           }
         }
       }
 
-      // 2. ATUALIZAR STATUS DO PEDIDO (PRIMEIRO - antes de qualquer outra coisa)
-      const settings = readSettings();
-      const storeName = settings?.storeName || "NexStore";
-      const whatsappMessage = `Ola! Seu pagamento foi confirmado. Aqui esta sua entrega do pedido #${orderId} na ${storeName}:\n\n${deliveredContent.trim()}\n\nObrigado pela compra!`;
-      const whatsappLink = order.whatsapp 
-        ? generateWhatsAppLink(order.whatsapp, whatsappMessage)
-        : null;
+      // MÉTODO TERCIÁRIO: Buscar pelo externalId do produto (formato: "order-123")
+      if (!order) {
+        const externalId = payload.data?.billing?.products?.[0]?.externalId ||
+                           payload.data?.products?.[0]?.externalId;
+        
+        console.log("[Webhook] externalId extraido:", externalId);
 
-      console.log("[AbacatePay Webhook] Atualizando status do pedido para 'paid'...");
-      
-      await storage.updateOrder(orderId, {
-        status: "paid",
-        deliveredContent: deliveredContent.trim(),
-        whatsappDeliveryLink: whatsappLink,
-      });
-
-      // ========== LOG 4: CONFIRMACAO DA ATUALIZACAO ==========
-      console.log("Status atualizado no banco! Pedido", orderId, "agora esta 'paid'");
-
-      // Verificar se realmente atualizou
-      const updatedOrder = await storage.getOrder(orderId);
-      console.log("[AbacatePay Webhook] Verificacao pos-update - Status atual:", updatedOrder?.status);
-
-      // 3. ADICIONAR SALDO NA CARTEIRA DO REVENDEDOR (100% DO VALOR - TAXA COBRADA NO SAQUE)
-      if (order.resellerId) {
-        const reseller = await storage.getReseller(order.resellerId);
-        if (reseller) {
-          const valorVenda = parseFloat(order.totalAmount as string || "0");
-          const currentBalance = parseFloat(reseller.walletBalance as string || "0");
-          const newBalance = currentBalance + valorVenda;
-
-          await storage.updateReseller(order.resellerId, {
-            walletBalance: newBalance.toFixed(2),
-            totalSales: (parseFloat(reseller.totalSales as string || "0") + valorVenda).toFixed(2),
-            totalCommission: (parseFloat(reseller.totalCommission as string || "0") + valorVenda).toFixed(2),
-          });
-
-          console.log(`[AbacatePay Webhook] Saldo do revendedor ${order.resellerId} atualizado: +R$${valorVenda.toFixed(2)} (Novo saldo: R$${newBalance.toFixed(2)})`);
+        if (externalId && externalId.startsWith("order-")) {
+          orderId = parseInt(externalId.replace("order-", ""));
+          order = await storage.getOrder(orderId);
+          if (order) {
+            metodoEncontrado = "externalId";
+            console.log("[Webhook] ✓ Pedido encontrado por externalId! OrderId:", orderId);
+          }
         }
       }
 
-      // 4. ENVIAR EMAIL DE ENTREGA (DEPOIS de atualizar o status)
-      if (order.email) {
-        const productNames = orderItems.map((item: any) => item.productName || "Produto Digital").join(", ");
-        console.log("[AbacatePay Webhook] Enviando email para:", order.email);
+      // Se não encontrou o pedido, retornar 200 mesmo assim (AbacatePay não deve reenviar)
+      if (!order || !orderId) {
+        console.error("[Webhook] ❌ PEDIDO NAO ENCONTRADO - billing_id:", billingId);
+        console.error("[Webhook] Payload completo:", JSON.stringify(payload, null, 2));
+        return res.status(200).send("Webhook processado");
+      }
+
+      console.log("[Webhook] Pedido localizado:", {
+        id: order.id,
+        status_atual: order.status,
+        metodo: metodoEncontrado
+      });
+
+      // Verificar se já foi processado
+      if (order.status === "paid" || order.status === "approved") {
+        console.log("[Webhook] Pedido ja pago, ignorando duplicata");
+        return res.status(200).send("Webhook processado");
+      }
+
+      // ========== PASSO 3: ATUALIZAR STATUS IMEDIATAMENTE ==========
+      console.log("[Webhook] >>> ATUALIZANDO STATUS PARA 'paid' <<<");
+      
+      await storage.updateOrder(orderId, {
+        status: "paid",
+      });
+
+      // Verificar se salvou
+      const orderAtualizado = await storage.getOrder(orderId);
+      console.log("[Webhook] ✓ STATUS ATUALIZADO! Novo status:", orderAtualizado?.status);
+
+      if (orderAtualizado?.status !== "paid") {
+        console.error("[Webhook] ❌ FALHA CRITICA: Status nao foi atualizado!");
+      }
+
+      // ========== PASSO 4: PROCESSAR ENTREGA (DEPOIS do status salvo) ==========
+      let deliveredContent = "";
+      
+      try {
+        const orderItems = await storage.getOrderItems(orderId);
         
-        try {
+        for (const item of orderItems) {
+          const product = await storage.getProduct(item.productId);
+          const quantity = item.quantity || 1;
+
+          if (product && product.stock) {
+            const stockLines = product.stock.split("\n").filter((line: string) => line.trim());
+
+            if (stockLines.length >= quantity) {
+              for (let i = 0; i < quantity; i++) {
+                deliveredContent += stockLines[i] + "\n";
+              }
+              const remainingStock = stockLines.slice(quantity).join("\n");
+              await storage.updateProduct(item.productId, { stock: remainingStock });
+              console.log("[Webhook] Entregue:", quantity, "item(s) de", product.name);
+            } else {
+              console.warn("[Webhook] Estoque insuficiente para", product.name);
+            }
+          }
+        }
+
+        // Atualizar pedido com conteudo entregue
+        if (deliveredContent.trim()) {
+          const settings = readSettings();
+          const storeName = settings?.storeName || "NexStore";
+          const whatsappMessage = `Ola! Pagamento confirmado. Pedido #${orderId}:\n\n${deliveredContent.trim()}`;
+          const whatsappLink = order.whatsapp 
+            ? generateWhatsAppLink(order.whatsapp, whatsappMessage)
+            : null;
+
+          await storage.updateOrder(orderId, {
+            deliveredContent: deliveredContent.trim(),
+            whatsappDeliveryLink: whatsappLink,
+          });
+          console.log("[Webhook] Conteudo entregue salvo no pedido");
+        }
+      } catch (deliveryError: any) {
+        console.error("[Webhook] Erro na entrega (status ja salvo):", deliveryError.message);
+      }
+
+      // ========== PASSO 5: ATUALIZAR SALDO DO REVENDEDOR ==========
+      try {
+        if (order.resellerId) {
+          const reseller = await storage.getReseller(order.resellerId);
+          if (reseller) {
+            const valorVenda = parseFloat(order.totalAmount as string || "0");
+            const currentBalance = parseFloat(reseller.walletBalance as string || "0");
+            const newBalance = currentBalance + valorVenda;
+
+            await storage.updateReseller(order.resellerId, {
+              walletBalance: newBalance.toFixed(2),
+              totalSales: (parseFloat(reseller.totalSales as string || "0") + valorVenda).toFixed(2),
+              totalCommission: (parseFloat(reseller.totalCommission as string || "0") + valorVenda).toFixed(2),
+            });
+            console.log("[Webhook] Saldo revendedor atualizado:", newBalance.toFixed(2));
+          }
+        }
+      } catch (walletError: any) {
+        console.error("[Webhook] Erro ao atualizar saldo (status ja salvo):", walletError.message);
+      }
+
+      // ========== PASSO 6: ENVIAR EMAIL (try/catch isolado) ==========
+      try {
+        if (order.email && deliveredContent.trim()) {
+          const orderItems = await storage.getOrderItems(orderId);
+          const productNames = orderItems.map((item: any) => item.productName || "Produto Digital").join(", ");
+          const settings = readSettings();
+          const storeName = settings?.storeName || "NexStore";
+
+          console.log("[Webhook] Enviando email para:", order.email);
+          
           const emailResult = await sendDeliveryEmail({
             to: order.email,
             orderId,
@@ -1474,29 +1496,27 @@ export async function registerRoutes(
           });
           
           if (emailResult.success) {
-            console.log(`[AbacatePay Webhook] Email enviado com sucesso para ${order.email}`);
+            console.log("[Webhook] ✓ Email enviado com sucesso");
           } else {
-            console.error(`[AbacatePay Webhook] Erro no email (ignorado):`, emailResult.error);
+            console.error("[Webhook] Erro no email (ignorado):", emailResult.error);
           }
-        } catch (emailError: any) {
-          console.error("[AbacatePay Webhook] Erro de email (ignorado):", emailError.message);
         }
+      } catch (emailError: any) {
+        console.error("[Webhook] Erro de email (ignorado):", emailError.message);
       }
 
       console.log("==========================================");
-      console.log(`PEDIDO ${orderId} PROCESSADO COM SUCESSO!`);
+      console.log("PEDIDO", orderId, "PROCESSADO COM SUCESSO!");
       console.log("==========================================");
 
-      res.status(200).json({ 
-        received: true, 
-        orderId,
-        status: "paid",
-        productDelivered: true,
-        resellerBalanceUpdated: !!order.resellerId,
-      });
+      // ========== RESPOSTA FINAL ==========
+      return res.status(200).send("Webhook processado");
+
     } catch (error: any) {
-      console.error("[AbacatePay Webhook] Error:", error.message);
-      res.status(500).json({ error: error.message });
+      console.error("[Webhook] ERRO CRITICO:", error.message);
+      console.error("[Webhook] Stack:", error.stack);
+      // Mesmo com erro, retornar 200 para o AbacatePay não reenviar
+      return res.status(200).send("Webhook processado");
     }
   });
 
