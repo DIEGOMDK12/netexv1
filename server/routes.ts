@@ -2825,31 +2825,45 @@ export async function registerRoutes(
   });
 
   app.post("/api/vendor/products", async (req, res) => {
-    const { name, description, imageUrl, originalPrice, currentPrice, stock, category, resellerId, deliveryContent, active, slug, categoryId: reqCategoryId, limitPerUser } = req.body;
-
-    console.log("[Create Product] Request body:", { 
-      name, 
-      resellerId,
-      active,
-      slug,
-      categoryId: reqCategoryId,
-      deliveryContent: deliveryContent ? deliveryContent.substring(0, 50) : "MISSING"
-    });
-
-    if (!resellerId) {
-      console.error("[Create Product] Missing resellerId!");
-      return res.status(400).json({ error: "Missing resellerId" });
-    }
-
-    if (!name || !name.trim()) {
-      console.error("[Create Product] Missing product name!");
-      return res.status(400).json({ error: "Nome do produto é obrigatório" });
-    }
-
     try {
+      const { name, description, imageUrl, originalPrice, currentPrice, stock, category, resellerId, deliveryContent, active, slug, categoryId: reqCategoryId, limitPerUser } = req.body;
+
+      console.log("[Create Product] Request body:", { 
+        name, 
+        resellerId,
+        active,
+        slug,
+        categoryId: reqCategoryId,
+        imageUrl: imageUrl ? imageUrl.substring(0, 50) : "EMPTY",
+        deliveryContent: deliveryContent ? deliveryContent.substring(0, 50) : "MISSING"
+      });
+
+      // Validate required fields
+      if (!resellerId) {
+        console.error("[Create Product] Missing resellerId!");
+        return res.status(400).json({ error: "Missing resellerId" });
+      }
+
+      if (!name || !name.trim()) {
+        console.error("[Create Product] Missing product name!");
+        return res.status(400).json({ error: "Nome do produto é obrigatório" });
+      }
+
+      // Normalize stock/license_keys: handle string or array input
+      let normalizedStock = "";
+      const stockInput = stock || req.body.license_keys || req.body.licenseKeys || "";
+      if (stockInput) {
+        if (Array.isArray(stockInput)) {
+          normalizedStock = stockInput.filter((line: string) => line && line.trim()).join("\n");
+          console.log("[Create Product] Stock/license_keys was array, converted to string");
+        } else if (typeof stockInput === "string") {
+          normalizedStock = stockInput;
+        }
+      }
+
       // Auto-count stock items: count non-empty lines
-      const stockItems = stock 
-        ? stock.split("\n").filter((line: string) => line.trim()).length 
+      const stockItems = normalizedStock 
+        ? normalizedStock.split("\n").filter((line: string) => line.trim()).length 
         : 0;
 
       console.log("[Create Product] Auto-counted stock items:", stockItems, "from stock string");
@@ -2871,8 +2885,13 @@ export async function registerRoutes(
       // IMPORTANT: Respect the active flag from frontend, default to true
       const isActive = active !== undefined ? active : true;
 
-      // Handle image URL - use placeholder if empty or failed
-      const finalImageUrl = imageUrl && imageUrl.trim() ? imageUrl : "";
+      // Handle image URL - use placeholder if empty or failed upload
+      let finalImageUrl = "";
+      if (imageUrl && imageUrl.trim()) {
+        finalImageUrl = imageUrl.trim();
+      } else {
+        console.log("[Create Product] No image provided, product will be saved without image");
+      }
 
       const product = await storage.createResellerProduct({
         name: name.trim(),
@@ -2881,7 +2900,7 @@ export async function registerRoutes(
         imageUrl: finalImageUrl,
         originalPrice: originalPrice || "0",
         currentPrice: currentPrice || "0",
-        stock: stock || "",
+        stock: normalizedStock,
         deliveryContent: deliveryContent || "",
         category: category || "Outros",
         categoryId,
@@ -2893,12 +2912,13 @@ export async function registerRoutes(
       console.log("[Create Product] Product created successfully:", { id: product.id, resellerId: product.resellerId, stockCount: stockItems, active: isActive });
       res.json(product);
     } catch (error: any) {
-      console.error("[Create Product] CRITICAL Error:", {
-        message: error.message,
-        code: error.code,
-        detail: error.detail,
-        stack: error.stack
-      });
+      console.error("===========================================");
+      console.error("[Create Product] ERRO DETALHADO:", error);
+      console.error("[Create Product] Error message:", error.message);
+      console.error("[Create Product] Error code:", error.code);
+      console.error("[Create Product] Error detail:", error.detail);
+      console.error("[Create Product] Error stack:", error.stack);
+      console.error("===========================================");
       
       // Provide user-friendly error messages
       let errorMessage = "Erro ao criar produto";
@@ -2906,6 +2926,8 @@ export async function registerRoutes(
         errorMessage = "Já existe um produto com esse nome ou slug";
       } else if (error.code === "23503") {
         errorMessage = "Categoria ou revendedor inválido";
+      } else if (error.code === "22P02") {
+        errorMessage = "Formato de dados inválido - verifique os campos";
       } else if (error.message) {
         errorMessage = `Erro: ${error.message}`;
       }

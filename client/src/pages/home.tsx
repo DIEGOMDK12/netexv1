@@ -157,49 +157,48 @@ export default function Home() {
         </div>
       )}
 
-      <section className="relative py-16 px-4 text-center overflow-hidden">
+      <section className="relative py-8 px-2 text-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-blue-600/10 to-transparent" />
         <div className="relative max-w-2xl mx-auto">
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-3">
+          <h1 className="text-2xl md:text-4xl font-bold text-white mb-2">
             Comprar e Vender
           </h1>
-          <p className="text-lg text-gray-400 mb-8">
+          <p className="text-sm text-gray-400 mb-4">
             contas, jogos, gift cards e muito mais
           </p>
           <Button 
-            size="lg" 
-            className="bg-blue-600 text-white px-8 py-6 text-lg font-semibold rounded-xl"
+            className="bg-blue-600 text-white px-6 py-3 text-sm font-semibold rounded-lg"
             data-testid="button-how-it-works"
           >
-            <Play className="w-5 h-5 mr-2" />
+            <Play className="w-4 h-4 mr-1.5" />
             COMO FUNCIONA?
           </Button>
         </div>
       </section>
 
-      <section className="px-4 py-8">
+      <section className="px-2 py-4">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+          <h2 className="text-base font-bold text-white mb-3 flex items-center gap-2 px-1">
             Categorias Populares
-            <ChevronRight className="w-5 h-5 text-gray-500" />
+            <ChevronRight className="w-4 h-4 text-gray-500" />
           </h2>
-          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             {displayCategories.map((cat) => {
               const imageSrc = categoryImages[cat.slug.toLowerCase()] || categoryImages.default;
               return (
                 <div 
                   key={`cat-${cat.id}`}
-                  className="flex-shrink-0 w-20 text-center cursor-pointer group"
+                  className="flex-shrink-0 w-16 text-center cursor-pointer group"
                   data-testid={`category-${cat.slug}`}
                 >
-                  <div className="w-20 h-20 rounded-xl overflow-hidden mb-2 border-2 border-transparent group-hover:border-blue-500 transition-colors">
+                  <div className="w-16 h-16 rounded-lg overflow-hidden mb-1 border border-transparent group-hover:border-blue-500 transition-colors">
                     <img 
                       src={imageSrc} 
                       alt={cat.name}
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  <span className="text-xs text-gray-400 group-hover:text-white transition-colors">
+                  <span className="text-[10px] text-gray-400 group-hover:text-white transition-colors line-clamp-1">
                     {cat.name}
                   </span>
                 </div>
@@ -210,13 +209,13 @@ export default function Home() {
       </section>
 
       {steamProducts.length > 0 && (
-        <section className="px-4 py-6">
+        <section className="px-2 py-4">
           <div className="max-w-7xl mx-auto">
-            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+            <h2 className="text-lg font-bold text-white mb-3 flex items-center gap-2 px-1">
               <span className="text-blue-500">Steam</span>
-              <ChevronRight className="w-5 h-5 text-gray-500" />
+              <ChevronRight className="w-4 h-4 text-gray-500" />
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
               {steamProducts.map((product) => (
                 <ProductCardMini key={product.id} product={product} />
               ))}
@@ -226,13 +225,13 @@ export default function Home() {
       )}
 
       {subscriptionProducts.length > 0 && (
-        <section className="px-4 py-6">
+        <section className="px-2 py-4">
           <div className="max-w-7xl mx-auto">
-            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+            <h2 className="text-lg font-bold text-white mb-3 flex items-center gap-2 px-1">
               <span className="text-purple-500">Assinaturas e Premium</span>
-              <ChevronRight className="w-5 h-5 text-gray-500" />
+              <ChevronRight className="w-4 h-4 text-gray-500" />
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
               {subscriptionProducts.map((product) => (
                 <ProductCardMini key={product.id} product={product} />
               ))}
@@ -241,29 +240,29 @@ export default function Home() {
         </section>
       )}
 
-      <section className="px-4 py-6">
+      <section className="px-2 py-4">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-            <Star className="w-5 h-5 text-yellow-500" />
+          <h2 className="text-lg font-bold text-white mb-3 flex items-center gap-2 px-1">
+            <Star className="w-4 h-4 text-yellow-500" />
             Em Destaque
-            <ChevronRight className="w-5 h-5 text-gray-500" />
+            <ChevronRight className="w-4 h-4 text-gray-500" />
           </h2>
           {isLoading ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="bg-[#1e293b] rounded-xl animate-pulse aspect-square" />
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="bg-[#1e293b] rounded-lg animate-pulse aspect-square" />
               ))}
             </div>
           ) : featuredProducts.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
               {featuredProducts.map((product) => (
                 <ProductCardMini key={product.id} product={product} />
               ))}
             </div>
           ) : (
-            <div className="text-center py-12 text-gray-500">
-              <ShoppingCart className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>Nenhum produto disponivel no momento</p>
+            <div className="text-center py-8 text-gray-500">
+              <ShoppingCart className="w-10 h-10 mx-auto mb-3 opacity-50" />
+              <p className="text-sm">Nenhum produto disponivel no momento</p>
             </div>
           )}
         </div>
@@ -349,7 +348,7 @@ function ProductCardMini({ product }: { product: ProductWithSeller }) {
   return (
     <Link href={`/product/${product.id}`}>
       <div 
-        className="bg-[#1e293b] rounded-xl overflow-hidden cursor-pointer group"
+        className="bg-[#1e293b] rounded-lg overflow-hidden cursor-pointer group"
         data-testid={`card-product-${product.id}`}
       >
         <div className="aspect-square relative overflow-hidden">
@@ -361,41 +360,41 @@ function ProductCardMini({ product }: { product: ProductWithSeller }) {
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-blue-900/50 to-slate-800 flex items-center justify-center">
-              <ShoppingCart className="w-8 h-8 text-gray-600" />
+              <ShoppingCart className="w-6 h-6 text-gray-600" />
             </div>
           )}
           {!hasStock && (
             <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
-              <span className="text-white text-xs font-medium bg-red-500 px-2 py-1 rounded">Esgotado</span>
+              <span className="text-white text-[10px] font-medium bg-red-500 px-1.5 py-0.5 rounded">Esgotado</span>
             </div>
           )}
         </div>
 
-        <div className="p-3">
-          <h3 className="text-sm font-medium text-white line-clamp-2 min-h-[2.5rem] mb-2" data-testid={`text-product-name-${product.id}`}>
+        <div className="p-2">
+          <h3 className="text-xs font-medium text-white line-clamp-2 min-h-[2rem] mb-1" data-testid={`text-product-name-${product.id}`}>
             {product.name}
           </h3>
           
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <span className="text-lg font-bold text-blue-500" data-testid={`text-price-${product.id}`}>
+          <div className="flex items-center justify-between gap-1 mb-1">
+            <span className="text-sm font-bold text-blue-500" data-testid={`text-price-${product.id}`}>
               R$ {Number(product.currentPrice).toFixed(2)}
             </span>
           </div>
 
           <div 
-            className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+            className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity"
             data-testid={`seller-${product.id}`}
             onClick={handleSellerClick}
           >
-            <Avatar className="w-5 h-5">
+            <Avatar className="w-4 h-4">
               {product.seller?.logoUrl ? (
                 <AvatarImage src={product.seller.logoUrl} alt={sellerName} />
               ) : null}
-              <AvatarFallback className="text-[10px] bg-blue-600 text-white">
+              <AvatarFallback className="text-[8px] bg-blue-600 text-white">
                 {sellerInitial}
               </AvatarFallback>
             </Avatar>
-            <p className="text-xs text-gray-400 truncate hover:text-blue-400 transition-colors">
+            <p className="text-[10px] text-gray-400 truncate hover:text-blue-400 transition-colors">
               {sellerName}
             </p>
           </div>
