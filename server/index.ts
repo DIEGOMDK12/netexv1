@@ -34,6 +34,83 @@ async function runStartupMigrations() {
 
 runStartupMigrations();
 
+async function seedFixedCategories() {
+  try {
+    const { storage } = await import("./storage");
+    
+    const fixedCategories = [
+      {
+        name: "Games",
+        slug: "games",
+        icon: "gamepad",
+        displayOrder: 1,
+        subcategories: ["Contas", "Itens", "Moedas", "Servicos", "Outros"]
+      },
+      {
+        name: "Steam",
+        slug: "steam",
+        icon: "steam",
+        displayOrder: 2,
+        subcategories: ["Chaves (Keys)", "Contas", "Gift Cards", "Jogos", "Saldo"]
+      },
+      {
+        name: "Streaming & TV",
+        slug: "streaming-tv",
+        icon: "tv",
+        displayOrder: 3,
+        subcategories: ["Netflix", "Disney+", "Prime Video", "Spotify", "IPTV", "Outros"]
+      },
+      {
+        name: "Cursos & Tutoriais",
+        slug: "cursos-tutoriais",
+        icon: "book",
+        displayOrder: 4,
+        subcategories: ["Marketing", "Programacao", "Metodos", "E-books", "Mentoria"]
+      },
+      {
+        name: "Outros",
+        slug: "outros",
+        icon: "folder",
+        displayOrder: 5,
+        subcategories: ["Diversos", "Vouchers", "Promocoes"]
+      }
+    ];
+
+    console.log("[Seed] Starting fixed categories seed...");
+    
+    for (const cat of fixedCategories) {
+      const existing = await storage.getCategoryBySlug(cat.slug);
+      if (existing) {
+        await storage.updateCategory(existing.id, { 
+          subcategories: cat.subcategories,
+          displayOrder: cat.displayOrder,
+          icon: cat.icon,
+          active: true
+        });
+        console.log(`[Seed] Updated category: ${cat.name}`);
+      } else {
+        await storage.createCategory({
+          name: cat.name,
+          slug: cat.slug,
+          icon: cat.icon,
+          subcategories: cat.subcategories,
+          active: true,
+          displayOrder: cat.displayOrder,
+        });
+        console.log(`[Seed] Created category: ${cat.name}`);
+      }
+    }
+    
+    console.log("[Seed] Fixed categories seed completed successfully");
+  } catch (error: any) {
+    console.error("[Seed] Error seeding fixed categories:", error.message);
+  }
+}
+
+setTimeout(() => {
+  seedFixedCategories();
+}, 2000);
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;

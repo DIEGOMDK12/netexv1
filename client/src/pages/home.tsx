@@ -34,28 +34,20 @@ type ProductWithSeller = Product & {
 };
 
 const categoryIcons: Record<string, any> = {
-  "free-fire": Gamepad2,
-  "roblox": Gamepad2,
-  "fortnite": Gamepad2,
-  "fifa": Gamepad2,
-  "warzone": Gamepad2,
-  "streaming": Tv,
-  "premium": Star,
-  "gift-card": Gift,
-  "coins": Coins,
-  "audio": Headphones,
-  "mobile": Smartphone,
+  "games": Gamepad2,
+  "steam": Gamepad2,
+  "streaming-tv": Tv,
+  "cursos-tutoriais": Star,
+  "outros": Gift,
   "default": Gamepad2,
 };
 
 const categoryImages: Record<string, string> = {
-  "warzone": "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=200&h=200&fit=crop",
-  "clash": "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=200&h=200&fit=crop",
-  "roblox": "https://images.unsplash.com/photo-1493711662062-fa541f7f70cd?w=200&h=200&fit=crop",
-  "fortnite": "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=200&h=200&fit=crop",
-  "fifa": "https://images.unsplash.com/photo-1493711662062-fa541f7f70cd?w=200&h=200&fit=crop",
-  "free-fire": "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=200&h=200&fit=crop",
-  "streaming": "https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=200&h=200&fit=crop",
+  "games": "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=200&h=200&fit=crop",
+  "steam": "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=200&h=200&fit=crop",
+  "streaming-tv": "https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=200&h=200&fit=crop",
+  "cursos-tutoriais": "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=200&h=200&fit=crop",
+  "outros": "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=200&h=200&fit=crop",
   "default": "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=200&h=200&fit=crop",
 };
 
@@ -112,11 +104,11 @@ export default function Home() {
   };
 
   const defaultCategories = [
-    { id: 1, name: "Warzone", slug: "warzone" },
-    { id: 2, name: "Clash", slug: "clash" },
-    { id: 3, name: "Roblox", slug: "roblox" },
-    { id: 4, name: "Fortnite", slug: "fortnite" },
-    { id: 5, name: "FIFA", slug: "fifa" },
+    { id: 1, name: "Games", slug: "games", subcategories: ["Contas", "Itens", "Moedas", "Servicos", "Outros"] },
+    { id: 2, name: "Steam", slug: "steam", subcategories: ["Chaves (Keys)", "Contas", "Gift Cards", "Jogos", "Saldo"] },
+    { id: 3, name: "Streaming & TV", slug: "streaming-tv", subcategories: ["Netflix", "Disney+", "Prime Video", "Spotify", "IPTV", "Outros"] },
+    { id: 4, name: "Cursos & Tutoriais", slug: "cursos-tutoriais", subcategories: ["Marketing", "Programacao", "Metodos", "E-books", "Mentoria"] },
+    { id: 5, name: "Outros", slug: "outros", subcategories: ["Diversos", "Vouchers", "Promocoes"] },
   ];
 
   const displayCategories = globalCategories.length > 0 ? globalCategories : 
@@ -130,16 +122,16 @@ export default function Home() {
     : defaultCategories;
 
   const steamProducts = activeProducts.filter(p => 
-    p.category?.toLowerCase().includes('steam') || 
+    p.category === 'Steam' || 
     p.name?.toLowerCase().includes('steam')
   ).slice(0, 4);
 
   const subscriptionProducts = activeProducts.filter(p => 
-    p.category?.toLowerCase().includes('premium') || 
-    p.category?.toLowerCase().includes('assinatura') ||
-    p.name?.toLowerCase().includes('premium') ||
+    p.category === 'Streaming & TV' ||
     p.name?.toLowerCase().includes('netflix') ||
-    p.name?.toLowerCase().includes('spotify')
+    p.name?.toLowerCase().includes('spotify') ||
+    p.name?.toLowerCase().includes('disney') ||
+    p.name?.toLowerCase().includes('prime video')
   ).slice(0, 4);
 
   const featuredProducts = activeProducts.slice(0, 8);

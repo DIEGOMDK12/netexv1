@@ -477,13 +477,19 @@ export async function registerRoutes(
     }
   });
 
-  // Get global unique categories (for marketplace home) - deduplicated by slug
+  // Get global unique categories (for marketplace home) - only fixed categories
   app.get("/api/marketplace/categories", async (req, res) => {
     try {
-      console.log("[GET /api/marketplace/categories] Fetching unique global categories...");
-      const cats = await storage.getUniqueCategories();
-      console.log("[GET /api/marketplace/categories] Returning", cats.length, "unique categories");
-      res.json(cats);
+      console.log("[GET /api/marketplace/categories] Fetching fixed global categories...");
+      const cats = await storage.getCategories();
+      // Fixed category slugs that should be shown
+      const fixedCategorySlugs = ["games", "steam", "streaming-tv", "cursos-tutoriais", "outros"];
+      // Filter only active fixed categories (no resellerId) and sort by displayOrder
+      const globalCats = cats
+        .filter((c: any) => !c.resellerId && c.active && fixedCategorySlugs.includes(c.slug))
+        .sort((a: any, b: any) => (a.displayOrder || 0) - (b.displayOrder || 0));
+      console.log("[GET /api/marketplace/categories] Returning", globalCats.length, "fixed categories");
+      res.json(globalCats);
     } catch (error: any) {
       console.error("[GET /api/marketplace/categories] Error:", error.message, error.stack);
       res.status(500).json({ error: "Failed to fetch categories", details: error.message });
@@ -2913,42 +2919,61 @@ export async function registerRoutes(
 
       const fixedCategories = [
         {
-          name: "Jogos",
-          slug: "jogos",
+          name: "Games",
+          slug: "games",
           icon: "gamepad",
-          subcategories: ["Free Fire", "Roblox", "Fortnite", "League of Legends", "Valorant", "Minecraft", "GTA V", "FIFA"]
+          displayOrder: 1,
+          subcategories: ["Contas", "Itens", "Moedas", "Servicos", "Outros"]
         },
         {
-          name: "Plataformas e Contas",
-          slug: "plataformas-contas",
-          icon: "user",
-          subcategories: ["Steam", "PlayStation", "Xbox", "Riot Games", "Epic Games", "EA", "Ubisoft"]
+          name: "Steam",
+          slug: "steam",
+          icon: "steam",
+          displayOrder: 2,
+          subcategories: ["Chaves (Keys)", "Contas", "Gift Cards", "Jogos", "Saldo"]
         },
         {
-          name: "Servicos Digitais",
-          slug: "servicos-digitais",
+          name: "Streaming & TV",
+          slug: "streaming-tv",
           icon: "tv",
-          subcategories: ["Netflix", "Disney+", "HBO Max", "Spotify", "Cursos", "VPN", "Software", "YouTube Premium"]
+          displayOrder: 3,
+          subcategories: ["Netflix", "Disney+", "Prime Video", "Spotify", "IPTV", "Outros"]
+        },
+        {
+          name: "Cursos & Tutoriais",
+          slug: "cursos-tutoriais",
+          icon: "book",
+          displayOrder: 4,
+          subcategories: ["Marketing", "Programacao", "Metodos", "E-books", "Mentoria"]
+        },
+        {
+          name: "Outros",
+          slug: "outros",
+          icon: "folder",
+          displayOrder: 5,
+          subcategories: ["Diversos", "Vouchers", "Promocoes"]
         }
       ];
 
       const results = [];
       for (const cat of fixedCategories) {
-        // Check if category already exists by slug
         const existing = await storage.getCategoryBySlug(cat.slug);
         if (existing) {
-          // Update subcategories
-          await storage.updateCategory(existing.id, { subcategories: cat.subcategories });
+          await storage.updateCategory(existing.id, { 
+            subcategories: cat.subcategories,
+            displayOrder: cat.displayOrder,
+            icon: cat.icon,
+            active: true
+          });
           results.push({ ...existing, subcategories: cat.subcategories, action: "updated" });
         } else {
-          // Create new category
           const created = await storage.createCategory({
             name: cat.name,
             slug: cat.slug,
             icon: cat.icon,
             subcategories: cat.subcategories,
             active: true,
-            displayOrder: 0,
+            displayOrder: cat.displayOrder,
           });
           results.push({ ...created, action: "created" });
         }
@@ -2963,11 +2988,16 @@ export async function registerRoutes(
   });
 
   // Get categories with subcategories for dropdown (public endpoint)
+  // Returns only the 5 fixed categories: Games, Steam, Streaming & TV, Cursos & Tutoriais, Outros
   app.get("/api/categories/with-subcategories", async (req, res) => {
     try {
       const cats = await storage.getCategories();
-      // Filter only active global categories (no resellerId)
-      const globalCats = cats.filter((c: any) => !c.resellerId && c.active);
+      // Fixed category slugs that should be shown
+      const fixedCategorySlugs = ["games", "steam", "streaming-tv", "cursos-tutoriais", "outros"];
+      // Filter only active fixed categories (no resellerId, displayOrder > 0) and sort by displayOrder
+      const globalCats = cats
+        .filter((c: any) => !c.resellerId && c.active && fixedCategorySlugs.includes(c.slug))
+        .sort((a: any, b: any) => (a.displayOrder || 0) - (b.displayOrder || 0));
       res.json(globalCats);
     } catch (error) {
       console.error("[Get Categories With Subcategories] Error:", error);
