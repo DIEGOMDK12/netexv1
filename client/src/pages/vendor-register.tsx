@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { Eye, EyeOff, Loader2, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -186,8 +186,15 @@ export default function VendorRegister() {
             </Button>
           </form>
 
-          <p className="text-xs text-gray-400 text-center mt-4">
-            Você pode fazer login later para gerenciar seus produtos e vendas
+          <p className="text-sm text-gray-400 text-center mt-4">
+            Já possui uma conta?{" "}
+            <Link
+              href="/login"
+              className="font-bold text-purple-400 hover:text-purple-300 transition-colors"
+              data-testid="link-login"
+            >
+              Fazer Login
+            </Link>
           </p>
         </CardContent>
       </Card>
