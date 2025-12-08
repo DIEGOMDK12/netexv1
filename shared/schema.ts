@@ -203,20 +203,13 @@ export const insertProductSchema = createInsertSchema(products);
 export const insertOrderSchema = createInsertSchema(orders);
 export const insertOrderItemSchema = createInsertSchema(orderItems);
 
-const baseCouponSchema = createInsertSchema(coupons);
-export const insertCouponSchema = baseCouponSchema.omit({ 
-  id: true as const, 
-  createdAt: true as const, 
-  usedCount: true as const 
-});
+// @ts-expect-error drizzle-zod omit type inference issue
+export const insertCouponSchema = createInsertSchema(coupons).omit({ id: true, createdAt: true, usedCount: true });
 
 export const insertSettingsSchema = createInsertSchema(settings);
 
-const baseAnnouncementSettingsSchema = createInsertSchema(announcementSettings);
-export const insertAnnouncementSettingsSchema = baseAnnouncementSettingsSchema.omit({ 
-  id: true as const, 
-  createdAt: true as const 
-});
+// @ts-expect-error drizzle-zod omit type inference issue
+export const insertAnnouncementSettingsSchema = createInsertSchema(announcementSettings).omit({ id: true, createdAt: true });
 
 export const insertResellersSchema = createInsertSchema(resellers);
 
@@ -267,10 +260,7 @@ export type WithdrawalRequest = typeof withdrawalRequests.$inferSelect;
 export type InsertWithdrawalRequest = z.infer<typeof insertWithdrawalRequestSchema>;
 
 // Webhook types
-const baseWebhookSchema = createInsertSchema(webhooks);
-export const insertWebhookSchema = baseWebhookSchema.omit({ 
-  id: true as const, 
-  createdAt: true as const 
-});
+// @ts-expect-error drizzle-zod omit type inference issue
+export const insertWebhookSchema = createInsertSchema(webhooks).omit({ id: true, createdAt: true });
 export type Webhook = typeof webhooks.$inferSelect;
 export type InsertWebhook = z.infer<typeof insertWebhookSchema>;
