@@ -16,6 +16,7 @@ export function VendorNavbarDesktop({ storeName, logoUrl, onLogout }: VendorNavb
     { label: "Dashboard", href: "/vendor/dashboard" },
     { label: "Meus Produtos", href: "/vendor/products" },
     { label: "Pedidos", href: "/vendor/orders" },
+    { label: "Minhas Compras", href: "/vendor/my-purchases" },
     { label: "Sacar", href: "/vendor/settings" },
   ];
 

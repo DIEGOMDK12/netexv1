@@ -1,4 +1,4 @@
-import { Home, Package, ShoppingCart, Settings, LogOut, Wallet } from "lucide-react";
+import { Home, Package, ShoppingCart, Settings, LogOut, Wallet, ShoppingBag } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 
@@ -16,6 +16,7 @@ export function VendorBottomNav({ onLogout }: VendorBottomNavProps) {
     { label: "Inicio", href: "/vendor/dashboard", icon: Home },
     { label: "Produtos", href: "/vendor/products", icon: Package },
     { label: "Pedidos", href: "/vendor/orders", icon: ShoppingCart },
+    { label: "Compras", href: "/vendor/my-purchases", icon: ShoppingBag },
     { label: "Sacar", href: "/vendor/settings", icon: Wallet },
   ];
 
