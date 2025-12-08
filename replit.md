@@ -226,3 +226,18 @@ Preferred communication style: Simple, everyday language.
 - Vendors/admins can only select from predefined categories and subcategories via dropdown menus
 - No ability to create, edit, or delete categories - only selection from fixed list
 - Home page displays only the 5 fixed categories with proper icons and images
+
+**December 8, 2024 - Image Persistence & Error Handling**
+- Implemented Replit Object Storage integration for persistent file uploads in production
+  - Uses @replit/object-storage package with lazy initialization
+  - Falls back to local /uploads directory when Object Storage is not configured
+  - Upload endpoint saves to both Object Storage (when available) and local storage
+- Added robust image error handling across all product displays:
+  - Product cards, product details, and home page ProductCardMini
+  - Shows Package icon placeholder when images fail to load
+  - Uses React state to track image loading errors
+- Fixed critical path traversal security vulnerability:
+  - Both /uploads/:filename and /api/images/:filename endpoints now validate filenames
+  - Blocks requests containing '..', '/', or '\\' characters
+  - Uses path.resolve() to verify resolved paths stay within uploads directory
+- Note: Object Storage requires bucket configuration in Replit for production persistence
