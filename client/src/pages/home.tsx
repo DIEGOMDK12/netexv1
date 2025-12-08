@@ -20,7 +20,7 @@ import {
   Smartphone,
   Package
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { Product, Category } from "@shared/schema";
 
@@ -58,10 +58,15 @@ export default function Home() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  const vendorId = localStorage.getItem("vendor_id");
-  const vendorToken = localStorage.getItem("vendor_token");
-  const isLoggedIn = !!vendorId && !!vendorToken;
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const vendorId = localStorage.getItem("vendor_id");
+      const vendorToken = localStorage.getItem("vendor_token");
+      setIsLoggedIn(!!vendorId && !!vendorToken);
+    }
+  }, []);
 
   const { data: products = [], isLoading } = useQuery<ProductWithSeller[]>({
     queryKey: ["/api/marketplace/products"],
