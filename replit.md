@@ -212,3 +212,17 @@ Preferred communication style: Simple, everyday language.
 - All product images use object-fit: contain with bg-gray-900 background
 - Prevents image cropping and shows full images properly
 - Applied to: product cards, product details, vendor management, reseller store
+
+**December 8, 2024 - Fixed Categories and Subcategories System**
+- Implemented immutable 5-category structure for the GGMAX marketplace
+- Categories are seeded on every server startup via upsert logic in server/index.ts
+- Fixed categories with their subcategories:
+  1. Games: [Contas, Itens, Moedas, Servicos, Outros]
+  2. Steam: [Chaves (Keys), Contas, Gift Cards, Jogos, Saldo]
+  3. Streaming & TV: [Netflix, Disney+, Prime Video, Spotify, IPTV, Outros]
+  4. Cursos & Tutoriais: [Marketing, Programacao, Metodos, E-books, Mentoria]
+  5. Outros: [Diversos, Vouchers, Promocoes]
+- API endpoints filter categories by slug allowlist: games, steam, streaming-tv, cursos-tutoriais, outros
+- Vendors/admins can only select from predefined categories and subcategories via dropdown menus
+- No ability to create, edit, or delete categories - only selection from fixed list
+- Home page displays only the 5 fixed categories with proper icons and images
