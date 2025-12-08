@@ -3347,16 +3347,33 @@ export async function registerRoutes(
       }
 
       console.log("[Reseller Store] Found reseller:", reseller.storeName);
+      console.log("[Reseller Store] Theme colors:", {
+        backgroundColor: reseller.backgroundColor,
+        buttonColor: reseller.buttonColor,
+        textColor: reseller.textColor,
+        cardBackgroundColor: reseller.cardBackgroundColor,
+        secondaryColor: reseller.secondaryColor,
+      });
       
-      // Return public info for store page
+      // Return public info for store page including all theme colors
       res.json({
         id: reseller.id,
         storeName: reseller.storeName,
         logoUrl: reseller.logoUrl,
         themeColor: reseller.themeColor,
+        backgroundColor: reseller.backgroundColor,
+        buttonColor: reseller.buttonColor,
+        textColor: reseller.textColor,
+        cardBackgroundColor: reseller.cardBackgroundColor,
+        secondaryColor: reseller.secondaryColor,
         slug: reseller.slug,
         active: reseller.active,
         subscriptionStatus: reseller.subscriptionStatus,
+        supportEmail: reseller.supportEmail,
+        whatsappContact: reseller.whatsappContact,
+        footerDescription: reseller.footerDescription,
+        faviconUrl: reseller.faviconUrl,
+        storeDescription: reseller.storeDescription,
       });
     } catch (error) {
       console.error("[Reseller Store] Error:", error);

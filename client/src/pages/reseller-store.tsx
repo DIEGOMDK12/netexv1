@@ -146,6 +146,17 @@ export default function ResellerStore() {
   const cardBackgroundColor = reseller?.cardBackgroundColor || "#1a1a2e";
   const secondaryColor = reseller?.secondaryColor || "#6366F1";
 
+  // Debug: Log theme data received from API
+  console.log('TEMA RECEBIDO:', {
+    themeColor,
+    buttonColor,
+    backgroundColor,
+    textColor,
+    cardBackgroundColor,
+    secondaryColor,
+    rawReseller: reseller,
+  });
+
   const cssVariables = {
     '--primary': buttonColor,
     '--bg': backgroundColor,
