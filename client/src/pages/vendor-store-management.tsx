@@ -76,10 +76,12 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
     originalPrice: "",
     stock: "",
     categoryId: "",
+    subcategory: "",
     active: true,
     limitPerUser: false,
   });
 
+  // Fetch vendor categories for organizing products
   const { data: categories = [], isLoading: loadingCategories } = useQuery<Category[]>({
     queryKey: ["/api/vendor/categories"],
     queryFn: async () => {
@@ -91,6 +93,23 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
       return response.json();
     },
   });
+
+  // Fetch global marketplace categories for product dropdown
+  const { data: marketplaceCategories = [] } = useQuery<Category[]>({
+    queryKey: ["/api/categories"],
+    queryFn: async () => {
+      const response = await fetch("/api/categories");
+      if (!response.ok) throw new Error("Failed to fetch marketplace categories");
+      const data = await response.json();
+      // Filter only active global categories (resellerId = null)
+      return data.filter((cat: Category) => cat.active && !cat.resellerId);
+    },
+  });
+
+  // Get subcategories for selected category
+  const selectedCategory = useMemo(() => {
+    return marketplaceCategories.find(cat => cat.id.toString() === productForm.categoryId);
+  }, [marketplaceCategories, productForm.categoryId]);
 
   const { data: products = [], isLoading: loadingProducts } = useQuery<Product[]>({
     queryKey: ["/api/vendor/products", vendorId],
@@ -232,6 +251,7 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
       originalPrice: "",
       stock: "",
       categoryId: "",
+      subcategory: "",
       active: true,
       limitPerUser: false,
     });
@@ -268,6 +288,7 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
       originalPrice: product.originalPrice?.toString() || "",
       stock: product.stock || "",
       categoryId: product.categoryId?.toString() || "",
+      subcategory: (product as any).subcategory || "",
       active: product.active ?? true,
       limitPerUser: product.limitPerUser ?? false,
     });
@@ -295,6 +316,8 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
 
     const slug = productForm.slug || productForm.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 
+    const selectedCat = marketplaceCategories.find(c => c.id === parseInt(productForm.categoryId));
+    
     const data = {
       name: productForm.name,
       slug,
@@ -303,8 +326,9 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
       currentPrice: productForm.currentPrice,
       originalPrice: productForm.originalPrice,
       stock: productForm.stock,
-      category: categories.find(c => c.id === parseInt(productForm.categoryId))?.name || "Outros",
+      category: selectedCat?.name || "Outros",
       categoryId: productForm.categoryId ? parseInt(productForm.categoryId) : null,
+      subcategory: productForm.subcategory || null,
       active: productForm.active,
       limitPerUser: productForm.limitPerUser,
       resellerId: vendorId,
@@ -531,30 +555,63 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-gray-300">Categoria</Label>
-              <Select
-                value={productForm.categoryId}
-                onValueChange={(value) => setProductForm((prev) => ({ ...prev, categoryId: value }))}
-              >
-                <SelectTrigger 
-                  className="bg-gray-800 border-gray-600 text-white"
-                  data-testid="select-product-category"
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-gray-300">Categoria *</Label>
+                <Select
+                  value={productForm.categoryId}
+                  onValueChange={(value) => setProductForm((prev) => ({ 
+                    ...prev, 
+                    categoryId: value,
+                    subcategory: "" // Reset subcategory when category changes
+                  }))}
                 >
-                  <SelectValue placeholder="Selecione uma categoria" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-600">
-                  {categories.map((cat) => (
-                    <SelectItem 
-                      key={cat.id} 
-                      value={cat.id.toString()}
-                      className="text-white hover:bg-gray-700"
-                    >
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  <SelectTrigger 
+                    className="bg-gray-800 border-gray-600 text-white"
+                    data-testid="select-product-category"
+                  >
+                    <SelectValue placeholder="Selecione uma categoria" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-600 max-h-60">
+                    {marketplaceCategories.map((cat) => (
+                      <SelectItem 
+                        key={cat.id} 
+                        value={cat.id.toString()}
+                        className="text-white hover:bg-gray-700"
+                      >
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-gray-300">Subcategoria</Label>
+                <Select
+                  value={productForm.subcategory}
+                  onValueChange={(value) => setProductForm((prev) => ({ ...prev, subcategory: value }))}
+                  disabled={!selectedCategory?.subcategories?.length}
+                >
+                  <SelectTrigger 
+                    className="bg-gray-800 border-gray-600 text-white"
+                    data-testid="select-product-subcategory"
+                  >
+                    <SelectValue placeholder={selectedCategory?.subcategories?.length ? "Selecione uma subcategoria" : "Selecione uma categoria primeiro"} />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-600 max-h-60">
+                    {(selectedCategory?.subcategories || []).map((subcat) => (
+                      <SelectItem 
+                        key={subcat} 
+                        value={subcat}
+                        className="text-white hover:bg-gray-700"
+                      >
+                        {subcat}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="space-y-2">
