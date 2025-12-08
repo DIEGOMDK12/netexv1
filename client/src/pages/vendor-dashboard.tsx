@@ -9,6 +9,7 @@ import { VendorOrdersEnhanced } from "./vendor-orders-enhanced";
 import { VendorSettingsEnhanced } from "./vendor-settings-enhanced";
 import { VendorCoupons } from "./vendor-coupons";
 import { VendorAnnouncement } from "./vendor-announcement";
+import { VendorAppearance } from "./vendor-appearance";
 import type { Reseller } from "@shared/schema";
 
 export default function VendorDashboard() {
@@ -122,6 +123,7 @@ export default function VendorDashboard() {
         {currentPage === "orders" && vendor && <VendorOrdersEnhanced vendorId={parseInt(vendorId)} />}
         {currentPage === "coupons" && vendor && <VendorCoupons />}
         {currentPage === "announcement" && vendor && <VendorAnnouncement />}
+        {currentPage === "appearance" && vendor && <VendorAppearance />}
         {currentPage === "settings" && vendor && <VendorSettingsEnhanced vendorId={parseInt(vendorId)} vendorData={vendor} />}
       </VendorLayout>
     </div>

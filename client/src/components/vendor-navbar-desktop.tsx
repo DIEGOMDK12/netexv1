@@ -18,6 +18,7 @@ export function VendorNavbarDesktop({ storeName, logoUrl, onLogout }: VendorNavb
     { label: "Pedidos", href: "/vendor/orders" },
     { label: "Cupons", href: "/vendor/coupons" },
     { label: "Anuncio", href: "/vendor/announcement" },
+    { label: "Aparencia", href: "/vendor/appearance" },
     { label: "Configuracoes", href: "/vendor/settings" },
   ];
 

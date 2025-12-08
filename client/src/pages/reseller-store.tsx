@@ -141,6 +141,9 @@ export default function ResellerStore() {
 
   const themeColor = reseller?.themeColor || "#a855f7";
   const buttonColor = reseller?.buttonColor || themeColor;
+  const backgroundColor = reseller?.backgroundColor || "#0a0a12";
+  const textColor = reseller?.textColor || "#FFFFFF";
+  const cardBackgroundColor = reseller?.cardBackgroundColor || "#1a1a2e";
 
   if (isLoading) {
     return (
@@ -169,7 +172,7 @@ export default function ResellerStore() {
         textColor="#FFFFFF"
       />
 
-      <div className="min-h-screen bg-[#0a0a12] relative">
+      <div className="min-h-screen relative" style={{ backgroundColor }}>
         <div className="network-bg" />
 
         <div className="relative z-10">
@@ -193,7 +196,7 @@ export default function ResellerStore() {
                   </div>
                 )}
                 <div className="flex items-center gap-1.5">
-                  <span className="font-bold text-white text-base sm:text-lg" data-testid="text-store-name">
+                  <span className="font-bold text-base sm:text-lg" style={{ color: textColor }} data-testid="text-store-name">
                     {reseller.storeName || "Loja"}
                   </span>
                   <svg 
@@ -232,9 +235,12 @@ export default function ResellerStore() {
                   onClick={() => setIsCheckoutOpen(true)}
                   data-testid="button-cart"
                 >
-                  <ShoppingCart className="w-5 h-5 text-purple-400" />
+                  <ShoppingCart className="w-5 h-5" style={{ color: buttonColor }} />
                   {cartCount > 0 && (
-                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full text-xs font-bold text-white flex items-center justify-center">
+                    <span 
+                      className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-xs font-bold text-white flex items-center justify-center"
+                      style={{ backgroundColor: buttonColor }}
+                    >
                       {cartCount}
                     </span>
                   )}
@@ -247,8 +253,8 @@ export default function ResellerStore() {
             {categories.length > 0 && (
               <div className="mb-8">
                 <div className="section-title">
-                  <Gift className="w-5 h-5 text-purple-400" />
-                  <span>{selectedCategory || "Categorias"}</span>
+                  <Gift className="w-5 h-5" style={{ color: buttonColor }} />
+                  <span style={{ color: textColor }}>{selectedCategory || "Categorias"}</span>
                 </div>
                 
                 <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
@@ -256,9 +262,10 @@ export default function ResellerStore() {
                     onClick={() => setSelectedCategory(null)}
                     className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
                       selectedCategory === null 
-                        ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30" 
-                        : "bg-white/5 text-gray-300 border border-white/10 hover:border-purple-500/50"
+                        ? "text-white shadow-lg" 
+                        : "bg-white/5 text-gray-300 border border-white/10"
                     }`}
+                    style={selectedCategory === null ? { backgroundColor: buttonColor } : undefined}
                     data-testid="category-all"
                   >
                     <Sparkles className="w-4 h-4" />
@@ -271,9 +278,10 @@ export default function ResellerStore() {
                       onClick={() => setSelectedCategory(category)}
                       className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
                         selectedCategory === category 
-                          ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30" 
-                          : "bg-white/5 text-gray-300 border border-white/10 hover:border-purple-500/50"
+                          ? "text-white shadow-lg" 
+                          : "bg-white/5 text-gray-300 border border-white/10"
                       }`}
+                      style={selectedCategory === category ? { backgroundColor: buttonColor } : undefined}
                       data-testid={`category-${category}`}
                     >
                       {category}
@@ -286,9 +294,9 @@ export default function ResellerStore() {
             {productsWithDiscount.length > 0 && !selectedCategory && (
               <div className="mb-8">
                 <div className="section-title">
-                  <Zap className="w-5 h-5 text-green-400" />
-                  <span>OFERTAS RELAMPAGO!!</span>
-                  <span className="flash-sale-badge ml-2">Hot</span>
+                  <Zap className="w-5 h-5" style={{ color: buttonColor }} />
+                  <span style={{ color: textColor }}>OFERTAS RELAMPAGO!!</span>
+                  <span className="flash-sale-badge ml-2" style={{ backgroundColor: buttonColor }}>Hot</span>
                 </div>
                 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -302,6 +310,7 @@ export default function ResellerStore() {
                       <Card
                         key={`flash-${product.id}`}
                         className="product-card overflow-hidden group"
+                        style={{ backgroundColor: cardBackgroundColor }}
                         data-testid={`card-flash-${product.id}`}
                       >
                         <div 
@@ -335,7 +344,8 @@ export default function ResellerStore() {
 
                         <div className="pt-3">
                           <h3 
-                            className="text-white font-medium text-sm mb-2 line-clamp-2 min-h-[2.5rem] cursor-pointer hover:text-purple-300 transition-colors"
+                            className="font-medium text-sm mb-2 line-clamp-2 min-h-[2.5rem] cursor-pointer transition-colors"
+                            style={{ color: textColor }}
                             onClick={() => window.location.href = `/loja/${slug}/produto/${product.id}`}
                           >
                             {product.name}
@@ -346,10 +356,10 @@ export default function ResellerStore() {
                               R$ {Number(product.originalPrice).toFixed(2)}
                             </span>
                             <div className="flex items-baseline gap-2">
-                              <span className="text-lg font-bold text-purple-400">
+                              <span className="text-lg font-bold" style={{ color: buttonColor }}>
                                 R$ {Number(product.currentPrice).toFixed(2).split('.')[0]}
                               </span>
-                              <span className="text-sm text-purple-400">
+                              <span className="text-sm" style={{ color: buttonColor }}>
                                 ,{Number(product.currentPrice).toFixed(2).split('.')[1]}
                               </span>
                             </div>
@@ -359,7 +369,8 @@ export default function ResellerStore() {
                             <Button
                               onClick={() => handleBuyClick(product)}
                               disabled={!hasStock}
-                              className="flex-1 text-xs font-semibold btn-comprar"
+                              className="flex-1 text-xs font-semibold"
+                              style={{ backgroundColor: buttonColor, color: "#FFFFFF" }}
                               data-testid={`button-flash-buy-${product.id}`}
                             >
                               Comprar
@@ -367,12 +378,12 @@ export default function ResellerStore() {
                             <Button
                               size="icon"
                               variant="outline"
-                              className="border-purple-500/30 hover:bg-purple-500/20"
+                              className="border-white/20"
                               onClick={() => handleBuyClick(product)}
                               disabled={!hasStock}
                               data-testid={`button-flash-cart-${product.id}`}
                             >
-                              <ShoppingCart className="w-4 h-4 text-purple-400" />
+                              <ShoppingCart className="w-4 h-4" style={{ color: buttonColor }} />
                             </Button>
                           </div>
                         </div>
@@ -385,8 +396,8 @@ export default function ResellerStore() {
 
             <div>
               <div className="section-title">
-                <Package className="w-5 h-5 text-purple-400" />
-                <span>{selectedCategory || "Todos os Produtos"}</span>
+                <Package className="w-5 h-5" style={{ color: buttonColor }} />
+                <span style={{ color: textColor }}>{selectedCategory || "Todos os Produtos"}</span>
                 <span className="text-sm font-normal text-gray-400 ml-2">
                   ({filteredProducts.length} {filteredProducts.length === 1 ? "item" : "itens"})
                 </span>
@@ -410,6 +421,7 @@ export default function ResellerStore() {
                       <Card
                         key={product.id}
                         className="product-card overflow-hidden group"
+                        style={{ backgroundColor: cardBackgroundColor }}
                         data-testid={`card-product-${product.id}`}
                       >
                         <div 
@@ -445,7 +457,8 @@ export default function ResellerStore() {
 
                         <div className="pt-3">
                           <h3 
-                            className="text-white font-medium text-sm mb-2 line-clamp-2 min-h-[2.5rem] cursor-pointer hover:text-purple-300 transition-colors"
+                            className="font-medium text-sm mb-2 line-clamp-2 min-h-[2.5rem] cursor-pointer transition-colors"
+                            style={{ color: textColor }}
                             onClick={() => window.location.href = `/loja/${slug}/produto/${product.id}`}
                           >
                             {product.name}
@@ -458,10 +471,10 @@ export default function ResellerStore() {
                               </span>
                             )}
                             <div className="flex items-baseline gap-1">
-                              <span className="text-lg font-bold text-purple-400">
+                              <span className="text-lg font-bold" style={{ color: buttonColor }}>
                                 R$ {Number(product.currentPrice).toFixed(2).split('.')[0]}
                               </span>
-                              <span className="text-sm text-purple-400">
+                              <span className="text-sm" style={{ color: buttonColor }}>
                                 ,{Number(product.currentPrice).toFixed(2).split('.')[1]}
                               </span>
                             </div>
@@ -472,7 +485,8 @@ export default function ResellerStore() {
                             <Button
                               onClick={() => handleBuyClick(product)}
                               disabled={!hasStock}
-                              className="flex-1 text-xs font-semibold btn-comprar"
+                              className="flex-1 text-xs font-semibold"
+                              style={{ backgroundColor: buttonColor, color: "#FFFFFF" }}
                               data-testid={`button-buy-${product.id}`}
                             >
                               Comprar
@@ -480,12 +494,12 @@ export default function ResellerStore() {
                             <Button
                               size="icon"
                               variant="outline"
-                              className="border-purple-500/30 hover:bg-purple-500/20"
+                              className="border-white/20"
                               onClick={() => handleBuyClick(product)}
                               disabled={!hasStock}
                               data-testid={`button-cart-${product.id}`}
                             >
-                              <ShoppingCart className="w-4 h-4 text-purple-400" />
+                              <ShoppingCart className="w-4 h-4" style={{ color: buttonColor }} />
                             </Button>
                           </div>
                         </div>
