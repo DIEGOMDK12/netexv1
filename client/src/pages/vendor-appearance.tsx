@@ -13,13 +13,15 @@ interface ThemeSettings {
   buttonColor: string;
   textColor: string;
   cardBackgroundColor: string;
+  secondaryColor: string;
 }
 
 const DEFAULT_THEME: ThemeSettings = {
-  backgroundColor: "#121212",
+  backgroundColor: "#111827",
   buttonColor: "#8B5CF6",
   textColor: "#FFFFFF",
   cardBackgroundColor: "#1A1A2E",
+  secondaryColor: "#6366F1",
 };
 
 export function VendorAppearance() {
@@ -47,6 +49,7 @@ export function VendorAppearance() {
         buttonColor: data.buttonColor || DEFAULT_THEME.buttonColor,
         textColor: data.textColor || DEFAULT_THEME.textColor,
         cardBackgroundColor: data.cardBackgroundColor || DEFAULT_THEME.cardBackgroundColor,
+        secondaryColor: data.secondaryColor || DEFAULT_THEME.secondaryColor,
       });
     }
   }, [data]);
@@ -227,6 +230,32 @@ export function VendorAppearance() {
               </div>
             </div>
 
+            <div className="space-y-2">
+              <Label className="text-gray-300">Cor Secundaria (Detalhes e Acentos)</Label>
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-12 h-12 rounded-lg border border-gray-600 cursor-pointer relative overflow-hidden"
+                  style={{ backgroundColor: settings.secondaryColor }}
+                >
+                  <Input
+                    type="color"
+                    value={settings.secondaryColor}
+                    onChange={(e) => handleColorChange("secondaryColor", e.target.value)}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    data-testid="input-secondary-color"
+                  />
+                </div>
+                <Input
+                  type="text"
+                  value={settings.secondaryColor}
+                  onChange={(e) => handleColorChange("secondaryColor", e.target.value)}
+                  className="bg-gray-800 border-gray-600 text-white font-mono uppercase"
+                  maxLength={7}
+                  data-testid="input-secondary-color-text"
+                />
+              </div>
+            </div>
+
             <div className="flex gap-3 pt-4">
               <Button
                 onClick={handleSave}
@@ -246,7 +275,7 @@ export function VendorAppearance() {
                 onClick={handleRestoreDefault}
                 disabled={saveMutation.isPending}
                 variant="outline"
-                className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300"
                 data-testid="button-restore-default"
               >
                 <RotateCcw className="w-4 h-4 mr-2" />
@@ -287,7 +316,7 @@ export function VendorAppearance() {
                 </h3>
                 <p
                   className="text-sm opacity-70"
-                  style={{ color: settings.textColor }}
+                  style={{ color: settings.secondaryColor }}
                 >
                   Produtos digitais premium
                 </p>

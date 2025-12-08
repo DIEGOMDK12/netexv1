@@ -141,9 +141,18 @@ export default function ResellerStore() {
 
   const themeColor = reseller?.themeColor || "#a855f7";
   const buttonColor = reseller?.buttonColor || themeColor;
-  const backgroundColor = reseller?.backgroundColor || "#0a0a12";
+  const backgroundColor = reseller?.backgroundColor || "#111827";
   const textColor = reseller?.textColor || "#FFFFFF";
   const cardBackgroundColor = reseller?.cardBackgroundColor || "#1a1a2e";
+  const secondaryColor = reseller?.secondaryColor || "#6366F1";
+
+  const cssVariables = {
+    '--primary': buttonColor,
+    '--bg': backgroundColor,
+    '--card': cardBackgroundColor,
+    '--text': textColor,
+    '--secondary': secondaryColor,
+  } as React.CSSProperties;
 
   if (isLoading) {
     return (
@@ -172,7 +181,7 @@ export default function ResellerStore() {
         textColor="#FFFFFF"
       />
 
-      <div className="min-h-screen relative" style={{ backgroundColor }}>
+      <div className="min-h-screen relative" style={{ ...cssVariables, backgroundColor: 'var(--bg)' }}>
         <div className="network-bg" />
 
         <div className="relative z-10">

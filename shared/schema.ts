@@ -54,6 +54,7 @@ export const resellers = pgTable("resellers", {
   cardBorderColor: text("card_border_color").default("#374151"),
   textColor: text("text_color").default("#FFFFFF"),
   cardBackgroundColor: text("card_background_color").default("#1A1A2E"),
+  secondaryColor: text("secondary_color").default("#6366F1"),
   backgroundImageUrl: text("background_image_url"),
   buttonRadius: integer("button_radius"),
   paymentClientId: text("payment_client_id"),
