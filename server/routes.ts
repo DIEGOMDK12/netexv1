@@ -2648,6 +2648,9 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Nome do produto é obrigatório" });
       }
       
+      // CORREÇÃO: Produtos SEMPRE nascem ATIVOS para aparecer na loja imediatamente
+      console.log("[POST /api/admin/products] Forçando active=true para visibilidade imediata");
+      
       // Extract only the fields that exist in the database
       const productData = {
         name: req.body.name.trim(),
@@ -2658,7 +2661,7 @@ export async function registerRoutes(
         stock: req.body.stock || "",
         category: req.body.category || "Outros",
         subcategory: req.body.subcategory || null,
-        active: req.body.active ?? true,
+        active: true, // SEMPRE ativo - produto nasce pronto para venda
       };
       
       console.log("[POST /api/admin/products] Creating with data:", JSON.stringify(productData, null, 2));
@@ -3358,15 +3361,18 @@ export async function registerRoutes(
         }
       }
 
-      // IMPORTANT: Respect the active flag from frontend, default to true
-      const isActive = active !== undefined ? active : true;
+      // CORREÇÃO: Produtos SEMPRE nascem ATIVOS para aparecer na loja imediatamente
+      // Não depende do frontend - força active: true
+      const isActive = true;
+      console.log("[Create Product] Forçando active=true para visibilidade imediata no marketplace");
 
-      // Handle image URL - use placeholder if empty or failed upload
-      let finalImageUrl = "";
-      if (imageUrl && imageUrl.trim()) {
+      // CORREÇÃO: Handle image URL - usa imagem padrão se vazia ou upload falhou
+      let finalImageUrl = DEFAULT_PRODUCT_IMAGE;
+      if (imageUrl && imageUrl.trim() && imageUrl.trim() !== "") {
         finalImageUrl = imageUrl.trim();
+        console.log("[Create Product] Usando imagem fornecida:", finalImageUrl.substring(0, 50));
       } else {
-        console.log("[Create Product] No image provided, product will be saved without image");
+        console.log("[Create Product] Sem imagem fornecida, usando imagem padrão:", DEFAULT_PRODUCT_IMAGE);
       }
 
       const product = await storage.createResellerProduct({
