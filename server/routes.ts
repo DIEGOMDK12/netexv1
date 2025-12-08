@@ -6,6 +6,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import multer from "multer";
+import { Client as ObjectStorageClient } from "@replit/object-storage";
 import { sendDeliveryEmail } from "./email";
 import {
   generateAuthorizationUrl,
@@ -16,24 +17,35 @@ import {
   parseWebhook as parsePagseguroWebhook,
 } from "./pagseguroConnectController";
 
+let objectStorage: ObjectStorageClient | null = null;
+let objectStorageInitialized = false;
+
+async function getObjectStorage(): Promise<ObjectStorageClient | null> {
+  if (objectStorageInitialized) {
+    return objectStorage;
+  }
+  
+  try {
+    objectStorage = new ObjectStorageClient();
+    await objectStorage.list();
+    objectStorageInitialized = true;
+    console.log("[Object Storage] Initialized successfully");
+    return objectStorage;
+  } catch (error: any) {
+    console.log("[Object Storage] Not available, using local storage fallback:", error.message);
+    objectStorageInitialized = true;
+    objectStorage = null;
+    return null;
+  }
+}
+
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-const multerStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, uniqueSuffix + ext);
-  },
-});
-
 const upload = multer({
-  storage: multerStorage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
@@ -432,7 +444,125 @@ export async function registerRoutes(
 
   app.use("/uploads", (await import("express")).default.static(uploadDir));
 
-  app.post("/api/upload", upload.single("image"), (req, res) => {
+  app.get("/uploads/:filename", async (req, res, next) => {
+    const filename = req.params.filename;
+    
+    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+      console.log("[GET /uploads] Invalid filename (path traversal attempt):", filename);
+      return res.status(400).json({ error: "Nome de arquivo inválido" });
+    }
+    
+    const localPath = path.join(uploadDir, filename);
+    
+    const resolvedPath = path.resolve(localPath);
+    if (!resolvedPath.startsWith(path.resolve(uploadDir))) {
+      console.log("[GET /uploads] Path traversal blocked:", filename);
+      return res.status(400).json({ error: "Nome de arquivo inválido" });
+    }
+    
+    if (fs.existsSync(localPath)) {
+      return next();
+    }
+    
+    try {
+      const storage = await getObjectStorage();
+      if (!storage) {
+        console.log("[GET /uploads] Object storage not available and file not found locally");
+        return res.status(404).json({ error: "Imagem não encontrada" });
+      }
+      
+      const objectKey = `uploads/${filename}`;
+      console.log("[GET /uploads] File not found locally, checking object storage:", objectKey);
+      
+      const result = await storage.downloadAsBytes(objectKey);
+      if (!result.ok) {
+        console.log("[GET /uploads] Image not found in object storage either:", objectKey);
+        return res.status(404).json({ error: "Imagem não encontrada" });
+      }
+      
+      const ext = path.extname(filename).toLowerCase();
+      const mimeTypes: Record<string, string> = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp'
+      };
+      
+      res.setHeader('Content-Type', mimeTypes[ext] || 'application/octet-stream');
+      res.setHeader('Cache-Control', 'public, max-age=31536000');
+      res.send(result.value);
+    } catch (error: any) {
+      console.error("[GET /uploads] Error fetching from object storage:", error);
+      res.status(500).json({ error: "Erro ao buscar imagem" });
+    }
+  });
+
+  app.get("/api/images/:filename", async (req, res) => {
+    try {
+      const filename = req.params.filename;
+      
+      if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+        console.log("[GET /api/images] Invalid filename (path traversal attempt):", filename);
+        return res.status(400).json({ error: "Nome de arquivo inválido" });
+      }
+      
+      const localPath = path.join(uploadDir, filename);
+      
+      const resolvedPath = path.resolve(localPath);
+      if (!resolvedPath.startsWith(path.resolve(uploadDir))) {
+        console.log("[GET /api/images] Path traversal blocked:", filename);
+        return res.status(400).json({ error: "Nome de arquivo inválido" });
+      }
+      
+      if (fs.existsSync(localPath)) {
+        const ext = path.extname(filename).toLowerCase();
+        const mimeTypes: Record<string, string> = {
+          '.jpg': 'image/jpeg',
+          '.jpeg': 'image/jpeg',
+          '.png': 'image/png',
+          '.gif': 'image/gif',
+          '.webp': 'image/webp'
+        };
+        res.setHeader('Content-Type', mimeTypes[ext] || 'application/octet-stream');
+        res.setHeader('Cache-Control', 'public, max-age=31536000');
+        return res.sendFile(localPath);
+      }
+      
+      const storage = await getObjectStorage();
+      if (!storage) {
+        console.log("[GET /api/images] Object storage not available and file not found locally");
+        return res.status(404).json({ error: "Imagem não encontrada" });
+      }
+      
+      const objectKey = `uploads/${filename}`;
+      console.log("[GET /api/images] Fetching image from object storage:", objectKey);
+      
+      const result = await storage.downloadAsBytes(objectKey);
+      if (!result.ok) {
+        console.log("[GET /api/images] Image not found in object storage:", objectKey);
+        return res.status(404).json({ error: "Imagem não encontrada" });
+      }
+      
+      const ext = path.extname(filename).toLowerCase();
+      const mimeTypes: Record<string, string> = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp'
+      };
+      
+      res.setHeader('Content-Type', mimeTypes[ext] || 'application/octet-stream');
+      res.setHeader('Cache-Control', 'public, max-age=31536000');
+      res.send(result.value);
+    } catch (error: any) {
+      console.error("[GET /api/images] Error:", error);
+      res.status(500).json({ error: "Erro ao buscar imagem" });
+    }
+  });
+
+  app.post("/api/upload", upload.single("image"), async (req, res) => {
     try {
       const token = req.headers.authorization?.replace("Bearer ", "");
       
@@ -444,9 +574,36 @@ export async function registerRoutes(
       if (!req.file) {
         return res.status(400).json({ error: "Nenhuma imagem enviada" });
       }
-      const imageUrl = `/uploads/${req.file.filename}`;
-      console.log("[POST /api/upload] Image uploaded:", imageUrl);
-      res.json({ imageUrl });
+
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+      const ext = path.extname(req.file.originalname);
+      const filename = uniqueSuffix + ext;
+      
+      const storage = await getObjectStorage();
+      
+      if (storage) {
+        const objectKey = `uploads/${filename}`;
+        console.log("[POST /api/upload] Uploading to object storage:", objectKey);
+        
+        const uploadResult = await storage.uploadFromBytes(objectKey, req.file.buffer);
+        
+        if (!uploadResult.ok) {
+          console.error("[POST /api/upload] Object storage upload failed:", uploadResult.error);
+          fs.writeFileSync(path.join(uploadDir, filename), req.file.buffer);
+          const imageUrl = `/uploads/${filename}`;
+          console.log("[POST /api/upload] Fallback to local storage:", imageUrl);
+          return res.json({ imageUrl });
+        }
+        
+        const imageUrl = `/api/images/${filename}`;
+        console.log("[POST /api/upload] Image uploaded to object storage:", imageUrl);
+        res.json({ imageUrl });
+      } else {
+        fs.writeFileSync(path.join(uploadDir, filename), req.file.buffer);
+        const imageUrl = `/uploads/${filename}`;
+        console.log("[POST /api/upload] Image saved to local storage:", imageUrl);
+        res.json({ imageUrl });
+      }
     } catch (error: any) {
       console.error("[POST /api/upload] Error:", error);
       res.status(500).json({ error: error.message || "Erro ao fazer upload da imagem" });

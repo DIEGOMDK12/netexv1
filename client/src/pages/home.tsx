@@ -17,7 +17,8 @@ import {
   Gift,
   Coins,
   Headphones,
-  Smartphone
+  Smartphone,
+  Package
 } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -431,6 +432,7 @@ function ProductCardMini({ product }: { product: ProductWithSeller }) {
   const sellerName = product.seller?.storeName || product.seller?.name || "Vendedor";
   const sellerInitial = sellerName.charAt(0).toUpperCase();
   const [, setLocation] = useLocation();
+  const [imgError, setImgError] = useState(false);
 
   const handleSellerClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -447,15 +449,16 @@ function ProductCardMini({ product }: { product: ProductWithSeller }) {
         data-testid={`card-product-${product.id}`}
       >
         <div className="aspect-video relative overflow-hidden bg-gray-900">
-          {product.imageUrl ? (
+          {product.imageUrl && !imgError ? (
             <img 
               src={product.imageUrl} 
               alt={product.name}
               className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+              onError={() => setImgError(true)}
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-blue-900/50 to-slate-800 flex items-center justify-center">
-              <ShoppingCart className="w-6 h-6 text-gray-600" />
+              <Package className="w-8 h-8 text-gray-600" />
             </div>
           )}
           {!hasStock && (

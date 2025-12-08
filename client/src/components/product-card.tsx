@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, Package } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -78,8 +78,8 @@ export function ProductCard({ product, seller, themeColor, textColor }: ProductC
               data-testid={`img-product-${product.id}`}
             />
           ) : (
-            <div className="product-image-placeholder">
-              📦
+            <div className="product-image-placeholder flex items-center justify-center bg-gray-800">
+              <Package className="w-12 h-12 text-gray-500" />
             </div>
           )}
           {product.category && product.category !== "Outros" && (

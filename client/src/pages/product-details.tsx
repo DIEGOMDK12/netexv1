@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ShoppingCart, Zap, Shield, Star, User, CheckCircle, MessageCircle } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Zap, Shield, Star, User, CheckCircle, MessageCircle, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,6 +16,7 @@ export default function ProductDetails() {
   const [match, params] = useRoute("/product/:id");
   const { addToCart, setIsCartOpen } = useStore();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   const productId = params?.id ? String(params.id) : null;
 
@@ -107,16 +108,17 @@ export default function ProductDetails() {
           <div className="lg:col-span-2 space-y-6">
             {/* Product Image */}
             <div className="bg-[#1e293b] rounded-xl overflow-hidden">
-              {product.imageUrl ? (
+              {product.imageUrl && !imgError ? (
                 <img
                   src={product.imageUrl}
                   alt={product.name}
                   className="w-full aspect-video object-cover"
+                  onError={() => setImgError(true)}
                   data-testid="img-product-detail"
                 />
               ) : (
                 <div className="w-full aspect-video flex items-center justify-center bg-gradient-to-br from-blue-900/50 to-slate-800">
-                  <ShoppingCart className="w-16 h-16 text-gray-600" />
+                  <Package className="w-16 h-16 text-gray-600" />
                 </div>
               )}
             </div>
