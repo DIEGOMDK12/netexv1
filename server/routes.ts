@@ -2215,10 +2215,15 @@ export async function registerRoutes(
       return res.status(400).json({ error: "Missing resellerId" });
     }
 
+    if (!name || !name.trim()) {
+      console.error("[Create Product] Missing product name!");
+      return res.status(400).json({ error: "Nome do produto é obrigatório" });
+    }
+
     try {
       // Auto-count stock items: count non-empty lines
       const stockItems = stock 
-        ? stock.split("\n").filter(line => line.trim()).length 
+        ? stock.split("\n").filter((line: string) => line.trim()).length 
         : 0;
 
       console.log("[Create Product] Auto-counted stock items:", stockItems, "from stock string");
@@ -2226,25 +2231,31 @@ export async function registerRoutes(
       // Use provided categoryId or auto-create category
       let categoryId: number | undefined = reqCategoryId || undefined;
       if (!categoryId && category && category.trim()) {
-        let cat = await storage.getCategoryByName(category);
-        if (!cat) {
-          cat = await storage.createCategory({ name: category, slug: category.toLowerCase().replace(/\s+/g, "-") });
+        try {
+          let cat = await storage.getCategoryByName(category);
+          if (!cat) {
+            cat = await storage.createCategory({ name: category, slug: category.toLowerCase().replace(/\s+/g, "-") });
+          }
+          categoryId = cat.id;
+        } catch (catError) {
+          console.warn("[Create Product] Category creation failed, continuing without category:", catError);
         }
-        categoryId = cat.id;
       }
 
       // IMPORTANT: Respect the active flag from frontend, default to true
-      // Products should be visible unless explicitly set to inactive
       const isActive = active !== undefined ? active : true;
 
+      // Handle image URL - use placeholder if empty or failed
+      const finalImageUrl = imageUrl && imageUrl.trim() ? imageUrl : "";
+
       const product = await storage.createResellerProduct({
-        name,
+        name: name.trim(),
         slug: slug || name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""),
-        description,
-        imageUrl,
-        originalPrice,
-        currentPrice,
-        stock: stock || "", // Keep original text for FIFO
+        description: description || "",
+        imageUrl: finalImageUrl,
+        originalPrice: originalPrice || "0",
+        currentPrice: currentPrice || "0",
+        stock: stock || "",
         deliveryContent: deliveryContent || "",
         category: category || "Outros",
         categoryId,
@@ -2255,9 +2266,25 @@ export async function registerRoutes(
 
       console.log("[Create Product] Product created successfully:", { id: product.id, resellerId: product.resellerId, stockCount: stockItems, active: isActive });
       res.json(product);
-    } catch (error) {
-      console.error("[Create Product] Error:", error);
-      res.status(500).json({ error: "Failed to create product" });
+    } catch (error: any) {
+      console.error("[Create Product] CRITICAL Error:", {
+        message: error.message,
+        code: error.code,
+        detail: error.detail,
+        stack: error.stack
+      });
+      
+      // Provide user-friendly error messages
+      let errorMessage = "Erro ao criar produto";
+      if (error.code === "23505") {
+        errorMessage = "Já existe um produto com esse nome ou slug";
+      } else if (error.code === "23503") {
+        errorMessage = "Categoria ou revendedor inválido";
+      } else if (error.message) {
+        errorMessage = `Erro: ${error.message}`;
+      }
+      
+      res.status(500).json({ error: errorMessage, details: error.message });
     }
   });
 
@@ -2276,7 +2303,7 @@ export async function registerRoutes(
     try {
       // Auto-count stock items: count non-empty lines
       const stockItems = stock 
-        ? stock.split("\n").filter(line => line.trim()).length 
+        ? stock.split("\n").filter((line: string) => line.trim()).length 
         : 0;
 
       console.log("[Update Product] Auto-counted stock items:", stockItems, "from stock string");

@@ -471,27 +471,27 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
   return (
     <div className="space-y-4 pb-20">
       {(categories.length > 0 || products.length > 0) && (
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-col sm:flex-row sm:justify-end gap-2 my-4">
           <Button
             size="sm"
             onClick={openNewCategory}
-            className="bg-blue-600 hover:bg-blue-700 whitespace-nowrap"
+            className="bg-blue-600 hover:bg-blue-700 whitespace-nowrap w-full sm:w-auto"
             data-testid="button-new-category"
           >
             <Plus className="w-4 h-4 mr-1 flex-shrink-0" />
-            <span className="truncate">Nova Categoria</span>
+            <span>Nova Categoria</span>
           </Button>
           <Button
             size="sm"
             onClick={() => openNewProduct()}
-            className="whitespace-nowrap"
+            className="whitespace-nowrap w-full sm:w-auto"
             style={{
               background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)",
             }}
             data-testid="button-new-product"
           >
             <Plus className="w-4 h-4 mr-1 flex-shrink-0" />
-            <span className="truncate">Novo Produto</span>
+            <span>Novo Produto</span>
           </Button>
         </div>
       )}
