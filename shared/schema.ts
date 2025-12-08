@@ -45,7 +45,7 @@ export const resellers = pgTable("resellers", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   slug: varchar("slug", { length: 50 }).notNull().unique(),
-  customDomain: text("custom_domain"),
+  customDomain: text("custom_domain").unique(),
   storeName: text("store_name"),
   logoUrl: text("logo_url"),
   themeColor: text("theme_color").default("#8B5CF6"),

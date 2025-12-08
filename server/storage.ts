@@ -61,6 +61,7 @@ export interface IStorage {
   getReseller(id: number): Promise<Reseller | undefined>;
   getResellerByEmail(email: string): Promise<Reseller | undefined>;
   getResellerBySlug(slug: string): Promise<Reseller | undefined>;
+  getResellerByDomain(domain: string): Promise<Reseller | undefined>;
   createReseller(reseller: InsertReseller): Promise<Reseller>;
   updateReseller(id: number, reseller: Partial<InsertReseller>): Promise<Reseller | undefined>;
   deleteReseller(id: number): Promise<void>;
@@ -293,6 +294,12 @@ export class DatabaseStorage implements IStorage {
 
   async getResellerBySlug(slug: string): Promise<Reseller | undefined> {
     const [reseller] = await db.select().from(resellers).where(eq(resellers.slug, slug));
+    return reseller;
+  }
+
+  async getResellerByDomain(domain: string): Promise<Reseller | undefined> {
+    const normalizedDomain = domain.toLowerCase().trim();
+    const [reseller] = await db.select().from(resellers).where(eq(resellers.customDomain, normalizedDomain));
     return reseller;
   }
 
