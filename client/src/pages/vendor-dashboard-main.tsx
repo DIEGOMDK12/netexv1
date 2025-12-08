@@ -37,7 +37,7 @@ export function DashboardMain({ vendorId, isAdmin }: DashboardMainProps) {
   
   // NOVA LÓGICA: Taxa cobrada apenas no SAQUE (não na venda)
   // O revendedor recebe 100% do valor da venda, taxa descontada apenas na retirada
-  const TAXA_DE_SAQUE_FIXA = 1.60;
+  const TAXA_DE_SAQUE_FIXA = 3.00;
   const MIN_WITHDRAWAL = 5.00;
   
   const { toast } = useToast();
@@ -298,9 +298,10 @@ export function DashboardMain({ vendorId, isAdmin }: DashboardMainProps) {
             <p className="text-3xl font-bold text-emerald-400">
               R$ {availableBalance.toFixed(2)}
             </p>
+            <p className="text-xs text-yellow-400 mt-1">Taxa de saque: R$ 3,00 | Min: R$ 5,00</p>
             <Button
               onClick={() => setWithdrawalDialogOpen(true)}
-              disabled={availableBalance <= 0}
+              disabled={availableBalance < MIN_WITHDRAWAL}
               className="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white"
               data-testid="button-solicitar-retirada"
             >
