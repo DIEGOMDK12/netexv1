@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Wallet, Info, Upload } from "lucide-react";
+import { Loader2, Wallet, Info, Upload, Globe, CheckCircle2, AlertCircle, Copy } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 
@@ -21,6 +21,7 @@ interface VendorProfile {
   faviconUrl: string | null;
   ogImageUrl: string | null;
   storeDescription: string | null;
+  customDomain: string | null;
 }
 
 export function VendorSettings() {
@@ -33,6 +34,7 @@ export function VendorSettings() {
     faviconUrl: "",
     ogImageUrl: "",
     storeDescription: "",
+    customDomain: "",
   });
 
   const [uploadingFavicon, setUploadingFavicon] = useState(false);
@@ -99,9 +101,23 @@ export function VendorSettings() {
         faviconUrl: profile.faviconUrl || "",
         ogImageUrl: profile.ogImageUrl || "",
         storeDescription: profile.storeDescription || "",
+        customDomain: profile.customDomain || "",
       });
     }
   }, [profile]);
+
+  const normalizeDomain = (input: string): string => {
+    let domain = input.trim().toLowerCase();
+    domain = domain.replace(/^https?:\/\//, "");
+    domain = domain.replace(/\/.*$/, "");
+    domain = domain.replace(/^www\./, "");
+    return domain;
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: "Copiado!", description: "Texto copiado para a area de transferencia" });
+  };
 
   const updateMutation = useMutation({
     mutationFn: async (data: typeof settings) => {
@@ -396,6 +412,107 @@ export function VendorSettings() {
               </p>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Dominio Personalizado (White Label) */}
+      <Card
+        style={{
+          background: "rgba(30, 30, 30, 0.4)",
+          backdropFilter: "blur(12px)",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
+        }}
+      >
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
+              <Globe className="w-5 h-5 text-purple-400" />
+            </div>
+            <div>
+              <CardTitle className="text-white">Dominio Personalizado</CardTitle>
+              <p className="text-sm text-gray-400 mt-1">Use seu proprio dominio para sua loja (White Label)</p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Status do dominio */}
+          {settings.customDomain && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
+              <CheckCircle2 className="w-5 h-5 text-green-400" />
+              <span className="text-sm text-green-300">
+                Dominio ativo: <strong>{settings.customDomain}</strong>
+              </span>
+            </div>
+          )}
+
+          {/* Input do dominio */}
+          <div className="space-y-2">
+            <Label className="text-white">Seu Dominio</Label>
+            <Input
+              value={settings.customDomain}
+              onChange={(e) => setSettings({ ...settings, customDomain: normalizeDomain(e.target.value) })}
+              placeholder="meusite.com"
+              style={{
+                background: "rgba(30, 30, 40, 0.4)",
+                backdropFilter: "blur(10px)",
+                borderColor: "rgba(255,255,255,0.1)",
+                color: "#FFFFFF",
+              }}
+              data-testid="input-custom-domain"
+            />
+            <p className="text-xs text-gray-400">
+              Digite apenas o dominio, sem https:// ou www
+            </p>
+          </div>
+
+          {/* Instrucoes do Cloudflare */}
+          <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 space-y-3">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-blue-400" />
+              <span className="text-sm font-semibold text-blue-300">Como configurar no Cloudflare:</span>
+            </div>
+            
+            <ol className="list-decimal list-inside space-y-2 text-sm text-gray-300">
+              <li>Acesse seu painel da <strong className="text-white">Cloudflare</strong></li>
+              <li>Va em <strong className="text-white">DNS</strong> e clique em <strong className="text-white">Add Record</strong></li>
+              <li>
+                Selecione tipo <strong className="text-white">CNAME</strong>
+              </li>
+              <li>
+                No campo <strong className="text-white">Name</strong>, coloque <strong className="text-white">@</strong> (ou <strong className="text-white">www</strong>)
+              </li>
+              <li className="flex flex-wrap items-center gap-2">
+                <span>No campo <strong className="text-white">Target</strong>, coloque:</span>
+                <code 
+                  className="px-2 py-1 rounded bg-gray-800 text-orange-400 cursor-pointer"
+                  onClick={() => copyToClipboard("goldnetsteam.shop")}
+                  data-testid="text-cname-target"
+                >
+                  goldnetsteam.shop
+                </code>
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  onClick={() => copyToClipboard("goldnetsteam.shop")}
+                  className="h-6 px-2"
+                  data-testid="button-copy-cname"
+                >
+                  <Copy className="w-3 h-3" />
+                </Button>
+              </li>
+              <li>
+                Certifique-se de que a <strong className="text-orange-400">nuvem esteja laranja</strong> (Proxied)
+              </li>
+              <li>Clique em <strong className="text-white">Save</strong></li>
+              <li>Volte aqui e salve seu dominio abaixo</li>
+            </ol>
+
+            <div className="mt-3 p-3 rounded bg-yellow-500/10 border border-yellow-500/30">
+              <p className="text-xs text-yellow-300">
+                <strong>Importante:</strong> A propagacao do DNS pode levar ate 24 horas. Apos configurar, aguarde e teste acessando seu dominio.
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

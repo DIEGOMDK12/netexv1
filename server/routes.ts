@@ -2634,7 +2634,7 @@ export async function registerRoutes(
       return res.status(401).json({ error: "Invalid token" });
     }
 
-    const { storeName, pixKey, pixKeyType, pixHolderName, pagseguroToken, pagseguroEmail, faviconUrl, ogImageUrl, storeDescription } = req.body;
+    const { storeName, pixKey, pixKeyType, pixHolderName, pagseguroToken, pagseguroEmail, faviconUrl, ogImageUrl, storeDescription, customDomain } = req.body;
 
     try {
       const updateData: any = {};
@@ -2645,6 +2645,10 @@ export async function registerRoutes(
       if (faviconUrl !== undefined) updateData.faviconUrl = faviconUrl;
       if (ogImageUrl !== undefined) updateData.ogImageUrl = ogImageUrl;
       if (storeDescription !== undefined) updateData.storeDescription = storeDescription;
+      if (customDomain !== undefined) {
+        const normalizedDomain = customDomain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/^www\./, "");
+        updateData.customDomain = normalizedDomain || null;
+      }
       updateData.pagseguroSandbox = false;
 
       const vendor = await storage.updateReseller(vendorId, updateData);
@@ -2664,6 +2668,7 @@ export async function registerRoutes(
         faviconUrl: vendor.faviconUrl || null,
         ogImageUrl: vendor.ogImageUrl || null,
         storeDescription: vendor.storeDescription || null,
+        customDomain: vendor.customDomain || null,
       });
     } catch (error) {
       console.error("[Vendor Profile PUT] Error:", error);
