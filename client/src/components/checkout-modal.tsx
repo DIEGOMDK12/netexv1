@@ -271,6 +271,7 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
             whatsapp,
             customerName: customerName.trim() || email.split("@")[0],
             id_revendedor: resellerId || undefined,
+            orderId: data.id, // Pass existing order ID to avoid duplicate creation
           });
           const pixData = await pixResponse.json();
           

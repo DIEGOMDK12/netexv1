@@ -1774,9 +1774,9 @@ export async function registerRoutes(
   // POST /api/pagamento/criar
   app.post("/api/pagamento/criar", async (req, res) => {
     try {
-      const { valor, id_produto, id_revendedor, email, customerName, customerCpf, whatsapp } = req.body;
+      const { valor, id_produto, id_revendedor, email, customerName, customerCpf, whatsapp, orderId: existingOrderId } = req.body;
 
-      console.log("[AbacatePay] /api/pagamento/criar - Request:", { valor, id_produto, id_revendedor, email });
+      console.log("[AbacatePay] /api/pagamento/criar - Request:", { valor, id_produto, id_revendedor, email, existingOrderId });
 
       if (!valor || !id_produto) {
         return res.status(400).json({ error: "Campos obrigatórios: valor, id_produto" });
@@ -1812,37 +1812,58 @@ export async function registerRoutes(
 
       console.log(`[AbacatePay] Split calculado: Total=${valorTotal}, Plataforma=${comissaoPlataforma} (${commissionPercent}%), Revendedor=${valorRevendedor}`);
 
-      // Criar pedido no banco
-      const order = await storage.createOrder({
-        email: email || "cliente@exemplo.com",
-        whatsapp: whatsapp || null,
-        customerName: customerName || null,
-        customerCpf: customerCpf || null,
-        status: "pending",
-        paymentMethod: "pix_abacatepay",
-        totalAmount: valorTotal.toFixed(2),
-        comissaoPlataforma: comissaoPlataforma.toFixed(2),
-        valorRevendedor: valorRevendedor.toFixed(2),
-        resellerId: resellerId || null,
-        pixCode: null,
-        pixQrCode: null,
-        pagseguroOrderId: null,
-        abacatepayBillingId: null,
-        deliveredContent: null,
-        couponCode: null,
-        discountAmount: null,
-      });
+      let order: any;
 
-      // Criar item do pedido
-      await storage.createOrderItem({
-        orderId: order.id,
-        productId: product.id,
-        productName: product.name,
-        price: valorTotal.toFixed(2),
-        quantity: 1,
-      });
+      // Se já existe um orderId, usar esse pedido ao invés de criar novo
+      if (existingOrderId) {
+        console.log(`[AbacatePay] Usando pedido existente: ${existingOrderId}`);
+        const existingOrder = await storage.getOrder(existingOrderId);
+        if (!existingOrder) {
+          return res.status(404).json({ error: "Pedido não encontrado" });
+        }
+        
+        // Atualizar pedido existente com dados do AbacatePay
+        await storage.updateOrder(existingOrderId, {
+          paymentMethod: "pix_abacatepay",
+          comissaoPlataforma: comissaoPlataforma.toFixed(2),
+          valorRevendedor: valorRevendedor.toFixed(2),
+        });
+        
+        order = { ...existingOrder, id: existingOrderId };
+        console.log(`[AbacatePay] Pedido ${order.id} atualizado para AbacatePay`);
+      } else {
+        // Criar novo pedido apenas se não existir
+        order = await storage.createOrder({
+          email: email || "cliente@exemplo.com",
+          whatsapp: whatsapp || null,
+          customerName: customerName || null,
+          customerCpf: customerCpf || null,
+          status: "pending",
+          paymentMethod: "pix_abacatepay",
+          totalAmount: valorTotal.toFixed(2),
+          comissaoPlataforma: comissaoPlataforma.toFixed(2),
+          valorRevendedor: valorRevendedor.toFixed(2),
+          resellerId: resellerId || null,
+          pixCode: null,
+          pixQrCode: null,
+          pagseguroOrderId: null,
+          abacatepayBillingId: null,
+          deliveredContent: null,
+          couponCode: null,
+          discountAmount: null,
+        });
 
-      console.log(`[AbacatePay] Pedido ${order.id} criado com split`);
+        // Criar item do pedido apenas para novos pedidos
+        await storage.createOrderItem({
+          orderId: order.id,
+          productId: product.id,
+          productName: product.name,
+          price: valorTotal.toFixed(2),
+          quantity: 1,
+        });
+
+        console.log(`[AbacatePay] Pedido ${order.id} criado com split`);
+      }
 
       // Criar cobrança PIX via AbacatePay
       const { createPixPayment } = await import("./abacatePayController");
