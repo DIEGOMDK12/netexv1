@@ -137,6 +137,21 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**December 8, 2024 - Resend Delivery Email Feature**
+- Added "Reenviar E-mail de Entrega" button on /pedidos page for paid orders
+- New API endpoint: POST /api/orders/:id/resend-email
+  - Validates order exists and status is "paid"
+  - Verifies requester email matches order email for security
+  - Retrieves order items and builds product names
+  - Fetches store name from reseller or global settings
+  - Calls sendDeliveryEmail to resend the delivery content
+  - Returns success/error messages in Portuguese
+- Frontend updates (my-orders.tsx):
+  - Button only visible for paid orders with delivered content
+  - Loading state with spinner during email resend
+  - Toast notifications for success/error feedback
+  - Uses TanStack Query mutation with apiRequest
+
 **December 8, 2024 - Custom Domain System (White Label)**
 - Resellers can now configure their own domain (e.g., meusite.com) to serve their store
 - Schema: Added `.unique()` constraint to `customDomain` field in resellers table for fast lookups
