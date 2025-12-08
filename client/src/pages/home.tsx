@@ -61,6 +61,8 @@ const categoryImages: Record<string, string> = {
 
 export default function Home() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
 
   const { data: products = [], isLoading } = useQuery<ProductWithSeller[]>({
     queryKey: ["/api/marketplace/products"],
@@ -70,8 +72,45 @@ export default function Home() {
     queryKey: ["/api/marketplace/categories"],
   });
 
+  const { data: globalCategories = [] } = useQuery<Category[]>({
+    queryKey: ["/api/categories/with-subcategories"],
+    queryFn: async () => {
+      const response = await fetch("/api/categories/with-subcategories");
+      if (!response.ok) throw new Error("Failed to fetch categories");
+      return response.json();
+    },
+  });
+
   const activeProducts = products.filter(p => p.active);
   
+  const selectedCategoryData = globalCategories.find(c => c.name === selectedCategory);
+  const availableSubcategories = selectedCategoryData?.subcategories || [];
+  
+  const filteredProducts = activeProducts.filter(p => {
+    if (!selectedCategory) return true;
+    if (p.category !== selectedCategory) return false;
+    if (selectedSubcategory && p.subcategory !== selectedSubcategory) return false;
+    return true;
+  });
+
+  const handleCategoryClick = (categoryName: string) => {
+    if (selectedCategory === categoryName) {
+      setSelectedCategory(null);
+      setSelectedSubcategory(null);
+    } else {
+      setSelectedCategory(categoryName);
+      setSelectedSubcategory(null);
+    }
+  };
+
+  const handleSubcategoryClick = (subcategoryName: string) => {
+    if (selectedSubcategory === subcategoryName) {
+      setSelectedSubcategory(null);
+    } else {
+      setSelectedSubcategory(subcategoryName);
+    }
+  };
+
   const defaultCategories = [
     { id: 1, name: "Warzone", slug: "warzone" },
     { id: 2, name: "Clash", slug: "clash" },
@@ -80,16 +119,15 @@ export default function Home() {
     { id: 5, name: "FIFA", slug: "fifa" },
   ];
 
-  const uniqueCategories = categories.length > 0 
-    ? categories.reduce((acc: { id: number; name: string; slug: string }[], cat) => {
+  const displayCategories = globalCategories.length > 0 ? globalCategories : 
+    categories.length > 0 
+    ? categories.reduce((acc: { id: number; name: string; slug: string; subcategories?: string[] | null }[], cat) => {
         if (!acc.find(c => c.slug === cat.slug)) {
-          acc.push({ id: cat.id, name: cat.name, slug: cat.slug });
+          acc.push({ id: cat.id, name: cat.name, slug: cat.slug, subcategories: cat.subcategories });
         }
         return acc;
       }, []).slice(0, 8)
     : defaultCategories;
-
-  const displayCategories = uniqueCategories;
 
   const steamProducts = activeProducts.filter(p => 
     p.category?.toLowerCase().includes('steam') || 
@@ -179,34 +217,97 @@ export default function Home() {
       <section className="px-2 py-4">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-base font-bold text-white mb-3 flex items-center gap-2 px-1">
-            Categorias Populares
+            Categorias
             <ChevronRight className="w-4 h-4 text-gray-500" />
           </h2>
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             {displayCategories.map((cat) => {
               const imageSrc = categoryImages[cat.slug.toLowerCase()] || categoryImages.default;
+              const isSelected = selectedCategory === cat.name;
               return (
                 <div 
                   key={`cat-${cat.id}`}
-                  className="flex-shrink-0 w-16 text-center cursor-pointer group"
+                  className={`flex-shrink-0 w-16 text-center cursor-pointer group ${isSelected ? 'ring-2 ring-blue-500 rounded-lg' : ''}`}
+                  onClick={() => handleCategoryClick(cat.name)}
                   data-testid={`category-${cat.slug}`}
                 >
-                  <div className="w-16 h-16 rounded-lg overflow-hidden mb-1 border border-transparent group-hover:border-blue-500 transition-colors">
+                  <div className={`w-16 h-16 rounded-lg overflow-hidden mb-1 border ${isSelected ? 'border-blue-500' : 'border-transparent group-hover:border-blue-500'} transition-colors`}>
                     <img 
                       src={imageSrc} 
                       alt={cat.name}
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  <span className="text-[10px] text-gray-400 group-hover:text-white transition-colors line-clamp-1">
+                  <span className={`text-[10px] ${isSelected ? 'text-blue-400 font-semibold' : 'text-gray-400 group-hover:text-white'} transition-colors line-clamp-1`}>
                     {cat.name}
                   </span>
                 </div>
               );
             })}
           </div>
+
+          {selectedCategory && availableSubcategories.length > 0 && (
+            <div className="mt-3 px-1">
+              <h3 className="text-sm font-semibold text-gray-300 mb-2">
+                Subcategorias de {selectedCategory}:
+              </h3>
+              <div className="flex gap-2 flex-wrap">
+                {availableSubcategories.map((sub) => {
+                  const isSubSelected = selectedSubcategory === sub;
+                  return (
+                    <button
+                      key={sub}
+                      onClick={() => handleSubcategoryClick(sub)}
+                      className={`px-3 py-1.5 text-xs rounded-full transition-colors ${
+                        isSubSelected 
+                          ? 'bg-blue-600 text-white' 
+                          : 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white'
+                      }`}
+                      data-testid={`subcategory-${sub.toLowerCase().replace(/\s+/g, '-')}`}
+                    >
+                      {sub}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </section>
+
+      {(selectedCategory || selectedSubcategory) && (
+        <section className="px-2 py-4">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-between mb-3 px-1">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                {selectedSubcategory || selectedCategory}
+                <span className="text-sm text-gray-400">({filteredProducts.length} produtos)</span>
+              </h2>
+              <button
+                onClick={() => {
+                  setSelectedCategory(null);
+                  setSelectedSubcategory(null);
+                }}
+                className="text-xs text-gray-400 hover:text-white"
+                data-testid="button-clear-filters"
+              >
+                Limpar filtros
+              </button>
+            </div>
+            {filteredProducts.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                {filteredProducts.map((product) => (
+                  <ProductCardMini key={product.id} product={product} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-400">Nenhum produto encontrado nesta categoria.</p>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {steamProducts.length > 0 && (
         <section className="px-2 py-4">

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,14 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Product } from "@shared/schema";
+import type { Product, Category } from "@shared/schema";
 
 export default function AdminProducts() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -23,6 +25,7 @@ export default function AdminProducts() {
     currentPrice: "",
     stock: "",
     category: "Outros",
+    subcategory: "",
     instructions: "",
     warranty: "",
     active: true,
@@ -31,6 +34,23 @@ export default function AdminProducts() {
   const { data: products, isLoading } = useQuery<Product[]>({
     queryKey: ["/api/admin/products"],
   });
+
+  const { data: allCategories = [] } = useQuery<Category[]>({
+    queryKey: ["/api/categories/with-subcategories"],
+    queryFn: async () => {
+      const response = await fetch("/api/categories/with-subcategories");
+      if (!response.ok) throw new Error("Failed to fetch categories");
+      return response.json();
+    },
+  });
+
+  const selectedCategory = useMemo(() => {
+    return allCategories.find((cat) => cat.id === selectedCategoryId);
+  }, [selectedCategoryId, allCategories]);
+
+  const availableSubcategories = useMemo(() => {
+    return selectedCategory?.subcategories || [];
+  }, [selectedCategory]);
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -72,10 +92,12 @@ export default function AdminProducts() {
       currentPrice: "",
       stock: "",
       category: "Outros",
+      subcategory: "",
       instructions: "",
       warranty: "",
       active: true,
     });
+    setSelectedCategoryId(null);
     setEditingId(null);
   };
 
@@ -177,6 +199,8 @@ export default function AdminProducts() {
                       variant="ghost"
                       onClick={() => {
                         setEditingId(product.id);
+                        const matchingCat = allCategories.find((c) => c.name === product.category);
+                        setSelectedCategoryId(matchingCat?.id || null);
                         setFormData({
                           name: product.name,
                           description: product.description || "",
@@ -185,6 +209,7 @@ export default function AdminProducts() {
                           currentPrice: product.currentPrice,
                           stock: product.stock || "",
                           category: product.category || "Outros",
+                          subcategory: product.subcategory || "",
                           instructions: product.instructions || "",
                           warranty: product.warranty || "",
                           active: product.active,
@@ -235,16 +260,60 @@ export default function AdminProducts() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   style={{ backgroundColor: "#242424", borderColor: "rgba(255,255,255,0.1)", color: "#fff" }}
+                  data-testid="input-admin-product-name"
                 />
               </div>
               <div className="space-y-2">
                 <Label className="text-white">Categoria</Label>
-                <Input
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  style={{ backgroundColor: "#242424", borderColor: "rgba(255,255,255,0.1)", color: "#fff" }}
-                />
+                <Select
+                  value={selectedCategoryId ? String(selectedCategoryId) : ""}
+                  onValueChange={(value) => {
+                    const catId = parseInt(value);
+                    setSelectedCategoryId(catId);
+                    const cat = allCategories.find((c) => c.id === catId);
+                    setFormData({ ...formData, category: cat?.name || "", subcategory: "" });
+                  }}
+                >
+                  <SelectTrigger
+                    className="w-full"
+                    style={{ backgroundColor: "#242424", borderColor: "rgba(255,255,255,0.1)", color: "#fff" }}
+                    data-testid="select-admin-product-category"
+                  >
+                    <SelectValue placeholder="Selecione a categoria" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-900 border-gray-700">
+                    {allCategories.map((cat) => (
+                      <SelectItem key={cat.id} value={String(cat.id)} className="text-white">
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-white">Subcategoria</Label>
+              <Select
+                value={formData.subcategory}
+                onValueChange={(value) => setFormData({ ...formData, subcategory: value })}
+                disabled={!selectedCategoryId || availableSubcategories.length === 0}
+              >
+                <SelectTrigger
+                  className="w-full"
+                  style={{ backgroundColor: "#242424", borderColor: "rgba(255,255,255,0.1)", color: "#fff" }}
+                  data-testid="select-admin-product-subcategory"
+                >
+                  <SelectValue placeholder={selectedCategoryId ? "Selecione a subcategoria" : "Escolha uma categoria primeiro"} />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-900 border-gray-700">
+                  {availableSubcategories.map((sub) => (
+                    <SelectItem key={sub} value={sub} className="text-white">
+                      {sub}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

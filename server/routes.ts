@@ -2393,6 +2393,7 @@ export async function registerRoutes(
         currentPrice: req.body.currentPrice,
         stock: req.body.stock || "",
         category: req.body.category || "Outros",
+        subcategory: req.body.subcategory || null,
         active: req.body.active ?? true,
       };
       
@@ -2431,6 +2432,7 @@ export async function registerRoutes(
         currentPrice: req.body.currentPrice,
         stock: req.body.stock || "",
         category: req.body.category || "Outros",
+        subcategory: req.body.subcategory || null,
         active: req.body.active,
       };
       console.log("[PUT /api/admin/products/:id] Updating product", id, "with:", updateData);
