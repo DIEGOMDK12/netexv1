@@ -62,15 +62,11 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set());
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [showDeleteCategoryConfirm, setShowDeleteCategoryConfirm] = useState<number | null>(null);
   const [showDeleteProductConfirm, setShowDeleteProductConfirm] = useState<number | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const [categoryForm, setCategoryForm] = useState({ name: "", icon: "folder" });
   const [productForm, setProductForm] = useState({
     name: "",
     slug: "",
@@ -122,77 +118,6 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
 
     return { grouped, uncategorized };
   }, [products]);
-
-  const createCategoryMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const token = localStorage.getItem("vendor_token");
-      const response = await fetch("/api/vendor/categories", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) throw new Error("Failed to create category");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/vendor/categories"] });
-      setShowCategoryModal(false);
-      setCategoryForm({ name: "", icon: "folder" });
-      toast({ title: "Categoria criada com sucesso" });
-    },
-    onError: () => {
-      toast({ title: "Erro ao criar categoria", variant: "destructive" });
-    },
-  });
-
-  const updateCategoryMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      const token = localStorage.getItem("vendor_token");
-      const response = await fetch(`/api/vendor/categories/${id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) throw new Error("Failed to update category");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/vendor/categories"] });
-      setShowCategoryModal(false);
-      setEditingCategory(null);
-      setCategoryForm({ name: "", icon: "folder" });
-      toast({ title: "Categoria atualizada com sucesso" });
-    },
-    onError: () => {
-      toast({ title: "Erro ao atualizar categoria", variant: "destructive" });
-    },
-  });
-
-  const deleteCategoryMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const token = localStorage.getItem("vendor_token");
-      const response = await fetch(`/api/vendor/categories/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) throw new Error("Failed to delete category");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/vendor/categories"] });
-      setShowDeleteCategoryConfirm(null);
-      toast({ title: "Categoria removida com sucesso" });
-    },
-    onError: () => {
-      toast({ title: "Erro ao remover categoria", variant: "destructive" });
-    },
-  });
 
   const reorderCategoriesMutation = useMutation({
     mutationFn: async (orderedIds: number[]) => {
@@ -332,18 +257,6 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
     setExpandedCategories(new Set(categories.map((c) => c.id)));
   };
 
-  const openEditCategory = (category: Category) => {
-    setEditingCategory(category);
-    setCategoryForm({ name: category.name, icon: category.icon || "folder" });
-    setShowCategoryModal(true);
-  };
-
-  const openNewCategory = () => {
-    setEditingCategory(null);
-    setCategoryForm({ name: "", icon: "folder" });
-    setShowCategoryModal(true);
-  };
-
   const openEditProduct = (product: Product) => {
     setEditingProduct(product);
     setProductForm({
@@ -368,30 +281,6 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
       setProductForm((prev) => ({ ...prev, categoryId: categoryId.toString() }));
     }
     setShowProductModal(true);
-  };
-
-  const handleSaveCategory = () => {
-    if (!categoryForm.name.trim()) {
-      toast({ title: "Nome da categoria é obrigatório", variant: "destructive" });
-      return;
-    }
-
-    const slug = categoryForm.name.toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9-]/g, "")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "");
-
-    const categoryData = {
-      ...categoryForm,
-      slug,
-    };
-
-    if (editingCategory) {
-      updateCategoryMutation.mutate({ id: editingCategory.id, data: categoryData });
-    } else {
-      createCategoryMutation.mutate(categoryData);
-    }
   };
 
   const handleSaveProduct = () => {
@@ -474,15 +363,6 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
         <div className="flex flex-col sm:flex-row sm:justify-end gap-2 my-4">
           <Button
             size="sm"
-            onClick={openNewCategory}
-            className="bg-blue-600 hover:bg-blue-700 whitespace-nowrap w-full sm:w-auto"
-            data-testid="button-new-category"
-          >
-            <Plus className="w-4 h-4 mr-1 flex-shrink-0" />
-            <span>Nova Categoria</span>
-          </Button>
-          <Button
-            size="sm"
             onClick={() => openNewProduct()}
             className="whitespace-nowrap w-full sm:w-auto"
             style={{
@@ -517,8 +397,6 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
                   isExpanded={isExpanded}
                   categoryProducts={categoryProducts}
                   onToggle={() => toggleCategory(category.id)}
-                  onEdit={() => openEditCategory(category)}
-                  onDelete={() => setShowDeleteCategoryConfirm(category.id)}
                   onAddProduct={() => openNewProduct(category.id)}
                   onEditProduct={openEditProduct}
                   onDeleteProduct={(id) => setShowDeleteProductConfirm(id)}
@@ -577,18 +455,9 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
               Comece a organizar sua loja
             </h3>
             <p className="text-sm mb-6">
-              Crie categorias e adicione produtos para organizar sua vitrine
+              Adicione produtos para organizar sua vitrine
             </p>
             <div className="flex justify-center gap-3">
-              <Button
-                variant="outline"
-                onClick={openNewCategory}
-                className="border-gray-600 text-gray-300"
-                data-testid="button-first-category"
-              >
-                <Plus className="w-4 h-4 mr-1" />
-                Criar Categoria
-              </Button>
               <Button
                 onClick={() => openNewProduct()}
                 style={{
@@ -603,49 +472,6 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
           </div>
         )}
       </div>
-
-      <Dialog open={showCategoryModal} onOpenChange={setShowCategoryModal}>
-        <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {editingCategory ? "Editar Categoria" : "Nova Categoria"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label className="text-gray-300">Nome da Categoria</Label>
-              <Input
-                value={categoryForm.name}
-                onChange={(e) => setCategoryForm((prev) => ({ ...prev, name: e.target.value }))}
-                placeholder="Ex: STREAMING, JOGOS, ASSINATURAS"
-                className="bg-gray-800 border-gray-600 text-white"
-                data-testid="input-category-name"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowCategoryModal(false)}
-              className="border-gray-600"
-              data-testid="button-cancel-category"
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSaveCategory}
-              disabled={createCategoryMutation.isPending || updateCategoryMutation.isPending}
-              className="bg-blue-600 hover:bg-blue-700"
-              data-testid="button-save-category"
-            >
-              {(createCategoryMutation.isPending || updateCategoryMutation.isPending) && (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              )}
-              Salvar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={showProductModal} onOpenChange={setShowProductModal}>
         <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -912,31 +738,6 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
       </Dialog>
 
       <AlertDialog 
-        open={showDeleteCategoryConfirm !== null} 
-        onOpenChange={() => setShowDeleteCategoryConfirm(null)}
-      >
-        <AlertDialogContent className="bg-gray-900 border-gray-700 text-white">
-          <AlertDialogTitle>Excluir Categoria</AlertDialogTitle>
-          <AlertDialogDescription className="text-gray-400">
-            Tem certeza que deseja excluir esta categoria? Os produtos 
-            associados ficarão sem categoria, mas não serão excluídos.
-          </AlertDialogDescription>
-          <div className="flex justify-end gap-3 mt-4">
-            <AlertDialogCancel className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700">
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => showDeleteCategoryConfirm && deleteCategoryMutation.mutate(showDeleteCategoryConfirm)}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {deleteCategoryMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Excluir
-            </AlertDialogAction>
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog 
         open={showDeleteProductConfirm !== null} 
         onOpenChange={() => setShowDeleteProductConfirm(null)}
       >
@@ -968,8 +769,6 @@ interface SortableCategoryItemProps {
   isExpanded: boolean;
   categoryProducts: Product[];
   onToggle: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
   onAddProduct: () => void;
   onEditProduct: (product: Product) => void;
   onDeleteProduct: (id: number) => void;
@@ -980,8 +779,6 @@ function SortableCategoryItem({
   isExpanded,
   categoryProducts,
   onToggle,
-  onEdit,
-  onDelete,
   onAddProduct,
   onEditProduct,
   onDeleteProduct,
@@ -1032,30 +829,6 @@ function SortableCategoryItem({
           <Badge variant="outline" className="text-gray-400 border-gray-600">
             {categoryProducts.length}
           </Badge>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="text-gray-400 hover:text-white"
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit();
-            }}
-            data-testid={`button-edit-category-${category.id}`}
-          >
-            <Edit2 className="w-4 h-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="text-gray-400 hover:text-red-400"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-            data-testid={`button-delete-category-${category.id}`}
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
           {isExpanded ? (
             <ChevronUp className="w-5 h-5 text-gray-400" />
           ) : (
