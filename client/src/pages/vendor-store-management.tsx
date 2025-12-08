@@ -470,45 +470,50 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
 
   return (
     <div className="space-y-4 pb-20">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white" data-testid="text-page-title">
-            Gerenciar Loja
-          </h1>
-          <p className="text-gray-400 text-sm mt-1">
-            Organize seus produtos por categorias
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={collapseAll}
-            className="text-gray-300 border-gray-600"
-            data-testid="button-collapse-all"
-          >
-            Recolher tudo
-          </Button>
-          <Button
-            size="sm"
-            onClick={openNewCategory}
-            className="bg-blue-600 hover:bg-blue-700"
-            data-testid="button-new-category"
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            Nova Categoria
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => openNewProduct()}
-            style={{
-              background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)",
-            }}
-            data-testid="button-new-product"
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            Novo Produto
-          </Button>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-white truncate" data-testid="text-page-title">
+              Gerenciar Loja
+            </h1>
+            <p className="text-gray-400 text-xs">
+              Organize seus produtos por categorias
+            </p>
+          </div>
+          {(categories.length > 0 || products.length > 0) && (
+            <div className="flex gap-2 flex-shrink-0 overflow-x-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={collapseAll}
+                className="text-gray-300 border-gray-600 whitespace-nowrap"
+                data-testid="button-collapse-all"
+              >
+                Recolher tudo
+              </Button>
+              <Button
+                size="sm"
+                onClick={openNewCategory}
+                className="bg-blue-600 hover:bg-blue-700 whitespace-nowrap"
+                data-testid="button-new-category"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Nova Categoria
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => openNewProduct()}
+                className="whitespace-nowrap"
+                style={{
+                  background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)",
+                }}
+                data-testid="button-new-product"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Novo Produto
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
