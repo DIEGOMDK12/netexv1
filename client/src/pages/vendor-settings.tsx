@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Wallet, Info } from "lucide-react";
+import { Loader2, Wallet, Info, Upload } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 
@@ -35,6 +35,9 @@ export function VendorSettings() {
     storeDescription: "",
   });
 
+  const [uploadingFavicon, setUploadingFavicon] = useState(false);
+  const [uploadingOgImage, setUploadingOgImage] = useState(false);
+  
   const vendorToken = localStorage.getItem("vendor_token");
 
   const { data: profile, isLoading } = useQuery<VendorProfile>({
@@ -50,6 +53,41 @@ export function VendorSettings() {
     },
     enabled: !!vendorToken,
   });
+
+  const handleImageUpload = async (file: File, type: 'favicon' | 'ogImage') => {
+    if (type === 'favicon') setUploadingFavicon(true);
+    else setUploadingOgImage(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Authorization': `Bearer ${vendorToken}`,
+        },
+      });
+
+      if (!response.ok) throw new Error('Erro ao fazer upload');
+      const data = await response.json();
+      const imageUrl = data.imageUrl || `/uploads/${data.filename}`;
+
+      if (type === 'favicon') {
+        setSettings({ ...settings, faviconUrl: imageUrl });
+      } else {
+        setSettings({ ...settings, ogImageUrl: imageUrl });
+      }
+
+      toast({ title: "Imagem enviada com sucesso!" });
+    } catch (error: any) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } finally {
+      if (type === 'favicon') setUploadingFavicon(false);
+      else setUploadingOgImage(false);
+    }
+  };
 
   useEffect(() => {
     if (profile) {
@@ -258,40 +296,94 @@ export function VendorSettings() {
           </div>
 
           <div className="space-y-2">
-            <Label className="text-white">URL do Favicon</Label>
-            <Input
-              value={settings.faviconUrl}
-              onChange={(e) => setSettings({ ...settings, faviconUrl: e.target.value })}
-              placeholder="https://example.com/favicon.png"
-              style={{
-                background: "rgba(30, 30, 40, 0.4)",
-                backdropFilter: "blur(10px)",
-                borderColor: "rgba(255,255,255,0.1)",
-                color: "#FFFFFF",
-              }}
-              data-testid="input-favicon-url"
-            />
+            <Label className="text-white">Favicon (Logo na Aba)</Label>
+            <div className="flex gap-2">
+              <Input
+                value={settings.faviconUrl}
+                onChange={(e) => setSettings({ ...settings, faviconUrl: e.target.value })}
+                placeholder="https://example.com/favicon.png ou colar URL"
+                style={{
+                  background: "rgba(30, 30, 40, 0.4)",
+                  backdropFilter: "blur(10px)",
+                  borderColor: "rgba(255,255,255,0.1)",
+                  color: "#FFFFFF",
+                }}
+                data-testid="input-favicon-url"
+              />
+              <label className="cursor-pointer">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={uploadingFavicon}
+                  data-testid="button-favicon-upload"
+                >
+                  {uploadingFavicon ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                </Button>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) {
+                      handleImageUpload(e.target.files[0], 'favicon');
+                    }
+                  }}
+                  disabled={uploadingFavicon}
+                />
+              </label>
+            </div>
+            {settings.faviconUrl && (
+              <img src={settings.faviconUrl} alt="Preview" className="w-8 h-8 rounded" />
+            )}
             <p className="text-xs text-gray-400">
-              Logo que aparece na aba do navegador
+              Clique no botão para fazer upload ou cole uma URL
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label className="text-white">URL da Imagem de Compartilhamento</Label>
-            <Input
-              value={settings.ogImageUrl}
-              onChange={(e) => setSettings({ ...settings, ogImageUrl: e.target.value })}
-              placeholder="https://example.com/og-image.png"
-              style={{
-                background: "rgba(30, 30, 40, 0.4)",
-                backdropFilter: "blur(10px)",
-                borderColor: "rgba(255,255,255,0.1)",
-                color: "#FFFFFF",
-              }}
-              data-testid="input-og-image-url"
-            />
+            <Label className="text-white">Imagem de Compartilhamento</Label>
+            <div className="flex gap-2">
+              <Input
+                value={settings.ogImageUrl}
+                onChange={(e) => setSettings({ ...settings, ogImageUrl: e.target.value })}
+                placeholder="https://example.com/og-image.png ou colar URL"
+                style={{
+                  background: "rgba(30, 30, 40, 0.4)",
+                  backdropFilter: "blur(10px)",
+                  borderColor: "rgba(255,255,255,0.1)",
+                  color: "#FFFFFF",
+                }}
+                data-testid="input-og-image-url"
+              />
+              <label className="cursor-pointer">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={uploadingOgImage}
+                  data-testid="button-og-image-upload"
+                >
+                  {uploadingOgImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                </Button>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) {
+                      handleImageUpload(e.target.files[0], 'ogImage');
+                    }
+                  }}
+                  disabled={uploadingOgImage}
+                />
+              </label>
+            </div>
+            {settings.ogImageUrl && (
+              <img src={settings.ogImageUrl} alt="Preview" className="w-16 h-16 object-cover rounded" />
+            )}
             <p className="text-xs text-gray-400">
-              Imagem exibida ao compartilhar no WhatsApp, Facebook, etc
+              Aparecerá no WhatsApp, Facebook, etc. Clique no botão para upload
             </p>
           </div>
 

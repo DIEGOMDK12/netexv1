@@ -34,6 +34,61 @@ export default function ResellerStore() {
   useEffect(() => {
     if (reseller) {
       setCurrentReseller(reseller);
+
+      // Update dynamic meta tags for this reseller
+      const title = reseller.storeName || "NexStore - Produtos Digitais Premium";
+      const description = reseller.storeDescription || "Plataforma para vender produtos digitais. Crie sua loja online e venda streaming, games, contas premium com pagamento PIX, Stripe e PagSeguro. Entrega instantânea via email.";
+      const ogImage = reseller.ogImageUrl || "/og-image.png";
+      const favicon = reseller.faviconUrl || "/favicon.png";
+
+      // Update title
+      document.title = title;
+
+      // Update meta description
+      let metaDescription = document.querySelector('meta[name="description"]');
+      if (!metaDescription) {
+        metaDescription = document.createElement('meta');
+        metaDescription.setAttribute('name', 'description');
+        document.head.appendChild(metaDescription);
+      }
+      metaDescription.setAttribute('content', description);
+
+      // Update og:title
+      let ogTitle = document.querySelector('meta[property="og:title"]');
+      if (!ogTitle) {
+        ogTitle = document.createElement('meta');
+        ogTitle.setAttribute('property', 'og:title');
+        document.head.appendChild(ogTitle);
+      }
+      ogTitle.setAttribute('content', title);
+
+      // Update og:description
+      let ogDesc = document.querySelector('meta[property="og:description"]');
+      if (!ogDesc) {
+        ogDesc = document.createElement('meta');
+        ogDesc.setAttribute('property', 'og:description');
+        document.head.appendChild(ogDesc);
+      }
+      ogDesc.setAttribute('content', description);
+
+      // Update og:image
+      let ogImg = document.querySelector('meta[property="og:image"]');
+      if (!ogImg) {
+        ogImg = document.createElement('meta');
+        ogImg.setAttribute('property', 'og:image');
+        document.head.appendChild(ogImg);
+      }
+      ogImg.setAttribute('content', ogImage);
+
+      // Update favicon
+      let faviconLink = document.querySelector('link[rel="icon"]') as HTMLLinkElement;
+      if (!faviconLink) {
+        faviconLink = document.createElement('link');
+        faviconLink.rel = 'icon';
+        faviconLink.type = 'image/png';
+        document.head.appendChild(faviconLink);
+      }
+      faviconLink.href = favicon;
     }
     return () => {
       setCurrentReseller(null);

@@ -126,6 +126,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**December 8, 2024 - Per-Reseller Customization (Favicon, OG-Image, Description)**
+- Added 3 new fields to resellers table: `faviconUrl`, `ogImageUrl`, `storeDescription`
+- Each reseller store now displays its own favicon and og-image (WhatsApp/Facebook previews)
+- Dynamic meta tag injection in reseller-store.tsx - automatically updates title, description, og:image, favicon
+- Vendor settings UI panel now includes:
+  - Textarea for custom store description (appears in Google Search & social sharing)
+  - Input/Upload button for favicon (shows preview as 8x8px icon)
+  - Input/Upload button for og-image (shows preview as 16x16px thumbnail)
+- API endpoints updated: GET/PUT /api/vendor/profile include customization fields
+- Upload integration with /api/upload endpoint (supports both vendors and admins)
+- Backend validates and stores URLs/uploads securely with vendor authentication check
+
 **December 2024 - Drag-and-Drop Category Ordering**
 - Implemented drag-and-drop category reordering using @dnd-kit library
 - SortableCategoryItem component with GripVertical drag handle
