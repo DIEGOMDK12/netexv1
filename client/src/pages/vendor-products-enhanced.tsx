@@ -11,6 +11,18 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Product, Category } from "@shared/schema";
 
+function getAuthHeaders(): HeadersInit {
+  const vendorToken = localStorage.getItem("vendor_token");
+  if (vendorToken) {
+    return { Authorization: `Bearer ${vendorToken}` };
+  }
+  const adminToken = localStorage.getItem("admin_token");
+  if (adminToken) {
+    return { Authorization: `Bearer ${adminToken}` };
+  }
+  return {};
+}
+
 export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
   const { toast } = useToast();
   const [isAddingProduct, setIsAddingProduct] = useState(false);
@@ -31,13 +43,24 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
     deliveryContent: "",
   });
 
-  const { data: products = [], isLoading } = useQuery<Product[]>({
+  const { data: products = [], isLoading, refetch } = useQuery<Product[]>({
     queryKey: ["/api/vendor/products", vendorId],
     queryFn: async () => {
-      const response = await fetch(`/api/vendor/products?vendorId=${vendorId}`);
-      if (!response.ok) throw new Error("Failed to fetch products");
-      return response.json();
+      console.log("[VendorProducts] Fetching products for vendor:", vendorId);
+      const response = await fetch(`/api/vendor/products?vendorId=${vendorId}`, {
+        headers: getAuthHeaders(),
+        credentials: "include",
+      });
+      if (!response.ok) {
+        console.error("[VendorProducts] Error fetching products:", response.status);
+        throw new Error("Failed to fetch products");
+      }
+      const data = await response.json();
+      console.log("[VendorProducts] Got products:", data.length);
+      return data;
     },
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const { data: allCategories = [] } = useQuery<Category[]>({
@@ -61,11 +84,16 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
     mutationFn: async (data: any) => {
       return apiRequest("POST", "/api/vendor/products", data);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      console.log("[createMutation] Produto criado, invalidando cache e refetching...");
+      
       // Invalidar cache para forçar atualização da lista
-      queryClient.invalidateQueries({ queryKey: ["/api/vendor/products", vendorId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/vendor/products"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/marketplace/products"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/vendor/products", vendorId] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/vendor/products"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/marketplace/products"] });
+      
+      // Forçar refetch imediato
+      await refetch();
       
       // Limpar formulário
       setIsAddingProduct(false);
