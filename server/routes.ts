@@ -124,6 +124,265 @@ export async function registerRoutes(
   // Setup customer authentication (Google, GitHub, Apple, etc)
   await setupAuth(app);
 
+  // ============== WEBHOOK ABACATEPAY - ROTA PRINCIPAL (goldnetsteam.shop/webhook) ==============
+  // CORS configurado para aceitar requisições externas do AbacatePay
+  app.options("/webhook", (req, res) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Webhook-Signature, X-Abacatepay-Signature");
+    res.status(200).end();
+  });
+
+  app.post("/webhook", async (req, res) => {
+    // CORS headers para requisições externas
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Webhook-Signature, X-Abacatepay-Signature");
+
+    // DEBUG: Log no início da rota
+    console.log('Webhook recebido em /webhook:', req.body?.event);
+    console.log("==========================================");
+    console.log("[/webhook] PAYLOAD COMPLETO:", JSON.stringify(req.body, null, 2));
+    console.log("==========================================");
+
+    try {
+      const payload = req.body;
+      const event = payload?.event || payload?.eventType || "";
+
+      // Verificar se é evento de pagamento confirmado (billing.paid)
+      const isPaid = event === "billing.paid" || 
+                     event === "BILLING.PAID" ||
+                     event === "payment.confirmed" ||
+                     event === "PAYMENT.CONFIRMED" ||
+                     event === "pixQrCode.paid" ||
+                     event === "PIXQRCODE.PAID";
+
+      console.log("[/webhook] Evento:", event, "| isPaid:", isPaid);
+
+      if (!isPaid) {
+        console.log("[/webhook] Evento ignorado (não é pagamento confirmado)");
+        return res.status(200).json({ success: true, message: "Webhook processado - evento ignorado" });
+      }
+
+      // ========== LOCALIZAR PEDIDO ==========
+      let order = null;
+      let orderId: number | null = null;
+      let metodoEncontrado = "";
+
+      // Extrair billing_id do payload (pode estar em diferentes locais)
+      const billingId = payload.data?.id || 
+                        payload.data?.billing?.id || 
+                        payload.data?.pixQrCode?.id ||
+                        payload.billingId ||
+                        payload.id;
+
+      console.log("[/webhook] billing_id extraído:", billingId);
+
+      if (billingId) {
+        // Buscar pedido onde abacatepayBillingId == billing_id
+        const allOrders = await storage.getOrders();
+        const matchedOrder = allOrders.find((o: any) => o.abacatepayBillingId === billingId);
+        
+        if (matchedOrder) {
+          order = matchedOrder;
+          orderId = matchedOrder.id;
+          metodoEncontrado = "billing_id";
+          console.log("[/webhook] ✓ Pedido encontrado por billing_id! OrderId:", orderId);
+        } else {
+          console.log("[/webhook] Nenhum pedido com billing_id:", billingId);
+        }
+      }
+
+      // MÉTODO SECUNDÁRIO: Buscar pelo order_id nos metadados
+      if (!order) {
+        const metadataOrderId = payload.data?.metadata?.order_id ||
+                                payload.data?.metadata?.orderId ||
+                                payload.data?.billing?.metadata?.order_id ||
+                                payload.data?.billing?.metadata?.orderId ||
+                                payload.metadata?.order_id ||
+                                payload.metadata?.orderId;
+
+        console.log("[/webhook] metadata.order_id extraído:", metadataOrderId);
+
+        if (metadataOrderId) {
+          orderId = parseInt(metadataOrderId);
+          order = await storage.getOrder(orderId);
+          if (order) {
+            metodoEncontrado = "metadata.order_id";
+            console.log("[/webhook] ✓ Pedido encontrado por metadata.order_id! OrderId:", orderId);
+          }
+        }
+      }
+
+      // MÉTODO TERCIÁRIO: Buscar pelo externalId do produto (formato: "order-123")
+      if (!order) {
+        const externalId = payload.data?.billing?.products?.[0]?.externalId ||
+                           payload.data?.products?.[0]?.externalId;
+        
+        console.log("[/webhook] externalId extraído:", externalId);
+
+        if (externalId && externalId.startsWith("order-")) {
+          orderId = parseInt(externalId.replace("order-", ""));
+          order = await storage.getOrder(orderId);
+          if (order) {
+            metodoEncontrado = "externalId";
+            console.log("[/webhook] ✓ Pedido encontrado por externalId! OrderId:", orderId);
+          }
+        }
+      }
+
+      // Se não encontrou o pedido, retornar 200 mesmo assim
+      if (!order || !orderId) {
+        console.error("[/webhook] ❌ PEDIDO NÃO ENCONTRADO - billing_id:", billingId);
+        console.error("[/webhook] Payload completo:", JSON.stringify(payload, null, 2));
+        return res.status(200).json({ success: true, message: "Webhook processado - pedido não encontrado" });
+      }
+
+      console.log("[/webhook] Pedido localizado:", {
+        id: order.id,
+        status_atual: order.status,
+        metodo: metodoEncontrado
+      });
+
+      // Verificar se já foi processado
+      if (order.status === "paid" || order.status === "approved") {
+        console.log("[/webhook] Pedido já pago, ignorando duplicata");
+        return res.status(200).json({ success: true, message: "Webhook processado - pedido já pago" });
+      }
+
+      // ========== ATUALIZAR STATUS PARA 'approved' E 'paid' ==========
+      console.log("[/webhook] >>> ATUALIZANDO STATUS PARA 'approved' e 'paid' <<<");
+      
+      await storage.updateOrder(orderId, {
+        status: "paid",
+      });
+
+      // Verificar se salvou
+      const orderAtualizado = await storage.getOrder(orderId);
+      console.log("[/webhook] ✓ STATUS ATUALIZADO! Novo status:", orderAtualizado?.status);
+
+      if (orderAtualizado?.status !== "paid") {
+        console.error("[/webhook] ❌ FALHA CRÍTICA: Status não foi atualizado!");
+      }
+
+      // ========== EXECUTAR LÓGICA DE ENTREGA (CRÍTICO) ==========
+      // Retirar Key do estoque e salvar no pedido
+      let deliveredContent = "";
+      
+      try {
+        const orderItems = await storage.getOrderItems(orderId);
+        
+        for (const item of orderItems) {
+          const product = await storage.getProduct(item.productId);
+          const quantity = item.quantity || 1;
+
+          if (product && product.stock) {
+            const stockLines = product.stock.split("\n").filter((line: string) => line.trim());
+
+            if (stockLines.length >= quantity) {
+              // FIFO: Retirar keys do estoque
+              for (let i = 0; i < quantity; i++) {
+                deliveredContent += stockLines[i] + "\n";
+              }
+              const remainingStock = stockLines.slice(quantity).join("\n");
+              await storage.updateProduct(item.productId, { stock: remainingStock });
+              console.log("[/webhook] ✓ Entregue:", quantity, "item(s) de", product.name);
+              console.log("[/webhook] ✓ Estoque restante:", stockLines.length - quantity, "linhas");
+            } else {
+              console.warn("[/webhook] ⚠️ Estoque insuficiente para", product.name);
+            }
+          }
+        }
+
+        // Salvar conteúdo entregue no pedido
+        if (deliveredContent.trim()) {
+          const settings = readSettings();
+          const storeName = settings?.storeName || "NexStore";
+          const whatsappMessage = `Olá! Pagamento confirmado. Pedido #${orderId}:\n\n${deliveredContent.trim()}`;
+          const whatsappLink = order.whatsapp 
+            ? generateWhatsAppLink(order.whatsapp, whatsappMessage)
+            : null;
+
+          await storage.updateOrder(orderId, {
+            deliveredContent: deliveredContent.trim(),
+            whatsappDeliveryLink: whatsappLink,
+          });
+          console.log("[/webhook] ✓ Conteúdo entregue salvo no pedido");
+        }
+      } catch (deliveryError: any) {
+        console.error("[/webhook] Erro na entrega (status já salvo):", deliveryError.message);
+      }
+
+      // ========== ATUALIZAR SALDO DO REVENDEDOR ==========
+      try {
+        if (order.resellerId) {
+          const reseller = await storage.getReseller(order.resellerId);
+          if (reseller) {
+            const valorVenda = parseFloat(order.totalAmount as string || "0");
+            const currentBalance = parseFloat(reseller.walletBalance as string || "0");
+            const newBalance = currentBalance + valorVenda;
+
+            await storage.updateReseller(order.resellerId, {
+              walletBalance: newBalance.toFixed(2),
+              totalSales: (parseFloat(reseller.totalSales as string || "0") + valorVenda).toFixed(2),
+              totalCommission: (parseFloat(reseller.totalCommission as string || "0") + valorVenda).toFixed(2),
+            });
+            console.log("[/webhook] ✓ Saldo revendedor atualizado:", newBalance.toFixed(2));
+          }
+        }
+      } catch (walletError: any) {
+        console.error("[/webhook] Erro ao atualizar saldo (status já salvo):", walletError.message);
+      }
+
+      // ========== ENVIAR EMAIL DE ENTREGA ==========
+      try {
+        if (order.email && deliveredContent.trim()) {
+          const orderItems = await storage.getOrderItems(orderId);
+          const productNames = orderItems.map((item: any) => item.productName || "Produto Digital").join(", ");
+          const settings = readSettings();
+          const storeName = settings?.storeName || "NexStore";
+
+          console.log("[/webhook] Enviando email para:", order.email);
+          
+          const emailResult = await sendDeliveryEmail({
+            to: order.email,
+            orderId,
+            productName: productNames,
+            deliveredContent: deliveredContent.trim(),
+            storeName,
+          });
+          
+          if (emailResult.success) {
+            console.log("[/webhook] ✓ Email enviado com sucesso");
+          } else {
+            console.error("[/webhook] Erro no email (ignorado):", emailResult.error);
+          }
+        }
+      } catch (emailError: any) {
+        console.error("[/webhook] Erro de email (ignorado):", emailError.message);
+      }
+
+      console.log("==========================================");
+      console.log("[/webhook] PEDIDO", orderId, "PROCESSADO COM SUCESSO!");
+      console.log("==========================================");
+
+      // ========== RESPOSTA FINAL - STATUS 200 PARA ABACATEPAY ==========
+      return res.status(200).json({ 
+        success: true, 
+        message: "Webhook processado com sucesso",
+        orderId: orderId,
+        status: "paid"
+      });
+
+    } catch (error: any) {
+      console.error("[/webhook] ERRO CRÍTICO:", error.message);
+      console.error("[/webhook] Stack:", error.stack);
+      // Mesmo com erro, retornar 200 para o AbacatePay não reenviar
+      return res.status(200).json({ success: true, message: "Webhook processado" });
+    }
+  });
+  // ============== FIM WEBHOOK /webhook ==============
+
   // Customer auth user endpoint
   app.get('/api/auth/user', isCustomerAuthenticated, async (req: any, res) => {
     try {
@@ -3175,7 +3434,8 @@ export async function registerRoutes(
         console.log("[Vendor Stats] ❌ Token not found in tokenToVendor map");
         console.log("[Vendor Stats] Available tokens in map:", tokenToVendor.size);
         
-        for (const [id, token] of vendorTokens.entries()) {
+        const entries = Array.from(vendorTokens.entries());
+        for (const [id, token] of entries) {
           console.log(`[Vendor Stats] Checking token for vendor ${id}: ${token === vendorToken ? "✅ MATCH" : "❌ NO MATCH"}`);
           if (token === vendorToken) {
             vendorId = id;

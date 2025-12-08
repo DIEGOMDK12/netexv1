@@ -88,6 +88,17 @@ Preferred communication style: Simple, everyday language.
 ### External Dependencies
 
 **Payment Processing**
+- **AbacatePay Integration** (Primary PIX Payment Gateway)
+  - PIX QR Code generation via AbacatePay API
+  - **Main Webhook Endpoint**: `POST /webhook` (root path, NOT under /api)
+    - Production URL: `https://goldnetsteam.shop/webhook`
+    - CORS configured for external AbacatePay requests
+    - Handles `billing.paid` event for payment confirmation
+    - Auto-delivery: Removes key from stock and saves to order
+    - Updates order status to `paid`
+    - Sends delivery email automatically
+    - Updates reseller wallet balance
+  - Environment variables: `ABACATEPAY_API_KEY`, `ABACATEPAY_WEBHOOK_SECRET`
 - **Stripe Integration** (Render-compatible, standard SDK)
   - Stripe Checkout for card and boleto payments in BRL
   - Standard webhook verification at `/webhook`
@@ -95,7 +106,7 @@ Preferred communication style: Simple, everyday language.
   - Environment variables: `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`
 - PagSeguro integration for PIX payments (Brazilian instant payment system)
 - Order creation generates PIX QR codes and payment codes
-- Webhook-based payment confirmation
+- Legacy webhooks at `/api/webhook/abacatepay` and `/api/webhooks/abacatepay`
 - Payment polling mechanism in checkout flow
 
 **Development Tools**
@@ -125,6 +136,20 @@ Preferred communication style: Simple, everyday language.
 - Current auth uses simple token-based system instead of sessions
 
 ## Recent Changes
+
+**December 8, 2024 - AbacatePay Webhook at /webhook (Root Path)**
+- Created dedicated webhook endpoint at `POST /webhook` (NOT under /api prefix)
+- Production URL: `https://goldnetsteam.shop/webhook`
+- CORS configured to accept external requests from AbacatePay
+- Debug logging at start: `console.log('Webhook recebido em /webhook:', req.body.event)`
+- Handles `billing.paid` event with full delivery logic:
+  - Locates order by billing_id, metadata.order_id, or externalId
+  - Updates status to 'paid'
+  - Executes FIFO stock delivery (removes keys from stock)
+  - Saves delivered content to order
+  - Updates reseller wallet balance
+  - Sends delivery email
+- Always returns HTTP 200 to AbacatePay (prevents retry loops)
 
 **December 8, 2024 - Per-Reseller Customization (Favicon, OG-Image, Description)**
 - Added 3 new fields to resellers table: `faviconUrl`, `ogImageUrl`, `storeDescription`
