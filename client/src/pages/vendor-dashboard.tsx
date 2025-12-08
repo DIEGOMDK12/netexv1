@@ -70,6 +70,7 @@ export default function VendorDashboard() {
         onLogout={handleLogout}
         storeName={vendor?.storeName || undefined}
         logoUrl={vendor?.logoUrl || undefined}
+        vendorEmail={vendor?.email || undefined}
       >
         {currentPage === "dashboard" && <DashboardMain vendorId={parseInt(vendorId)} />}
         {currentPage === "products" && vendor && <VendorStoreManagement vendorId={parseInt(vendorId)} />}

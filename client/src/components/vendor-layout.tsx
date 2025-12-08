@@ -7,6 +7,7 @@ interface VendorLayoutProps {
   onLogout: () => void;
   storeName?: string;
   logoUrl?: string;
+  vendorEmail?: string;
   children: React.ReactNode;
 }
 
@@ -15,12 +16,13 @@ export function VendorLayout({
   onLogout,
   storeName,
   logoUrl,
+  vendorEmail,
   children,
 }: VendorLayoutProps) {
   return (
     <div className="flex flex-col h-screen" style={{ backgroundColor: "#121212" }}>
       {/* Desktop Navbar - Hidden on mobile */}
-      <VendorNavbarDesktop storeName={storeName} logoUrl={logoUrl} onLogout={onLogout} />
+      <VendorNavbarDesktop storeName={storeName} logoUrl={logoUrl} vendorEmail={vendorEmail} onLogout={onLogout} />
 
       {/* Main Content - Adjust padding based on screen size */}
       <main className="flex-1 overflow-auto p-6 md:pt-16">
@@ -40,7 +42,7 @@ export function VendorLayout({
       </main>
 
       {/* Bottom Navigation - Only on mobile (< md) */}
-      <VendorBottomNav onLogout={onLogout} />
+      <VendorBottomNav vendorEmail={vendorEmail} onLogout={onLogout} />
     </div>
   );
 }

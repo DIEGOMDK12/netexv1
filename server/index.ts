@@ -25,6 +25,13 @@ async function runStartupMigrations() {
     `);
     console.log("[Migration] Added subcategory column to products table");
     
+    // Add viewedByBuyer column to orders table if it doesn't exist
+    await client.query(`
+      ALTER TABLE orders 
+      ADD COLUMN IF NOT EXISTS viewed_by_buyer BOOLEAN DEFAULT FALSE
+    `);
+    console.log("[Migration] Added viewed_by_buyer column to orders table");
+    
     client.release();
     console.log("[Migration] Startup migrations completed successfully");
   } catch (error: any) {

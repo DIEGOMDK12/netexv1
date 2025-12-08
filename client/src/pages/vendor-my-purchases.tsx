@@ -2,8 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Copy, CheckCircle, Gift, Package, ShoppingBag, Calendar, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 import {
   Dialog,
   DialogContent,
@@ -49,6 +50,18 @@ export function VendorMyPurchases({ vendorEmail }: VendorMyPurchasesProps) {
     },
     enabled: !!vendorEmail,
   });
+
+  useEffect(() => {
+    if (vendorEmail && orders.length > 0) {
+      fetch("/api/orders/mark-viewed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: vendorEmail }),
+      }).then(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/orders/unviewed-count", vendorEmail] });
+      }).catch(console.error);
+    }
+  }, [vendorEmail, orders.length]);
 
   const copyContent = async (content: string, itemId: number) => {
     await navigator.clipboard.writeText(content);

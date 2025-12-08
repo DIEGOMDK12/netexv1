@@ -1274,6 +1274,54 @@ export async function registerRoutes(
     }
   });
 
+  // Get unviewed paid orders count for a specific email (for notification badge)
+  app.get("/api/orders/unviewed-count", async (req, res) => {
+    try {
+      const email = req.query.email as string;
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+
+      const allOrders = await storage.getOrders();
+      const unviewedCount = allOrders.filter(
+        o => o.email.toLowerCase() === email.toLowerCase() && 
+             o.status === "paid" && 
+             !o.viewedByBuyer
+      ).length;
+
+      res.json({ count: unviewedCount });
+    } catch (error) {
+      console.error("[Unviewed Orders Count] Error:", error);
+      res.status(500).json({ error: "Failed to get unviewed count" });
+    }
+  });
+
+  // Mark orders as viewed by buyer
+  app.post("/api/orders/mark-viewed", async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+
+      const allOrders = await storage.getOrders();
+      const ordersToMark = allOrders.filter(
+        o => o.email.toLowerCase() === email.toLowerCase() && 
+             o.status === "paid" && 
+             !o.viewedByBuyer
+      );
+
+      for (const order of ordersToMark) {
+        await storage.updateOrder(order.id, { viewedByBuyer: true });
+      }
+
+      res.json({ success: true, markedCount: ordersToMark.length });
+    } catch (error) {
+      console.error("[Mark Orders Viewed] Error:", error);
+      res.status(500).json({ error: "Failed to mark orders as viewed" });
+    }
+  });
+
   app.post("/api/orders", async (req, res) => {
     try {
       const { email, whatsapp, customerName, customerCpf, items, couponCode, discountAmount, totalAmount } = req.body;

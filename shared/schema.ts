@@ -143,6 +143,7 @@ export const orders = pgTable("orders", {
   imei: text("imei"),
   resellerId: integer("reseller_id"),
   whatsappDeliveryLink: text("whatsapp_delivery_link"),
+  viewedByBuyer: boolean("viewed_by_buyer").default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
