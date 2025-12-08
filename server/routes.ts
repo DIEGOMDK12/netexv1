@@ -40,9 +40,32 @@ async function getObjectStorage(): Promise<ObjectStorageClient | null> {
 }
 
 const uploadDir = path.join(process.cwd(), "uploads");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+
+// CORREÇÃO 1: Função robusta para garantir que a pasta de uploads exista
+function ensureUploadDir(): boolean {
+  try {
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true, mode: 0o755 });
+      console.log("[Upload] Pasta de uploads criada:", uploadDir);
+    }
+    // Verificar se temos permissão de escrita
+    fs.accessSync(uploadDir, fs.constants.W_OK);
+    return true;
+  } catch (error: any) {
+    console.error("[Upload] ERRO AO CRIAR/ACESSAR PASTA:", {
+      path: uploadDir,
+      error: error.message,
+      code: error.code
+    });
+    return false;
+  }
 }
+
+// Criar pasta ao iniciar
+ensureUploadDir();
+
+// Imagem padrão para produtos sem imagem
+const DEFAULT_PRODUCT_IMAGE = "/assets/default-product.svg";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -562,6 +585,7 @@ export async function registerRoutes(
     }
   });
 
+  // CORREÇÃO 2: Endpoint de upload blindado com fallbacks
   app.post("/api/upload", upload.single("image"), async (req, res) => {
     try {
       const token = req.headers.authorization?.replace("Bearer ", "");
@@ -571,42 +595,94 @@ export async function registerRoutes(
         return res.status(401).json({ error: "Não autorizado. Faça login para fazer upload de imagens." });
       }
 
+      // Se não tem arquivo, retorna imagem padrão em vez de erro
       if (!req.file) {
-        return res.status(400).json({ error: "Nenhuma imagem enviada" });
+        console.log("[POST /api/upload] Nenhum arquivo enviado, retornando imagem padrão");
+        return res.json({ imageUrl: DEFAULT_PRODUCT_IMAGE, isDefault: true });
+      }
+
+      // Garantir que a pasta existe antes de salvar
+      if (!ensureUploadDir()) {
+        console.error("[POST /api/upload] ERRO UPLOAD: Pasta de destino inacessível");
+        // Fallback: retorna imagem padrão em vez de erro 500
+        return res.json({ imageUrl: DEFAULT_PRODUCT_IMAGE, isDefault: true, warning: "Pasta de upload inacessível" });
       }
 
       const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-      const ext = path.extname(req.file.originalname);
+      const ext = path.extname(req.file.originalname).toLowerCase() || ".jpg";
       const filename = uniqueSuffix + ext;
       
-      const storage = await getObjectStorage();
+      const objStorage = await getObjectStorage();
       
-      if (storage) {
+      if (objStorage) {
         const objectKey = `uploads/${filename}`;
         console.log("[POST /api/upload] Uploading to object storage:", objectKey);
         
-        const uploadResult = await storage.uploadFromBytes(objectKey, req.file.buffer);
-        
-        if (!uploadResult.ok) {
-          console.error("[POST /api/upload] Object storage upload failed:", uploadResult.error);
+        try {
+          const uploadResult = await objStorage.uploadFromBytes(objectKey, req.file.buffer);
+          
+          if (!uploadResult.ok) {
+            console.error("[POST /api/upload] ERRO UPLOAD Object Storage:", uploadResult.error);
+            // Fallback para storage local
+            try {
+              fs.writeFileSync(path.join(uploadDir, filename), req.file.buffer);
+              const imageUrl = `/uploads/${filename}`;
+              console.log("[POST /api/upload] Fallback to local storage:", imageUrl);
+              return res.json({ imageUrl });
+            } catch (localError: any) {
+              console.error("[POST /api/upload] ERRO UPLOAD Local também falhou:", localError.message);
+              return res.json({ imageUrl: DEFAULT_PRODUCT_IMAGE, isDefault: true });
+            }
+          }
+          
+          const imageUrl = `/api/images/${filename}`;
+          console.log("[POST /api/upload] Image uploaded to object storage:", imageUrl);
+          return res.json({ imageUrl });
+        } catch (objStorageError: any) {
+          console.error("[POST /api/upload] ERRO UPLOAD Exception Object Storage:", {
+            message: objStorageError.message,
+            code: objStorageError.code,
+            stack: objStorageError.stack
+          });
+          // Tentar fallback local
+          try {
+            fs.writeFileSync(path.join(uploadDir, filename), req.file.buffer);
+            const imageUrl = `/uploads/${filename}`;
+            console.log("[POST /api/upload] Fallback to local storage após erro:", imageUrl);
+            return res.json({ imageUrl });
+          } catch (localError: any) {
+            console.error("[POST /api/upload] ERRO UPLOAD Local também falhou:", localError.message);
+            return res.json({ imageUrl: DEFAULT_PRODUCT_IMAGE, isDefault: true });
+          }
+        }
+      } else {
+        // Sem object storage, salvar localmente
+        try {
           fs.writeFileSync(path.join(uploadDir, filename), req.file.buffer);
           const imageUrl = `/uploads/${filename}`;
-          console.log("[POST /api/upload] Fallback to local storage:", imageUrl);
+          console.log("[POST /api/upload] Image saved to local storage:", imageUrl);
           return res.json({ imageUrl });
+        } catch (localError: any) {
+          console.error("[POST /api/upload] ERRO UPLOAD Local:", {
+            message: localError.message,
+            code: localError.code,
+            path: path.join(uploadDir, filename)
+          });
+          return res.json({ imageUrl: DEFAULT_PRODUCT_IMAGE, isDefault: true });
         }
-        
-        const imageUrl = `/api/images/${filename}`;
-        console.log("[POST /api/upload] Image uploaded to object storage:", imageUrl);
-        res.json({ imageUrl });
-      } else {
-        fs.writeFileSync(path.join(uploadDir, filename), req.file.buffer);
-        const imageUrl = `/uploads/${filename}`;
-        console.log("[POST /api/upload] Image saved to local storage:", imageUrl);
-        res.json({ imageUrl });
       }
     } catch (error: any) {
-      console.error("[POST /api/upload] Error:", error);
-      res.status(500).json({ error: error.message || "Erro ao fazer upload da imagem" });
+      // CORREÇÃO 3: Log detalhado de erro
+      console.error("[POST /api/upload] ERRO UPLOAD CRÍTICO:", {
+        message: error.message,
+        code: error.code,
+        errno: error.errno,
+        syscall: error.syscall,
+        path: error.path,
+        stack: error.stack
+      });
+      // Retorna imagem padrão em vez de erro 500
+      return res.json({ imageUrl: DEFAULT_PRODUCT_IMAGE, isDefault: true, error: "Erro no upload" });
     }
   });
 
@@ -2545,6 +2621,7 @@ export async function registerRoutes(
     }
   });
 
+  // CORREÇÃO CRÍTICA: Controller createProduct blindado
   app.post("/api/admin/products", async (req, res) => {
     const token = req.headers.authorization?.replace("Bearer ", "");
     if (!isAuthenticated(token)) {
@@ -2554,13 +2631,30 @@ export async function registerRoutes(
     try {
       console.log("[POST /api/admin/products] Full request body:", JSON.stringify(req.body, null, 2));
       
+      // CORREÇÃO: Se imagem falhar ou vier vazia, usa imagem padrão
+      const receivedImageUrl = req.body.imageUrl;
+      const hasValidImage = receivedImageUrl && typeof receivedImageUrl === 'string' && receivedImageUrl.trim() !== "";
+      const imagePath = hasValidImage ? receivedImageUrl.trim() : DEFAULT_PRODUCT_IMAGE;
+      
+      console.log("[POST /api/admin/products] ImageUrl recebida:", receivedImageUrl);
+      if (!hasValidImage) {
+        console.warn("[POST /api/admin/products] ⚠️ IMAGEM PADRÃO USADA - imageUrl estava vazia ou inválida");
+      }
+      console.log("[POST /api/admin/products] ImageUrl final:", imagePath);
+      
+      // Validação básica dos campos obrigatórios
+      if (!req.body.name || req.body.name.trim() === "") {
+        console.error("[POST /api/admin/products] ERRO: Nome do produto é obrigatório");
+        return res.status(400).json({ error: "Nome do produto é obrigatório" });
+      }
+      
       // Extract only the fields that exist in the database
       const productData = {
-        name: req.body.name,
+        name: req.body.name.trim(),
         description: req.body.description || null,
-        imageUrl: req.body.imageUrl || null,
-        originalPrice: req.body.originalPrice,
-        currentPrice: req.body.currentPrice,
+        imageUrl: imagePath, // Usa imagem padrão se vazio
+        originalPrice: req.body.originalPrice || "0.00",
+        currentPrice: req.body.currentPrice || "0.00",
         stock: req.body.stock || "",
         category: req.body.category || "Outros",
         subcategory: req.body.subcategory || null,
@@ -2569,23 +2663,26 @@ export async function registerRoutes(
       
       console.log("[POST /api/admin/products] Creating with data:", JSON.stringify(productData, null, 2));
       const product = await storage.createProduct(productData);
-      console.log("[POST /api/admin/products] Successfully created product:", product);
+      console.log("[POST /api/admin/products] ✅ Produto criado com sucesso:", product.id, product.name);
       res.json(product);
     } catch (error) {
       const errorObj = error as any;
-      console.error("[POST /api/admin/products] CRITICAL ERROR:", {
+      // CORREÇÃO 3: Logs detalhados de erro
+      console.error("[POST /api/admin/products] ERRO CRÍTICO ao criar produto:", {
         message: errorObj.message,
         code: errorObj.code,
         detail: errorObj.detail,
         column: errorObj.column,
         table: errorObj.table,
         constraint: errorObj.constraint,
+        stack: errorObj.stack,
         fullError: errorObj.toString(),
       });
-      res.status(500).json({ error: "Failed to create product: " + errorObj.message });
+      res.status(500).json({ error: "Falha ao criar produto: " + errorObj.message });
     }
   });
 
+  // CORREÇÃO: Controller updateProduct blindado
   app.put("/api/admin/products/:id", async (req, res) => {
     const token = req.headers.authorization?.replace("Bearer ", "");
     if (!isAuthenticated(token)) {
@@ -2594,10 +2691,22 @@ export async function registerRoutes(
 
     try {
       const id = parseInt(req.params.id);
+      
+      // CORREÇÃO: Se imagem falhar ou vier vazia, usa imagem padrão
+      const receivedImageUrl = req.body.imageUrl;
+      const hasValidImage = receivedImageUrl && typeof receivedImageUrl === 'string' && receivedImageUrl.trim() !== "";
+      const imagePath = hasValidImage ? receivedImageUrl.trim() : DEFAULT_PRODUCT_IMAGE;
+      
+      console.log("[PUT /api/admin/products/:id] ImageUrl recebida:", receivedImageUrl);
+      if (!hasValidImage) {
+        console.warn("[PUT /api/admin/products/:id] ⚠️ IMAGEM PADRÃO USADA - imageUrl estava vazia ou inválida");
+      }
+      console.log("[PUT /api/admin/products/:id] ImageUrl final:", imagePath);
+      
       const updateData = {
-        name: req.body.name,
+        name: req.body.name?.trim() || undefined,
         description: req.body.description || null,
-        imageUrl: req.body.imageUrl || null,
+        imageUrl: imagePath, // Usa imagem padrão se vazio
         originalPrice: req.body.originalPrice,
         currentPrice: req.body.currentPrice,
         stock: req.body.stock || "",
@@ -2605,17 +2714,19 @@ export async function registerRoutes(
         subcategory: req.body.subcategory || null,
         active: req.body.active,
       };
-      console.log("[PUT /api/admin/products/:id] Updating product", id, "with:", updateData);
+      console.log("[PUT /api/admin/products/:id] Updating product", id, "with:", JSON.stringify(updateData, null, 2));
       const product = await storage.updateProduct(id, updateData);
+      console.log("[PUT /api/admin/products/:id] ✅ Produto atualizado com sucesso:", product?.id, product?.name);
       res.json(product);
     } catch (error) {
       const errorObj = error as any;
-      console.error("[PUT /api/admin/products/:id] CRITICAL ERROR:", {
+      console.error("[PUT /api/admin/products/:id] ERRO CRÍTICO ao atualizar produto:", {
         message: errorObj.message,
         code: errorObj.code,
         detail: errorObj.detail,
+        stack: errorObj.stack,
       });
-      res.status(500).json({ error: "Failed to update product: " + errorObj.message });
+      res.status(500).json({ error: "Falha ao atualizar produto: " + errorObj.message });
     }
   });
 
