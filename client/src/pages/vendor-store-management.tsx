@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { 
   Plus, Trash2, Edit2, Loader2, Upload, ChevronDown, ChevronUp,
@@ -125,18 +125,27 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
     const uncategorized: Product[] = [];
     
     products.forEach((product) => {
-      if (product.categoryId) {
-        if (!grouped[product.categoryId]) {
-          grouped[product.categoryId] = [];
+      // Se o vendedor tem categorias locais, agrupa por elas
+      // Caso contrário, todos os produtos vão para "sem categoria"
+      if (categories.length > 0 && product.categoryId) {
+        // Verificar se existe uma categoria do vendedor com esse ID
+        const hasVendorCategory = categories.some(cat => cat.id === product.categoryId);
+        if (hasVendorCategory) {
+          if (!grouped[product.categoryId]) {
+            grouped[product.categoryId] = [];
+          }
+          grouped[product.categoryId].push(product);
+        } else {
+          // Produto tem categoryId do marketplace, mas vendedor não tem essa categoria local
+          uncategorized.push(product);
         }
-        grouped[product.categoryId].push(product);
       } else {
         uncategorized.push(product);
       }
     });
 
     return { grouped, uncategorized };
-  }, [products]);
+  }, [products, categories]);
 
   const reorderCategoriesMutation = useMutation({
     mutationFn: async (orderedIds: number[]) => {
@@ -256,6 +265,17 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
       limitPerUser: false,
     });
   };
+
+  // Auto-expand "SEM CATEGORIA" section when there are uncategorized products
+  useEffect(() => {
+    if (productsByCategory.uncategorized.length > 0 && !expandedCategories.has(-1)) {
+      setExpandedCategories((prev) => {
+        const next = new Set(prev);
+        next.add(-1);
+        return next;
+      });
+    }
+  }, [productsByCategory.uncategorized.length]);
 
   const toggleCategory = (categoryId: number) => {
     setExpandedCategories((prev) => {
