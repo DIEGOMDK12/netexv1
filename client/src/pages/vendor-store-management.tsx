@@ -470,52 +470,31 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
 
   return (
     <div className="space-y-4 pb-20">
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <h1 className="text-xl font-bold text-white truncate" data-testid="text-page-title">
-              Gerenciar Loja
-            </h1>
-            <p className="text-gray-400 text-xs">
-              Organize seus produtos por categorias
-            </p>
-          </div>
-          {(categories.length > 0 || products.length > 0) && (
-            <div className="flex gap-2 flex-shrink-0 overflow-x-auto">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={collapseAll}
-                className="text-gray-300 border-gray-600 whitespace-nowrap"
-                data-testid="button-collapse-all"
-              >
-                Recolher tudo
-              </Button>
-              <Button
-                size="sm"
-                onClick={openNewCategory}
-                className="bg-blue-600 hover:bg-blue-700 whitespace-nowrap"
-                data-testid="button-new-category"
-              >
-                <Plus className="w-4 h-4 mr-1" />
-                Nova Categoria
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => openNewProduct()}
-                className="whitespace-nowrap"
-                style={{
-                  background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)",
-                }}
-                data-testid="button-new-product"
-              >
-                <Plus className="w-4 h-4 mr-1" />
-                Novo Produto
-              </Button>
-            </div>
-          )}
+      {(categories.length > 0 || products.length > 0) && (
+        <div className="flex justify-end gap-2">
+          <Button
+            size="sm"
+            onClick={openNewCategory}
+            className="bg-blue-600 hover:bg-blue-700 whitespace-nowrap"
+            data-testid="button-new-category"
+          >
+            <Plus className="w-4 h-4 mr-1 flex-shrink-0" />
+            <span className="truncate">Nova Categoria</span>
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => openNewProduct()}
+            className="whitespace-nowrap"
+            style={{
+              background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)",
+            }}
+            data-testid="button-new-product"
+          >
+            <Plus className="w-4 h-4 mr-1 flex-shrink-0" />
+            <span className="truncate">Novo Produto</span>
+          </Button>
         </div>
-      </div>
+      )}
 
       <div className="space-y-2">
         <DndContext
@@ -1031,7 +1010,7 @@ function SortableCategoryItem({
       data-testid={`category-accordion-${category.id}`}
     >
       <div
-        className="flex items-center gap-3 p-4 cursor-pointer transition-colors"
+        className="flex items-center gap-2 px-4 py-3 cursor-pointer transition-colors"
         style={{ backgroundColor: "#1f2937" }}
         onClick={onToggle}
         data-testid={`button-toggle-category-${category.id}`}
@@ -1039,23 +1018,20 @@ function SortableCategoryItem({
         <div
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing touch-none"
+          className="cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
           onClick={(e) => e.stopPropagation()}
           data-testid={`drag-handle-category-${category.id}`}
         >
-          <GripVertical className="w-5 h-5 text-gray-500 flex-shrink-0 hover:text-gray-300" />
+          <GripVertical className="w-5 h-5 text-gray-500 hover:text-gray-300" />
         </div>
         <FolderOpen className="w-5 h-5 text-blue-400 flex-shrink-0" />
-        <span className="font-bold text-white uppercase flex-1">
+        <span className="font-bold text-white uppercase flex-1 min-w-0 truncate">
           {category.name}
         </span>
-        <Badge variant="secondary" className="bg-blue-600/20 text-blue-400 border-0">
-          Categoria
-        </Badge>
-        <Badge variant="outline" className="text-gray-400 border-gray-600">
-          {categoryProducts.length} produto{categoryProducts.length !== 1 ? "s" : ""}
-        </Badge>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <Badge variant="outline" className="text-gray-400 border-gray-600">
+            {categoryProducts.length}
+          </Badge>
           <Button
             size="icon"
             variant="ghost"
@@ -1080,12 +1056,12 @@ function SortableCategoryItem({
           >
             <Trash2 className="w-4 h-4" />
           </Button>
+          {isExpanded ? (
+            <ChevronUp className="w-5 h-5 text-gray-400" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-gray-400" />
+          )}
         </div>
-        {isExpanded ? (
-          <ChevronUp className="w-5 h-5 text-gray-400 transition-transform" />
-        ) : (
-          <ChevronDown className="w-5 h-5 text-gray-400 transition-transform" />
-        )}
       </div>
 
       <div
