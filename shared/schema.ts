@@ -202,9 +202,21 @@ export const settings = pgTable("settings", {
 export const insertProductSchema = createInsertSchema(products);
 export const insertOrderSchema = createInsertSchema(orders);
 export const insertOrderItemSchema = createInsertSchema(orderItems);
-export const insertCouponSchema = createInsertSchema(coupons).omit({ id: true, createdAt: true, usedCount: true });
+
+const baseCouponSchema = createInsertSchema(coupons);
+export const insertCouponSchema = baseCouponSchema.omit({ 
+  id: true as const, 
+  createdAt: true as const, 
+  usedCount: true as const 
+});
+
 export const insertSettingsSchema = createInsertSchema(settings);
-export const insertAnnouncementSettingsSchema = createInsertSchema(announcementSettings).omit({ id: true, createdAt: true });
+
+const baseAnnouncementSettingsSchema = createInsertSchema(announcementSettings);
+export const insertAnnouncementSettingsSchema = baseAnnouncementSettingsSchema.omit({ 
+  id: true as const, 
+  createdAt: true as const 
+});
 
 export const insertResellersSchema = createInsertSchema(resellers);
 
@@ -255,6 +267,10 @@ export type WithdrawalRequest = typeof withdrawalRequests.$inferSelect;
 export type InsertWithdrawalRequest = z.infer<typeof insertWithdrawalRequestSchema>;
 
 // Webhook types
-export const insertWebhookSchema = createInsertSchema(webhooks).omit({ id: true, createdAt: true });
+const baseWebhookSchema = createInsertSchema(webhooks);
+export const insertWebhookSchema = baseWebhookSchema.omit({ 
+  id: true as const, 
+  createdAt: true as const 
+});
 export type Webhook = typeof webhooks.$inferSelect;
 export type InsertWebhook = z.infer<typeof insertWebhookSchema>;
