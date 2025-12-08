@@ -1,4 +1,6 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 function escapeHtml(text: string): string {
   const htmlEntities: Record<string, string> = {
@@ -10,16 +12,6 @@ function escapeHtml(text: string): string {
   };
   return text.replace(/[&<>"']/g, (char) => htmlEntities[char] || char);
 }
-
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
 
 interface DeliveryEmailParams {
   to: string;
@@ -35,9 +27,9 @@ export async function enviarEntrega(
   produto_nome: string, 
   key: string
 ): Promise<{ success: boolean; error?: string }> {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-    console.error("[Email] SMTP credentials not configured (SMTP_USER/SMTP_PASS)");
-    return { success: false, error: "SMTP credentials not configured" };
+  if (!process.env.RESEND_API_KEY) {
+    console.error("[Email] RESEND_API_KEY not configured");
+    return { success: false, error: "RESEND_API_KEY not configured" };
   }
 
   try {
@@ -121,12 +113,17 @@ export async function enviarEntrega(
       </html>
     `;
 
-    await transporter.sendMail({
-      from: process.env.SMTP_USER,
+    const result = await resend.emails.send({
+      from: "noreply@nexstore.com",
       to: email_cliente,
       subject: `Sua chave de ativacao - ${produto_nome}`,
       html: htmlContent,
     });
+
+    if (result.error) {
+      console.error("[Email] Erro ao enviar:", result.error);
+      return { success: false, error: result.error.message || "Erro desconhecido" };
+    }
 
     console.log(`[Email] Entrega enviada para ${email_cliente} - Produto: ${produto_nome}`);
     return { success: true };
@@ -144,9 +141,9 @@ export async function sendDeliveryEmail({
   deliveredContent,
   storeName = "NexStore",
 }: DeliveryEmailParams): Promise<{ success: boolean; error?: string }> {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-    console.error("[Email] SMTP credentials not configured (SMTP_USER/SMTP_PASS)");
-    return { success: false, error: "SMTP credentials not configured" };
+  if (!process.env.RESEND_API_KEY) {
+    console.error("[Email] RESEND_API_KEY not configured");
+    return { success: false, error: "RESEND_API_KEY not configured" };
   }
 
   try {
@@ -228,12 +225,17 @@ export async function sendDeliveryEmail({
       </html>
     `;
 
-    await transporter.sendMail({
-      from: process.env.SMTP_USER,
+    const result = await resend.emails.send({
+      from: "noreply@nexstore.com",
       to: to,
       subject: `Seu pedido #${orderId} - ${productName}`,
       html: htmlContent,
     });
+
+    if (result.error) {
+      console.error("[Email] Exception:", result.error);
+      return { success: false, error: result.error.message || "Unknown error" };
+    }
 
     console.log(`[Email] Delivery email sent to ${to} for order #${orderId}`);
     return { success: true };

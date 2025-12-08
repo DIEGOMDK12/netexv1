@@ -326,6 +326,8 @@ export async function registerRoutes(
       if (order.email) {
         const productNames = orderItems.map((item: any) => item.productName || "Produto Digital").join(", ");
         const settings = readSettings();
+        
+        // Don't block the response, but log properly
         sendDeliveryEmail({
           to: order.email,
           orderId,
@@ -338,7 +340,11 @@ export async function registerRoutes(
           } else {
             console.error(`[POST /api/admin/orders/:id/approve] ❌ Email failed: ${result.error}`);
           }
+        }).catch(err => {
+          console.error(`[POST /api/admin/orders/:id/approve] ❌ Email exception:`, err.message);
         });
+      } else {
+        console.log(`[POST /api/admin/orders/:id/approve] ⚠️ No email provided, skipping delivery email`);
       }
 
       console.log(`[POST /api/admin/orders/:id/approve] ✓ Order ${orderId} approved successfully`);
