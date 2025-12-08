@@ -34,20 +34,22 @@ type ProductWithSeller = Product & {
 };
 
 const categoryIcons: Record<string, any> = {
-  "games": Gamepad2,
-  "steam": Gamepad2,
-  "streaming-tv": Tv,
-  "cursos-tutoriais": Star,
-  "outros": Gift,
+  "games-mobile": Smartphone,
+  "games-pc": Gamepad2,
+  "steam-plataformas": Gamepad2,
+  "streaming": Tv,
+  "cursos": Star,
+  "softwares": Headphones,
   "default": Gamepad2,
 };
 
 const categoryImages: Record<string, string> = {
-  "games": "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=200&h=200&fit=crop",
-  "steam": "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=200&h=200&fit=crop",
-  "streaming-tv": "https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=200&h=200&fit=crop",
-  "cursos-tutoriais": "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=200&h=200&fit=crop",
-  "outros": "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=200&h=200&fit=crop",
+  "games-mobile": "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=200&h=200&fit=crop",
+  "games-pc": "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=200&h=200&fit=crop",
+  "steam-plataformas": "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=200&h=200&fit=crop",
+  "streaming": "https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=200&h=200&fit=crop",
+  "cursos": "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=200&h=200&fit=crop",
+  "softwares": "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=200&h=200&fit=crop",
   "default": "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=200&h=200&fit=crop",
 };
 

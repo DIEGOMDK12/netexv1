@@ -482,13 +482,20 @@ export async function registerRoutes(
     try {
       console.log("[GET /api/marketplace/categories] Fetching fixed global categories...");
       const cats = await storage.getCategories();
-      // Fixed category slugs that should be shown
-      const fixedCategorySlugs = ["games", "steam", "streaming-tv", "cursos-tutoriais", "outros"];
+      // Fixed category slugs that should be shown (marketplace categories)
+      const fixedCategorySlugs = [
+        "games-mobile",
+        "games-pc",
+        "steam-plataformas",
+        "streaming",
+        "cursos",
+        "softwares"
+      ];
       // Filter only active fixed categories (no resellerId) and sort by displayOrder
       const globalCats = cats
         .filter((c: any) => !c.resellerId && c.active && fixedCategorySlugs.includes(c.slug))
         .sort((a: any, b: any) => (a.displayOrder || 0) - (b.displayOrder || 0));
-      console.log("[GET /api/marketplace/categories] Returning", globalCats.length, "fixed categories");
+      console.log("[GET /api/marketplace/categories] Returning", globalCats.length, "marketplace categories");
       res.json(globalCats);
     } catch (error: any) {
       console.error("[GET /api/marketplace/categories] Error:", error.message, error.stack);
@@ -2988,15 +2995,22 @@ export async function registerRoutes(
   });
 
   // Get categories with subcategories for dropdown (public endpoint)
-  // Returns only the 5 fixed categories: Games, Steam, Streaming & TV, Cursos & Tutoriais, Outros
+  // Returns the 6 marketplace categories for product creation/filtering
   app.get("/api/categories/with-subcategories", async (req, res) => {
     try {
       const cats = await storage.getCategories();
-      // Fixed category slugs that should be shown
-      const fixedCategorySlugs = ["games", "steam", "streaming-tv", "cursos-tutoriais", "outros"];
-      // Filter only active fixed categories (no resellerId, displayOrder > 0) and sort by displayOrder
+      // Marketplace category slugs that should be shown
+      const marketplaceCategorySlugs = [
+        "games-mobile",
+        "games-pc",
+        "steam-plataformas",
+        "streaming",
+        "cursos",
+        "softwares"
+      ];
+      // Filter only active marketplace categories (no resellerId) and sort by displayOrder
       const globalCats = cats
-        .filter((c: any) => !c.resellerId && c.active && fixedCategorySlugs.includes(c.slug))
+        .filter((c: any) => !c.resellerId && c.active && marketplaceCategorySlugs.includes(c.slug))
         .sort((a: any, b: any) => (a.displayOrder || 0) - (b.displayOrder || 0));
       res.json(globalCats);
     } catch (error) {

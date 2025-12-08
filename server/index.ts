@@ -38,54 +38,116 @@ async function seedFixedCategories() {
   try {
     const { storage } = await import("./storage");
     
-    const fixedCategories = [
+    const CATEGORIAS_MERCADO = [
       {
-        name: "Games",
-        slug: "games",
-        icon: "gamepad",
+        name: "Games Mobile",
+        slug: "games-mobile",
+        icon: "https://cdn-icons-png.flaticon.com/512/7994/7994396.png",
         displayOrder: 1,
-        subcategories: ["Contas", "Itens", "Moedas", "Servicos", "Outros"]
+        subcategories: [
+          "Free Fire - Diamantes",
+          "Free Fire - Contas",
+          "Roblox - Robux",
+          "Roblox - Contas/Itens",
+          "Clash Royale",
+          "Brawl Stars",
+          "COD Mobile",
+          "8 Ball Pool",
+          "Outros Jogos Mobile"
+        ]
       },
       {
-        name: "Steam",
-        slug: "steam",
-        icon: "steam",
+        name: "Games PC & Console",
+        slug: "games-pc",
+        icon: "https://cdn-icons-png.flaticon.com/512/5727/5727284.png",
         displayOrder: 2,
-        subcategories: ["Chaves (Keys)", "Contas", "Gift Cards", "Jogos", "Saldo"]
+        subcategories: [
+          "Valorant - Contas",
+          "Valorant - VP (Points)",
+          "League of Legends - Contas",
+          "League of Legends - RP",
+          "Fortnite - V-Bucks/Skins",
+          "Minecraft - Full Acesso",
+          "GTA V / FiveM",
+          "CS2 (Counter-Strike)",
+          "Outros Jogos PC"
+        ]
+      },
+      {
+        name: "Steam & Plataformas",
+        slug: "steam-plataformas",
+        icon: "https://cdn-icons-png.flaticon.com/512/220/220223.png",
+        displayOrder: 3,
+        subcategories: [
+          "Steam - Chaves (Random Keys)",
+          "Steam - Jogos (Gifts)",
+          "Steam - Contas",
+          "Steam - Saldo/Gift Card",
+          "Xbox Game Pass",
+          "PlayStation Plus",
+          "Epic Games",
+          "Battle.net"
+        ]
       },
       {
         name: "Streaming & TV",
-        slug: "streaming-tv",
-        icon: "tv",
-        displayOrder: 3,
-        subcategories: ["Netflix", "Disney+", "Prime Video", "Spotify", "IPTV", "Outros"]
-      },
-      {
-        name: "Cursos & Tutoriais",
-        slug: "cursos-tutoriais",
-        icon: "book",
+        slug: "streaming",
+        icon: "https://cdn-icons-png.flaticon.com/512/2989/2989836.png",
         displayOrder: 4,
-        subcategories: ["Marketing", "Programacao", "Metodos", "E-books", "Mentoria"]
+        subcategories: [
+          "Netflix - Telas/Contas",
+          "YouTube Premium",
+          "Disney+ / Star+",
+          "Amazon Prime Video",
+          "Spotify Premium",
+          "HBO Max",
+          "IPTV / P2P / Canais",
+          "Crunchyroll"
+        ]
       },
       {
-        name: "Outros",
-        slug: "outros",
-        icon: "folder",
+        name: "Cursos & Infoprodutos",
+        slug: "cursos",
+        icon: "https://cdn-icons-png.flaticon.com/512/2436/2436874.png",
         displayOrder: 5,
-        subcategories: ["Diversos", "Vouchers", "Promocoes"]
+        subcategories: [
+          "Metodos de Renda Extra",
+          "Cursos de Marketing Digital",
+          "Cursos de Programacao",
+          "Design & Edicao",
+          "PLR & E-books",
+          "Scripts & Bots",
+          "Mentoria"
+        ]
+      },
+      {
+        name: "Softwares & Ferramentas",
+        slug: "softwares",
+        icon: "https://cdn-icons-png.flaticon.com/512/2282/2282194.png",
+        displayOrder: 6,
+        subcategories: [
+          "VPN & Proxy",
+          "Antivirus (Kaspersky/Avast)",
+          "Windows & Office (Chaves)",
+          "Canva Pro",
+          "Adobe Creative Cloud",
+          "Ferramentas de Automacao"
+        ]
       }
     ];
 
-    console.log("[Seed] Starting fixed categories seed...");
+    console.log("[Seed] Starting marketplace categories seed...");
     
-    for (const cat of fixedCategories) {
+    for (const cat of CATEGORIAS_MERCADO) {
       const existing = await storage.getCategoryBySlug(cat.slug);
       if (existing) {
         await storage.updateCategory(existing.id, { 
+          name: cat.name,
           subcategories: cat.subcategories,
           displayOrder: cat.displayOrder,
           icon: cat.icon,
-          active: true
+          active: true,
+          resellerId: null
         });
         console.log(`[Seed] Updated category: ${cat.name}`);
       } else {
@@ -101,9 +163,20 @@ async function seedFixedCategories() {
       }
     }
     
-    console.log("[Seed] Fixed categories seed completed successfully");
+    // Deactivate old categories with legacy slugs to avoid duplicates
+    const legacySlugs = ["games", "steam", "streaming-tv", "cursos-tutoriais", "outros"];
+    console.log("[Seed] Deactivating legacy categories...");
+    for (const slug of legacySlugs) {
+      const legacyCat = await storage.getCategoryBySlug(slug);
+      if (legacyCat && !legacyCat.resellerId) {
+        await storage.updateCategory(legacyCat.id, { active: false });
+        console.log(`[Seed] Deactivated legacy category: ${legacyCat.name}`);
+      }
+    }
+    
+    console.log("[Seed] Marketplace categories seed completed successfully");
   } catch (error: any) {
-    console.error("[Seed] Error seeding fixed categories:", error.message);
+    console.error("[Seed] Error seeding marketplace categories:", error.message);
   }
 }
 

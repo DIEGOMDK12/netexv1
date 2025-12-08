@@ -539,7 +539,7 @@ Chave123456"
                 onClick={() => {
                   setIsAddingProduct(false);
                   setEditingProductId(null);
-                  setFormData({ name: "", price: "", originalPrice: "", description: "", imageUrl: "", stock: "", category: "", deliveryContent: "" });
+                  setFormData({ name: "", price: "", originalPrice: "", description: "", imageUrl: "", stock: "", category: "", subcategory: "", deliveryContent: "" });
                 }}
                 variant="outline"
                 data-testid="button-cancel-product"
