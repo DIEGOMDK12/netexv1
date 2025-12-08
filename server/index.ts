@@ -63,6 +63,12 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
   
   // This is a custom domain - look up the reseller
   try {
+    // Skip if host looks invalid (contains spaces, SQL, or shell commands)
+    if (!host || host.includes(" ") || host.includes(";") || host.includes("$") || host.length > 253) {
+      console.log(`[Custom Domain] Invalid host format, skipping: ${host.substring(0, 50)}`);
+      return next();
+    }
+    
     const { storage } = await import("./storage");
     const reseller = await storage.getResellerByDomain(host);
     
@@ -91,7 +97,7 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
       console.log(`[Custom Domain] No reseller found for domain: ${host}`);
     }
   } catch (error) {
-    console.error("[Custom Domain] Error looking up domain:", error);
+    console.error("[Custom Domain] Error looking up domain:", (error as any).message || error);
   }
   
   next();
@@ -136,6 +142,11 @@ app.use((req, res, next) => {
 
 async function verifyPendingPayments() {
   try {
+    // Check if ABACATEPAY_API_KEY is configured before proceeding
+    if (!process.env.ABACATEPAY_API_KEY) {
+      return; // Silently skip if no API key configured
+    }
+    
     const { storage } = await import("./storage");
     const { db } = await import("./db");
     const { orders, orderItems } = await import("../shared/schema");
