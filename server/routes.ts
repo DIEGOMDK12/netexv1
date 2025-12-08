@@ -2916,6 +2916,19 @@ export async function registerRoutes(
     }
   });
 
+  // Admin route to delete categories
+  app.delete("/api/admin/categories/:id", async (req, res) => {
+    try {
+      const categoryId = parseInt(req.params.id);
+      await storage.deleteCategory(categoryId);
+      console.log("[Admin] Deleted category:", categoryId);
+      res.json({ success: true, deletedId: categoryId });
+    } catch (error) {
+      console.error("[Admin Delete Category] Error:", error);
+      res.status(500).json({ error: "Failed to delete category" });
+    }
+  });
+
   // Seed fixed categories with subcategories
   app.post("/api/admin/seed-categories", async (req, res) => {
     try {
