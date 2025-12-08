@@ -3151,12 +3151,20 @@ export async function registerRoutes(
 
   // Vendor Products Routes
   app.get("/api/vendor/products", async (req, res) => {
-    const vendorId = parseInt(req.query.vendorId as string);
+    // CORREÇÃO 2: Pegar vendorId do query OU do token autenticado
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    let vendorId = parseInt(req.query.vendorId as string);
     
-    console.log("[Vendor Products GET] vendorId from query:", vendorId, "raw query:", req.query);
+    // Se não veio do query, tenta pegar do token
+    if (!vendorId && token && tokenToVendor.has(token)) {
+      vendorId = tokenToVendor.get(token)!;
+      console.log("[Vendor Products GET] ✓ vendorId obtido do token:", vendorId);
+    }
+    
+    console.log("[Vendor Products GET] vendorId final:", vendorId, "| query:", req.query.vendorId, "| token:", token ? "presente" : "ausente");
     
     if (!vendorId) {
-      console.log("[Vendor Products GET] Missing vendorId - returning ALL products for debugging");
+      console.log("[Vendor Products GET] ⚠️ Missing vendorId - returning ALL products for debugging");
       try {
         const allProducts = await storage.getProducts();
         console.log("[Vendor Products GET] Returning all products:", allProducts.length);
@@ -3167,9 +3175,16 @@ export async function registerRoutes(
     }
 
     try {
-      console.log("[Vendor Products GET] Fetching products for vendor:", vendorId);
+      console.log("[Vendor Products GET] Fetching ALL products for vendor:", vendorId, "(sem filtro de status)");
+      // CORREÇÃO 2: getResellerProducts retorna TODOS os produtos do revendedor (ativos e inativos)
       const products = await storage.getResellerProducts(vendorId);
-      console.log("[Vendor Products GET] Found products:", products.length);
+      console.log("[Vendor Products GET] ✓ Found", products.length, "products for vendor", vendorId);
+      
+      // Log detalhado de cada produto
+      products.forEach((p: any) => {
+        console.log(`[Vendor Products GET] - ID ${p.id}: "${p.name}" | active: ${p.active} | resellerId: ${p.resellerId}`);
+      });
+      
       res.json(products);
     } catch (error) {
       console.error("[Vendor Products] Error:", error);
@@ -3305,11 +3320,29 @@ export async function registerRoutes(
 
   app.post("/api/vendor/products", async (req, res) => {
     try {
-      const { name, description, imageUrl, originalPrice, currentPrice, stock, category, subcategory, resellerId, deliveryContent, active, slug, categoryId: reqCategoryId, limitPerUser } = req.body;
+      const { name, description, imageUrl, originalPrice, currentPrice, stock, category, subcategory, resellerId: bodyResellerId, deliveryContent, active, slug, categoryId: reqCategoryId, limitPerUser } = req.body;
+
+      // CORREÇÃO 1: Obter resellerId do token autenticado OU do body
+      const token = req.headers.authorization?.replace("Bearer ", "");
+      let finalResellerId: number | undefined = undefined;
+      
+      // Primeiro tenta pegar do token (usuário logado)
+      if (token && tokenToVendor.has(token)) {
+        finalResellerId = tokenToVendor.get(token);
+        console.log("[Create Product] ✓ resellerId obtido do token autenticado:", finalResellerId);
+      }
+      
+      // Se não veio do token, usa do body
+      if (!finalResellerId && bodyResellerId) {
+        finalResellerId = bodyResellerId;
+        console.log("[Create Product] resellerId obtido do body:", finalResellerId);
+      }
 
       console.log("[Create Product] Request body:", { 
         name, 
-        resellerId,
+        resellerId: finalResellerId,
+        bodyResellerId,
+        tokenResellerId: token ? tokenToVendor.get(token) : null,
         active,
         slug,
         categoryId: reqCategoryId,
@@ -3317,10 +3350,10 @@ export async function registerRoutes(
         deliveryContent: deliveryContent ? deliveryContent.substring(0, 50) : "MISSING"
       });
 
-      // Validate required fields
-      if (!resellerId) {
-        console.error("[Create Product] Missing resellerId!");
-        return res.status(400).json({ error: "Missing resellerId" });
+      // Validate required fields - agora usa finalResellerId
+      if (!finalResellerId) {
+        console.error("[Create Product] ❌ Missing resellerId! Não veio do token nem do body");
+        return res.status(400).json({ error: "Missing resellerId - usuário não autenticado" });
       }
 
       if (!name || !name.trim()) {
@@ -3389,7 +3422,7 @@ export async function registerRoutes(
         categoryId,
         active: isActive,
         limitPerUser: limitPerUser || false,
-        resellerId,
+        resellerId: finalResellerId, // CORREÇÃO: Usa o resellerId do token ou body
       });
 
       console.log("[Create Product] Product created successfully:", { id: product.id, resellerId: product.resellerId, stockCount: stockItems, active: isActive });
