@@ -8,35 +8,35 @@
   --opaque-button-border-intensity: 9;
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
-  --background: 220 40% 3%;
+  --background: 222 47% 6%;
   --foreground: 0 0% 98%;
-  --border: 200 30% 16%;
-  --card: 220 35% 8%;
+  --border: 217 33% 17%;
+  --card: 222 47% 9%;
   --card-foreground: 0 0% 98%;
-  --card-border: 200 35% 20%;
-  --sidebar: 220 40% 5%;
+  --card-border: 217 33% 20%;
+  --sidebar: 222 47% 5%;
   --sidebar-foreground: 0 0% 98%;
-  --sidebar-border: 200 30% 14%;
-  --sidebar-primary: 190 100% 45%;
+  --sidebar-border: 217 33% 14%;
+  --sidebar-primary: 217 91% 60%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 200 30% 14%;
+  --sidebar-accent: 217 33% 14%;
   --sidebar-accent-foreground: 0 0% 95%;
-  --sidebar-ring: 190 100% 50%;
-  --popover: 220 35% 8%;
+  --sidebar-ring: 217 91% 60%;
+  --popover: 222 47% 9%;
   --popover-foreground: 0 0% 98%;
-  --popover-border: 200 30% 16%;
-  --primary: 190 100% 50%;
+  --popover-border: 217 33% 17%;
+  --primary: 217 91% 60%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 200 20% 18%;
+  --secondary: 217 33% 17%;
   --secondary-foreground: 0 0% 98%;
-  --muted: 200 20% 15%;
+  --muted: 217 33% 15%;
   --muted-foreground: 0 0% 70%;
-  --accent: 260 90% 55%;
-  --accent-foreground: 260 90% 8%;
+  --accent: 217 91% 60%;
+  --accent-foreground: 0 0% 100%;
   --destructive: 0 84% 45%;
   --destructive-foreground: 0 20% 98%;
-  --input: 200 20% 22%;
-  --ring: 190 100% 50%;
+  --input: 217 33% 20%;
+  --ring: 217 91% 60%;
   --chart-1: 290 70% 65%;
   --chart-2: 320 70% 65%;
   --chart-3: 260 60% 70%;
@@ -87,12 +87,12 @@
   }
 
   html {
-    background: linear-gradient(135deg, #030818 0%, #0a1428 100%);
+    background: #0f172a;
   }
 
   body {
     @apply font-sans antialiased text-foreground;
-    background: linear-gradient(135deg, #030818 0%, #0a1428 100%);
+    background: #0f172a;
     min-height: 100vh;
   }
 }
@@ -236,40 +236,42 @@
   }
 
   .product-card {
-    background: rgba(10, 20, 40, 0.5);
+    background: rgba(15, 23, 42, 0.8);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(14, 165, 233, 0.25);
-    border-radius: 16px;
+    border: 1px solid rgba(37, 99, 235, 0.2);
+    border-radius: 12px;
     padding: 12px;
-    box-shadow: 0 8px 32px rgba(14, 165, 233, 0.12);
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
     overflow: hidden;
   }
 
   .product-card:hover {
-    transform: translateY(-5px);
-    border-color: rgba(14, 165, 233, 0.6);
-    box-shadow: 0 15px 40px rgba(14, 165, 233, 0.2);
-    background: rgba(15, 25, 50, 0.7);
+    transform: translateY(-2px);
+    border-color: rgba(37, 99, 235, 0.5);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   }
 
   .btn-comprar {
-    background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 50%, #7c3aff 100%);
+    background: #2563eb;
     color: white;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 12px;
+    border: none;
+    border-radius: 8px;
     padding: 10px 20px;
     font-weight: 600;
     width: 100%;
     cursor: pointer;
-    box-shadow: 0 0px 20px rgba(14, 165, 233, 0.4), 0 4px 12px rgba(6, 182, 212, 0.25);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
     transition: all 0.2s ease;
+  }
+
+  .btn-comprar:hover {
+    background: #1d4ed8;
   }
 
   .btn-comprar:active {
     transform: scale(0.98);
-    box-shadow: 0 0px 15px rgba(14, 165, 233, 0.6), 0 2px 6px rgba(6, 182, 212, 0.35);
   }
 
   .btn-disabled {

@@ -6,14 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { Info, Wallet } from "lucide-react";
+import { Info, Wallet, User } from "lucide-react";
 
 export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: number; vendorData: any }) {
   const { toast } = useToast();
   const [settings, setSettings] = useState({
     storeName: vendorData?.storeName || "",
     logoUrl: vendorData?.logoUrl || "",
-    themeColor: vendorData?.themeColor || "#3B82F6",
     pixKey: vendorData?.pixKey || "",
     phone: vendorData?.phone || "",
     cpf: vendorData?.cpf || "",
@@ -54,7 +53,6 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
     saveMutation.mutate({
       storeName: settings.storeName,
       logoUrl: settings.logoUrl,
-      themeColor: settings.themeColor,
       pixKey: settings.pixKey,
       phone: settings.phone,
       cpf: settings.cpf,
@@ -68,16 +66,16 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
       {/* Informativo sobre Pagamentos */}
       <Card
         style={{
-          background: "rgba(20, 184, 166, 0.1)",
+          background: "rgba(37, 99, 235, 0.1)",
           backdropFilter: "blur(12px)",
-          border: "1px solid rgba(20, 184, 166, 0.3)",
+          border: "1px solid rgba(37, 99, 235, 0.3)",
         }}
       >
         <CardContent className="py-4">
-          <div className="flex items-start gap-3 p-4 rounded-lg bg-teal-500/10">
-            <Info className="w-5 h-5 text-teal-400 mt-0.5 flex-shrink-0" />
+          <div className="flex items-start gap-3 p-4 rounded-lg bg-blue-500/10">
+            <Info className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="text-sm text-teal-300">
+              <p className="text-sm text-blue-300">
                 Os pagamentos dos seus clientes sao processados automaticamente pelo gateway da plataforma. O saldo das vendas fica disponivel para saque na sua carteira.
               </p>
             </div>
@@ -156,7 +154,7 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
         </CardContent>
       </Card>
 
-      {/* Store Customization */}
+      {/* Perfil do Vendedor */}
       <Card
         style={{
           background: "rgba(30, 30, 30, 0.4)",
@@ -165,15 +163,23 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
         }}
       >
         <CardHeader>
-          <CardTitle className="text-white">Personalizacao da Loja</CardTitle>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+              <User className="w-5 h-5 text-blue-400" />
+            </div>
+            <div>
+              <CardTitle className="text-white">Perfil do Vendedor</CardTitle>
+              <p className="text-sm text-gray-400 mt-1">Informacoes exibidas no marketplace</p>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label className="text-white">Nome da Loja</Label>
+            <Label className="text-white">Nome do Vendedor / Loja</Label>
             <Input
               value={settings.storeName}
               onChange={(e) => setSettings({ ...settings, storeName: e.target.value })}
-              placeholder="Minha Loja"
+              placeholder="Seu nome ou nome da loja"
               style={{
                 background: "rgba(30, 30, 40, 0.4)",
                 backdropFilter: "blur(10px)",
@@ -185,11 +191,11 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
           </div>
 
           <div className="space-y-2">
-            <Label className="text-white">URL da Logo</Label>
+            <Label className="text-white">URL do Avatar/Logo</Label>
             <Input
               value={settings.logoUrl}
               onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value })}
-              placeholder="https://exemplo.com/logo.png"
+              placeholder="https://exemplo.com/avatar.png"
               style={{
                 background: "rgba(30, 30, 40, 0.4)",
                 backdropFilter: "blur(10px)",
@@ -198,39 +204,13 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
               }}
               data-testid="input-logo-url"
             />
-            <p className="text-xs text-gray-500">Link direto para sua logo (PNG/JPG)</p>
+            <p className="text-xs text-gray-500">Imagem do seu perfil no marketplace</p>
             {settings.logoUrl && (
               <div className="mt-2 p-3 rounded-lg border border-white/10 bg-white/5">
                 <p className="text-xs text-gray-400 mb-2">Previa:</p>
-                <img src={settings.logoUrl} alt="Logo preview" className="h-10 object-contain" />
+                <img src={settings.logoUrl} alt="Avatar preview" className="w-12 h-12 rounded-full object-cover" />
               </div>
             )}
-          </div>
-
-          <div className="space-y-3">
-            <Label className="text-white">Cor do Tema</Label>
-            <div className="flex items-center gap-4 flex-col sm:flex-row">
-              <div className="relative w-full sm:w-24 h-12 rounded-lg border border-white/20 overflow-hidden">
-                <input
-                  type="color"
-                  value={settings.themeColor}
-                  onChange={(e) => setSettings({ ...settings, themeColor: e.target.value })}
-                  className="w-full h-full cursor-pointer"
-                  data-testid="input-theme-color"
-                />
-              </div>
-              <p className="text-sm text-gray-400">{settings.themeColor}</p>
-            </div>
-            <div className="mt-4 p-4 rounded-lg border border-white/10 flex items-center gap-3">
-              <div
-                className="w-8 h-8 rounded-lg"
-                style={{ backgroundColor: settings.themeColor }}
-              />
-              <div>
-                <p className="text-sm text-gray-400">Cor selecionada</p>
-                <p className="text-xs text-gray-500">Seus botoes aparecerao nesta cor</p>
-              </div>
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -258,7 +238,7 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
       <Button
         onClick={handleSaveSettings}
         disabled={saveMutation.isPending}
-        className="w-full bg-teal-600 hover:bg-teal-700 text-white h-10"
+        className="w-full bg-blue-600 hover:bg-blue-700 text-white h-10"
         data-testid="button-save-settings"
       >
         {saveMutation.isPending ? "Salvando..." : "Salvar Configuracoes"}
