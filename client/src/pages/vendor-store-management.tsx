@@ -479,14 +479,18 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
               style={{ backgroundColor: "#1f2937" }}
             >
               <div className="p-4 space-y-3">
-                {productsByCategory.uncategorized.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    onEdit={() => openEditProduct(product)}
-                    onDelete={() => setShowDeleteProductConfirm(product.id)}
-                  />
-                ))}
+                {productsByCategory.uncategorized.map((product) => {
+                  const categoryName = marketplaceCategories.find(c => c.id === product.categoryId)?.name;
+                  return (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      onEdit={() => openEditProduct(product)}
+                      onDelete={() => setShowDeleteProductConfirm(product.id)}
+                      marketplaceCategoryName={categoryName}
+                    />
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -968,10 +972,12 @@ function ProductCard({
   product,
   onEdit,
   onDelete,
+  marketplaceCategoryName,
 }: {
   product: Product;
   onEdit: () => void;
   onDelete: () => void;
+  marketplaceCategoryName?: string;
 }) {
   const stockCount = product.stock?.split("\n").filter((line) => line.trim()).length || 0;
 
@@ -996,8 +1002,13 @@ function ProductCard({
       </div>
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <h4 className="font-medium text-white truncate">{product.name}</h4>
+          {marketplaceCategoryName && (
+            <Badge variant="outline" className="text-blue-400 border-blue-600/50 text-xs bg-blue-600/10">
+              {marketplaceCategoryName}
+            </Badge>
+          )}
           {!product.active && (
             <Badge variant="outline" className="text-gray-500 border-gray-600 text-xs">
               Oculto
