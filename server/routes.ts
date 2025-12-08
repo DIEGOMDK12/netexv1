@@ -3185,6 +3185,13 @@ export async function registerRoutes(
         console.log(`[Vendor Products GET] - ID ${p.id}: "${p.name}" | active: ${p.active} | resellerId: ${p.resellerId}`);
       });
       
+      // CORREÇÃO: Forçar no-cache para evitar 304 e garantir dados atualizados
+      res.set({
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Surrogate-Control': 'no-store'
+      });
       res.json(products);
     } catch (error) {
       console.error("[Vendor Products] Error:", error);

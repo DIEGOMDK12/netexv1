@@ -47,20 +47,28 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
     queryKey: ["/api/vendor/products", vendorId],
     queryFn: async () => {
       console.log("[VendorProducts] Fetching products for vendor:", vendorId);
-      const response = await fetch(`/api/vendor/products?vendorId=${vendorId}`, {
-        headers: getAuthHeaders(),
+      // Adiciona timestamp para forçar bypass do cache do browser
+      const timestamp = Date.now();
+      const response = await fetch(`/api/vendor/products?vendorId=${vendorId}&_t=${timestamp}`, {
+        headers: {
+          ...getAuthHeaders(),
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        },
         credentials: "include",
+        cache: 'no-store',
       });
       if (!response.ok) {
         console.error("[VendorProducts] Error fetching products:", response.status);
         throw new Error("Failed to fetch products");
       }
       const data = await response.json();
-      console.log("[VendorProducts] Got products:", data.length);
+      console.log("[VendorProducts] Got products:", data.length, data);
       return data;
     },
     staleTime: 0,
-    refetchOnMount: true,
+    refetchOnMount: 'always',
+    gcTime: 0,
   });
 
   const { data: allCategories = [] } = useQuery<Category[]>({
