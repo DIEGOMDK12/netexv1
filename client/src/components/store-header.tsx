@@ -1,5 +1,4 @@
 import { ShoppingCart, Store } from "lucide-react";
-import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useStore } from "@/lib/store-context";
@@ -48,17 +47,7 @@ export function StoreHeader({ themeColor, textColor, storeName, logoUrl }: Store
         </div>
       </div>
 
-      <div className="flex items-center gap-2 md:gap-3">
-        <Link href="/login">
-          <Button
-            variant="ghost"
-            className="text-xs md:text-sm text-gray-300 hover:text-white"
-            data-testid="button-vendor-login"
-          >
-            Login
-          </Button>
-        </Link>
-        
+      <div className="flex items-center ml-auto">
         <Button
           size="icon"
           variant="ghost"
