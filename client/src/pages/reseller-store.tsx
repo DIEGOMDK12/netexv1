@@ -334,14 +334,14 @@ export default function ResellerStore() {
                         data-testid={`card-flash-${product.id}`}
                       >
                         <div 
-                          className="relative aspect-square overflow-hidden cursor-pointer rounded-lg"
+                          className="relative aspect-video overflow-hidden cursor-pointer rounded-lg bg-gray-900"
                           onClick={() => window.location.href = `/loja/${slug}/produto/${product.id}`}
                         >
                           {product.imageUrl ? (
                             <img
                               src={product.imageUrl}
                               alt={product.name}
-                              className="w-full h-full object-contain bg-gray-900 group-hover:scale-105 transition-transform duration-300"
+                              className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                             />
                           ) : (
                             <div className="w-full h-full bg-gradient-to-br from-purple-900/30 to-pink-900/30 flex items-center justify-center">
@@ -445,14 +445,14 @@ export default function ResellerStore() {
                         data-testid={`card-product-${product.id}`}
                       >
                         <div 
-                          className="relative aspect-square overflow-hidden cursor-pointer rounded-lg"
+                          className="relative aspect-video overflow-hidden cursor-pointer rounded-lg bg-gray-900"
                           onClick={() => window.location.href = `/loja/${slug}/produto/${product.id}`}
                         >
                           {product.imageUrl ? (
                             <img
                               src={product.imageUrl}
                               alt={product.name}
-                              className="w-full h-full object-contain bg-gray-900 group-hover:scale-105 transition-transform duration-300"
+                              className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                             />
                           ) : (
                             <div className="w-full h-full bg-gradient-to-br from-purple-900/30 to-pink-900/30 flex items-center justify-center">

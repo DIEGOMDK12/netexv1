@@ -351,12 +351,12 @@ function ProductCardMini({ product }: { product: ProductWithSeller }) {
         className="bg-[#1e293b] rounded-lg overflow-hidden cursor-pointer group"
         data-testid={`card-product-${product.id}`}
       >
-        <div className="aspect-square relative overflow-hidden">
+        <div className="aspect-video relative overflow-hidden bg-gray-900">
           {product.imageUrl ? (
             <img 
               src={product.imageUrl} 
               alt={product.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-blue-900/50 to-slate-800 flex items-center justify-center">
