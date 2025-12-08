@@ -89,6 +89,17 @@ export const resellers = pgTable("resellers", {
   storeDescription: text("store_description"),
 });
 
+// Webhooks table for purchase notifications
+export const webhooks = pgTable("webhooks", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  resellerId: integer("reseller_id").notNull(),
+  name: text("name").notNull().default("Webhook"),
+  url: text("url").notNull(),
+  secret: text("secret").notNull(),
+  active: boolean("active").default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const products = pgTable("products", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   name: text("name").notNull(),
@@ -242,3 +253,8 @@ export const insertWithdrawalRequestSchema = createInsertSchema(withdrawalReques
 
 export type WithdrawalRequest = typeof withdrawalRequests.$inferSelect;
 export type InsertWithdrawalRequest = z.infer<typeof insertWithdrawalRequestSchema>;
+
+// Webhook types
+export const insertWebhookSchema = createInsertSchema(webhooks).omit({ id: true, createdAt: true });
+export type Webhook = typeof webhooks.$inferSelect;
+export type InsertWebhook = z.infer<typeof insertWebhookSchema>;

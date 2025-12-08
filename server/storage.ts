@@ -1,5 +1,5 @@
 import { 
-  products, orders, orderItems, coupons, settings, resellers, categories, customerUsers, withdrawalRequests, announcementSettings,
+  products, orders, orderItems, coupons, settings, resellers, categories, customerUsers, withdrawalRequests, announcementSettings, webhooks,
   type Product, type InsertProduct,
   type Order, type InsertOrder,
   type OrderItem, type InsertOrderItem,
@@ -9,7 +9,8 @@ import {
   type Category, type InsertCategory,
   type CustomerUser, type UpsertCustomerUser,
   type WithdrawalRequest, type InsertWithdrawalRequest,
-  type AnnouncementSetting, type InsertAnnouncementSetting
+  type AnnouncementSetting, type InsertAnnouncementSetting,
+  type Webhook, type InsertWebhook
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, isNotNull, inArray, and, sql } from "drizzle-orm";
@@ -78,6 +79,12 @@ export interface IStorage {
   // Sanitization
   sanitizeOrphanProducts(): Promise<{ deleted: number; orphanIds: number[] }>;
   getValidProducts(): Promise<Product[]>;
+
+  // Webhooks
+  getWebhooks(resellerId: number): Promise<Webhook[]>;
+  getWebhook(id: number): Promise<Webhook | undefined>;
+  createWebhook(webhook: InsertWebhook): Promise<Webhook>;
+  deleteWebhook(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -462,6 +469,25 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(products.id));
 
     return validProducts;
+  }
+
+  // Webhook methods
+  async getWebhooks(resellerId: number): Promise<Webhook[]> {
+    return db.select().from(webhooks).where(eq(webhooks.resellerId, resellerId)).orderBy(desc(webhooks.id));
+  }
+
+  async getWebhook(id: number): Promise<Webhook | undefined> {
+    const [webhook] = await db.select().from(webhooks).where(eq(webhooks.id, id));
+    return webhook || undefined;
+  }
+
+  async createWebhook(webhook: InsertWebhook): Promise<Webhook> {
+    const [created] = await db.insert(webhooks).values(webhook).returning();
+    return created;
+  }
+
+  async deleteWebhook(id: number): Promise<void> {
+    await db.delete(webhooks).where(eq(webhooks.id, id));
   }
 }
 

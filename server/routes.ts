@@ -2934,6 +2934,96 @@ export async function registerRoutes(
     }
   });
 
+  // ==================== WEBHOOKS ====================
+  
+  // Get vendor webhooks
+  app.get("/api/vendor/webhooks", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const vendorId = tokenToVendor.get(token);
+    if (!vendorId) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    try {
+      const webhooksList = await storage.getWebhooks(vendorId);
+      res.json(webhooksList);
+    } catch (error) {
+      console.error("[Vendor Webhooks GET] Error:", error);
+      res.status(500).json({ error: "Failed to get webhooks" });
+    }
+  });
+
+  // Create webhook
+  app.post("/api/vendor/webhooks", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const vendorId = tokenToVendor.get(token);
+    if (!vendorId) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    const { name, url } = req.body;
+
+    if (!url) {
+      return res.status(400).json({ error: "URL is required" });
+    }
+
+    try {
+      const { generateWebhookSecret } = await import("./webhookService");
+      const secret = generateWebhookSecret();
+
+      const webhook = await storage.createWebhook({
+        resellerId: vendorId,
+        name: name || "Webhook",
+        url,
+        secret,
+        active: true,
+      });
+
+      res.json(webhook);
+    } catch (error) {
+      console.error("[Vendor Webhooks POST] Error:", error);
+      res.status(500).json({ error: "Failed to create webhook" });
+    }
+  });
+
+  // Delete webhook
+  app.delete("/api/vendor/webhooks/:id", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const vendorId = tokenToVendor.get(token);
+    if (!vendorId) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    const webhookId = parseInt(req.params.id);
+
+    try {
+      const webhook = await storage.getWebhook(webhookId);
+      if (!webhook || webhook.resellerId !== vendorId) {
+        return res.status(404).json({ error: "Webhook not found" });
+      }
+
+      await storage.deleteWebhook(webhookId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[Vendor Webhooks DELETE] Error:", error);
+      res.status(500).json({ error: "Failed to delete webhook" });
+    }
+  });
+
+  // ==================== END WEBHOOKS ====================
+
   // Mercado Pago PIX Payment
   app.post("/api/mercadopago/create-pix", async (req, res) => {
     const { resellerId, orderId, totalAmount, email, whatsapp } = req.body;
