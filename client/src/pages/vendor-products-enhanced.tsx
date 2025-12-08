@@ -1,24 +1,24 @@
 import { useState, useMemo, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Plus, Trash2, Edit2, Loader2, Upload, Image } from "lucide-react";
+import { Plus, Trash2, Edit2, Loader2, Upload, Image, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Product } from "@shared/schema";
+import type { Product, Category } from "@shared/schema";
 
 export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
   const { toast } = useToast();
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
-  const [categoryInput, setCategoryInput] = useState("");
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     price: "",
@@ -27,6 +27,7 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
     imageUrl: "",
     stock: "",
     category: "",
+    subcategory: "",
     deliveryContent: "",
   });
 
@@ -39,19 +40,22 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
     },
   });
 
-  const { data: allCategories = [] } = useQuery({
-    queryKey: ["/api/categories"],
+  const { data: allCategories = [] } = useQuery<Category[]>({
+    queryKey: ["/api/categories/with-subcategories"],
     queryFn: async () => {
-      const response = await fetch("/api/categories");
+      const response = await fetch("/api/categories/with-subcategories");
       if (!response.ok) throw new Error("Failed to fetch categories");
       return response.json();
     },
   });
 
-  const filteredCategories = useMemo(() => {
-    const input = categoryInput.toLowerCase();
-    return allCategories.filter((cat: any) => cat.name.toLowerCase().includes(input));
-  }, [categoryInput, allCategories]);
+  const selectedCategory = useMemo(() => {
+    return allCategories.find((cat) => cat.id === selectedCategoryId);
+  }, [selectedCategoryId, allCategories]);
+
+  const availableSubcategories = useMemo(() => {
+    return selectedCategory?.subcategories || [];
+  }, [selectedCategory]);
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -95,7 +99,8 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/vendor/products", vendorId] });
       setEditingProductId(null);
-      setFormData({ name: "", price: "", originalPrice: "", description: "", imageUrl: "", stock: "", category: "", deliveryContent: "" });
+      setSelectedCategoryId(null);
+      setFormData({ name: "", price: "", originalPrice: "", description: "", imageUrl: "", stock: "", category: "", subcategory: "", deliveryContent: "" });
       toast({
         title: "✓ Produto atualizado com sucesso",
       });
@@ -128,12 +133,16 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
       stock: formData.stock,
       deliveryContent: formData.deliveryContent,
       category: formData.category || "Outros",
+      subcategory: formData.subcategory || null,
       resellerId: vendorId,
     });
   };
 
   const handleEditProduct = (product: Product) => {
     setEditingProductId(product.id);
+    // Find the category ID by name to set selectedCategoryId
+    const matchingCat = allCategories.find((c) => c.name === product.category);
+    setSelectedCategoryId(matchingCat?.id || null);
     setFormData({
       name: product.name,
       price: product.currentPrice.toString(),
@@ -142,6 +151,7 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
       imageUrl: product.imageUrl || "",
       stock: product.stock || "",
       category: product.category || "",
+      subcategory: product.subcategory || "",
       deliveryContent: product.deliveryContent || "",
     });
   };
@@ -165,6 +175,7 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
       stock: formData.stock,
       deliveryContent: formData.deliveryContent,
       category: formData.category || "Outros",
+      subcategory: formData.subcategory || null,
     });
   };
 
@@ -306,44 +317,67 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-white">Categoria do Produto *</Label>
-              <div className="relative">
-                <Input
-                  value={categoryInput}
-                  onChange={(e) => {
-                    setCategoryInput(e.target.value);
-                    setFormData({ ...formData, category: e.target.value });
-                    setShowCategoryDropdown(true);
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-white">Categoria *</Label>
+                <Select
+                  value={selectedCategoryId ? String(selectedCategoryId) : ""}
+                  onValueChange={(value) => {
+                    const catId = parseInt(value);
+                    setSelectedCategoryId(catId);
+                    const cat = allCategories.find((c) => c.id === catId);
+                    setFormData({ ...formData, category: cat?.name || "", subcategory: "" });
                   }}
-                  onFocus={() => setShowCategoryDropdown(true)}
-                  placeholder="Digite ou selecione uma categoria"
-                  style={{
-                    background: "rgba(30, 30, 40, 0.4)",
-                    backdropFilter: "blur(10px)",
-                    borderColor: "rgba(255,255,255,0.1)",
-                    color: "#FFFFFF",
-                  }}
-                  data-testid="input-product-category"
-                />
-                {showCategoryDropdown && filteredCategories.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-700 rounded-lg z-10 max-h-40 overflow-y-auto">
-                    {filteredCategories.map((cat: any) => (
-                      <button
-                        key={cat.id}
-                        onClick={() => {
-                          setCategoryInput(cat.name);
-                          setFormData({ ...formData, category: cat.name });
-                          setShowCategoryDropdown(false);
-                        }}
-                        className="w-full text-left px-3 py-2 hover:bg-gray-800 text-white text-sm"
-                        type="button"
-                      >
+                >
+                  <SelectTrigger
+                    className="w-full"
+                    style={{
+                      background: "rgba(30, 30, 40, 0.4)",
+                      backdropFilter: "blur(10px)",
+                      borderColor: "rgba(255,255,255,0.1)",
+                      color: "#FFFFFF",
+                    }}
+                    data-testid="select-product-category"
+                  >
+                    <SelectValue placeholder="Selecione a categoria" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-900 border-gray-700">
+                    {allCategories.map((cat) => (
+                      <SelectItem key={cat.id} value={String(cat.id)} className="text-white">
                         {cat.name}
-                      </button>
+                      </SelectItem>
                     ))}
-                  </div>
-                )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-white">Subcategoria *</Label>
+                <Select
+                  value={formData.subcategory}
+                  onValueChange={(value) => setFormData({ ...formData, subcategory: value })}
+                  disabled={!selectedCategoryId || availableSubcategories.length === 0}
+                >
+                  <SelectTrigger
+                    className="w-full"
+                    style={{
+                      background: "rgba(30, 30, 40, 0.4)",
+                      backdropFilter: "blur(10px)",
+                      borderColor: "rgba(255,255,255,0.1)",
+                      color: "#FFFFFF",
+                    }}
+                    data-testid="select-product-subcategory"
+                  >
+                    <SelectValue placeholder={selectedCategoryId ? "Selecione a subcategoria" : "Escolha uma categoria primeiro"} />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-900 border-gray-700">
+                    {availableSubcategories.map((sub) => (
+                      <SelectItem key={sub} value={sub} className="text-white">
+                        {sub}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

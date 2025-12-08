@@ -2,9 +2,37 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { pool } from "./db";
 
 const app = express();
 const httpServer = createServer(app);
+
+async function runStartupMigrations() {
+  try {
+    const client = await pool.connect();
+    
+    // Add subcategories column to categories table if it doesn't exist
+    await client.query(`
+      ALTER TABLE categories 
+      ADD COLUMN IF NOT EXISTS subcategories TEXT[] DEFAULT '{}'
+    `);
+    console.log("[Migration] Added subcategories column to categories table");
+    
+    // Add subcategory column to products table if it doesn't exist
+    await client.query(`
+      ALTER TABLE products 
+      ADD COLUMN IF NOT EXISTS subcategory TEXT
+    `);
+    console.log("[Migration] Added subcategory column to products table");
+    
+    client.release();
+    console.log("[Migration] Startup migrations completed successfully");
+  } catch (error: any) {
+    console.error("[Migration] Error running startup migrations:", error.message);
+  }
+}
+
+runStartupMigrations();
 
 declare module "http" {
   interface IncomingMessage {

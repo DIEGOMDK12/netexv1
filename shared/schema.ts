@@ -35,6 +35,7 @@ export const categories = pgTable("categories", {
   resellerId: integer("reseller_id"),
   icon: text("icon").default("folder"),
   displayOrder: integer("display_order").default(0),
+  subcategories: text("subcategories").array().default([]),
   active: boolean("active").default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -111,6 +112,7 @@ export const products = pgTable("products", {
   stock: text("stock").notNull().default(""),
   category: text("category").default("Outros"),
   categoryId: integer("category_id"),
+  subcategory: text("subcategory"),
   instructions: text("instructions"),
   warranty: text("warranty"),
   deliveryContent: text("delivery_content"),

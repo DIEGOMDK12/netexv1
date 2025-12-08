@@ -2901,9 +2901,81 @@ export async function registerRoutes(
     }
   });
 
+  // Seed fixed categories with subcategories
+  app.post("/api/admin/seed-categories", async (req, res) => {
+    try {
+      const token = req.headers.authorization?.replace("Bearer ", "");
+      if (!token || !isAuthenticated(token)) {
+        return res.status(401).json({ error: "Nao autorizado" });
+      }
+
+      const fixedCategories = [
+        {
+          name: "Jogos",
+          slug: "jogos",
+          icon: "gamepad",
+          subcategories: ["Free Fire", "Roblox", "Fortnite", "League of Legends", "Valorant", "Minecraft", "GTA V", "FIFA"]
+        },
+        {
+          name: "Plataformas e Contas",
+          slug: "plataformas-contas",
+          icon: "user",
+          subcategories: ["Steam", "PlayStation", "Xbox", "Riot Games", "Epic Games", "EA", "Ubisoft"]
+        },
+        {
+          name: "Servicos Digitais",
+          slug: "servicos-digitais",
+          icon: "tv",
+          subcategories: ["Netflix", "Disney+", "HBO Max", "Spotify", "Cursos", "VPN", "Software", "YouTube Premium"]
+        }
+      ];
+
+      const results = [];
+      for (const cat of fixedCategories) {
+        // Check if category already exists by slug
+        const existing = await storage.getCategoryBySlug(cat.slug);
+        if (existing) {
+          // Update subcategories
+          await storage.updateCategory(existing.id, { subcategories: cat.subcategories });
+          results.push({ ...existing, subcategories: cat.subcategories, action: "updated" });
+        } else {
+          // Create new category
+          const created = await storage.createCategory({
+            name: cat.name,
+            slug: cat.slug,
+            icon: cat.icon,
+            subcategories: cat.subcategories,
+            active: true,
+            displayOrder: 0,
+          });
+          results.push({ ...created, action: "created" });
+        }
+      }
+
+      console.log("[Seed Categories] Seeded categories:", results.map(r => r.name));
+      res.json({ success: true, categories: results });
+    } catch (error: any) {
+      console.error("[Seed Categories] Error:", error);
+      res.status(500).json({ error: "Falha ao criar categorias" });
+    }
+  });
+
+  // Get categories with subcategories for dropdown (public endpoint)
+  app.get("/api/categories/with-subcategories", async (req, res) => {
+    try {
+      const cats = await storage.getCategories();
+      // Filter only active global categories (no resellerId)
+      const globalCats = cats.filter((c: any) => !c.resellerId && c.active);
+      res.json(globalCats);
+    } catch (error) {
+      console.error("[Get Categories With Subcategories] Error:", error);
+      res.status(500).json({ error: "Failed to fetch categories" });
+    }
+  });
+
   app.post("/api/vendor/products", async (req, res) => {
     try {
-      const { name, description, imageUrl, originalPrice, currentPrice, stock, category, resellerId, deliveryContent, active, slug, categoryId: reqCategoryId, limitPerUser } = req.body;
+      const { name, description, imageUrl, originalPrice, currentPrice, stock, category, subcategory, resellerId, deliveryContent, active, slug, categoryId: reqCategoryId, limitPerUser } = req.body;
 
       console.log("[Create Product] Request body:", { 
         name, 
@@ -2980,6 +3052,7 @@ export async function registerRoutes(
         stock: normalizedStock,
         deliveryContent: deliveryContent || "",
         category: category || "Outros",
+        subcategory: subcategory || null,
         categoryId,
         active: isActive,
         limitPerUser: limitPerUser || false,
@@ -3015,7 +3088,7 @@ export async function registerRoutes(
 
   app.patch("/api/vendor/products/:id", async (req, res) => {
     const productId = parseInt(req.params.id);
-    const { name, description, imageUrl, currentPrice, originalPrice, stock, category, deliveryContent, active, slug, categoryId: reqCategoryId, limitPerUser } = req.body;
+    const { name, description, imageUrl, currentPrice, originalPrice, stock, category, subcategory, deliveryContent, active, slug, categoryId: reqCategoryId, limitPerUser } = req.body;
 
     console.log("[Update Product] Updating product", productId, "with:", { 
       name, 
@@ -3054,6 +3127,7 @@ export async function registerRoutes(
       if (stock !== undefined) updateData.stock = stock || "";
       if (deliveryContent !== undefined) updateData.deliveryContent = deliveryContent || "";
       if (category !== undefined) updateData.category = category || "Outros";
+      if (subcategory !== undefined) updateData.subcategory = subcategory || null;
       if (categoryId !== undefined) updateData.categoryId = categoryId;
       if (active !== undefined) updateData.active = active;
       if (limitPerUser !== undefined) updateData.limitPerUser = limitPerUser;
