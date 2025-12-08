@@ -1,11 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLocation } from "wouter";
-import { Loader2, Copy, CheckCircle, Gift } from "lucide-react";
+import { Loader2, Copy, CheckCircle, Gift, Mail, MailCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import {
   Dialog,
   DialogContent,
@@ -27,7 +28,35 @@ export default function MyOrders() {
   const [copied, setCopied] = useState<number | null>(null);
   const [redeemDialogOpen, setRedeemDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<RedeemItem | null>(null);
+  const [resendingOrderId, setResendingOrderId] = useState<number | null>(null);
   const { toast } = useToast();
+
+  const resendEmailMutation = useMutation({
+    mutationFn: async (orderId: number) => {
+      const response = await apiRequest("POST", `/api/orders/${orderId}/resend-email`, { email });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "E-mail reenviado!",
+        description: "Verifique sua caixa de entrada e spam",
+      });
+      setResendingOrderId(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao reenviar e-mail",
+        description: error.message || "Tente novamente mais tarde",
+        variant: "destructive",
+      });
+      setResendingOrderId(null);
+    },
+  });
+
+  const handleResendEmail = (orderId: number) => {
+    setResendingOrderId(orderId);
+    resendEmailMutation.mutate(orderId);
+  };
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ["/api/orders/by-email", email],
@@ -233,6 +262,34 @@ export default function MyOrders() {
                         <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
                           <p className="text-yellow-400 text-sm">
                             Aguardando aprovacao para liberar acesso
+                          </p>
+                        </div>
+                      )}
+
+                      {order.status === "paid" && order.items?.some((item: any) => item.secretContent) && (
+                        <div className="border-t border-gray-700 pt-3 mt-3">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleResendEmail(order.id)}
+                            disabled={resendingOrderId === order.id}
+                            className="w-full border-blue-500/50 text-blue-400"
+                            data-testid={`button-resend-email-${order.id}`}
+                          >
+                            {resendingOrderId === order.id ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Reenviando...
+                              </>
+                            ) : (
+                              <>
+                                <Mail className="w-4 h-4 mr-2" />
+                                Reenviar E-mail de Entrega
+                              </>
+                            )}
+                          </Button>
+                          <p className="text-xs text-gray-500 text-center mt-2">
+                            Nao recebeu o e-mail? Clique para reenviar
                           </p>
                         </div>
                       )}

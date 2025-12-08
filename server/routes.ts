@@ -1207,6 +1207,83 @@ export async function registerRoutes(
     }
   });
 
+  // Resend delivery email for paid orders
+  app.post("/api/orders/:id/resend-email", async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.id);
+      const { email } = req.body;
+      
+      if (isNaN(orderId)) {
+        return res.status(400).json({ error: "ID do pedido invalido" });
+      }
+      
+      const order = await storage.getOrder(orderId);
+
+      if (!order) {
+        return res.status(404).json({ error: "Pedido nao encontrado" });
+      }
+
+      // Verify the email matches the order email for security
+      if (order.email.toLowerCase() !== email?.toLowerCase()) {
+        return res.status(403).json({ error: "Email nao corresponde ao pedido" });
+      }
+
+      if (order.status !== "paid") {
+        return res.status(400).json({ error: "Pedido ainda nao foi pago" });
+      }
+
+      if (!order.deliveredContent) {
+        return res.status(400).json({ error: "Nenhum conteudo para entregar" });
+      }
+
+      // Get order items for product names
+      const orderItems = await storage.getOrderItems(orderId);
+      const productNames = orderItems.map(item => item.productName).join(", ");
+
+      // Get store name from reseller or settings
+      let storeName = "NexStore";
+      if (order.resellerId) {
+        const reseller = await storage.getReseller(order.resellerId);
+        if (reseller?.storeName) {
+          storeName = reseller.storeName;
+        }
+      } else {
+        const settings = await storage.getSettings();
+        if (settings?.storeName) {
+          storeName = settings.storeName;
+        }
+      }
+
+      // Send the delivery email
+      const emailResult = await sendDeliveryEmail({
+        to: order.email,
+        orderId,
+        productName: productNames,
+        deliveredContent: order.deliveredContent,
+        customerName: order.customerName || undefined,
+        storeName,
+      });
+
+      if (!emailResult.success) {
+        console.error(`[Resend Email] Failed to resend email for order ${orderId}:`, emailResult.error);
+        return res.status(500).json({ 
+          error: "Falha ao reenviar e-mail", 
+          details: emailResult.error 
+        });
+      }
+
+      console.log(`[Resend Email] Successfully resent delivery email for order ${orderId} to ${order.email}`);
+      
+      res.json({ 
+        success: true, 
+        message: "E-mail reenviado com sucesso" 
+      });
+    } catch (error: any) {
+      console.error("[Resend Email] Error:", error);
+      res.status(500).json({ error: "Falha ao reenviar e-mail de entrega" });
+    }
+  });
+
   app.post("/api/orders/:id/simulate-payment", async (req, res) => {
     try {
       const orderId = parseInt(req.params.id);
