@@ -9,8 +9,12 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: EXTERNAL_DATABASE_URL
+        sync: false
       - key: DATABASE_URL
         sync: false
       - key: SESSION_SECRET
         generateValue: true
+      - key: RESEND_API_KEY
+        sync: false
     healthCheckPath: /api/settings
