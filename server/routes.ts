@@ -458,9 +458,35 @@ export async function registerRoutes(
       const products = await storage.getValidProducts();
       console.log("[GET /api/products] Returning", products.length, "valid products (with active reseller)");
       res.json(products);
-    } catch (error) {
-      console.error("[GET /api/products] Error:", error);
-      res.status(500).json({ error: "Failed to fetch products" });
+    } catch (error: any) {
+      console.error("[GET /api/products] Error:", error.message, error.stack);
+      res.status(500).json({ error: "Failed to fetch products", details: error.message });
+    }
+  });
+
+  // MARKETPLACE: Get all products with seller info (global home page)
+  app.get("/api/marketplace/products", async (req, res) => {
+    try {
+      console.log("[GET /api/marketplace/products] Fetching all products with seller info...");
+      const productsWithSellers = await storage.getProductsWithSellers();
+      console.log("[GET /api/marketplace/products] Returning", productsWithSellers.length, "products with seller info");
+      res.json(productsWithSellers);
+    } catch (error: any) {
+      console.error("[GET /api/marketplace/products] Error:", error.message, error.stack);
+      res.status(500).json({ error: "Failed to fetch marketplace products", details: error.message });
+    }
+  });
+
+  // Get global unique categories (for marketplace home) - deduplicated by slug
+  app.get("/api/marketplace/categories", async (req, res) => {
+    try {
+      console.log("[GET /api/marketplace/categories] Fetching unique global categories...");
+      const cats = await storage.getUniqueCategories();
+      console.log("[GET /api/marketplace/categories] Returning", cats.length, "unique categories");
+      res.json(cats);
+    } catch (error: any) {
+      console.error("[GET /api/marketplace/categories] Error:", error.message, error.stack);
+      res.status(500).json({ error: "Failed to fetch categories", details: error.message });
     }
   });
 

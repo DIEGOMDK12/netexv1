@@ -86,6 +86,12 @@ export interface IStorage {
   getWebhook(id: number): Promise<Webhook | undefined>;
   createWebhook(webhook: InsertWebhook): Promise<Webhook>;
   deleteWebhook(id: number): Promise<void>;
+  
+  // Marketplace - Products with seller info
+  getProductsWithSellers(): Promise<Array<Product & { seller: { id: number; name: string; storeName: string | null; logoUrl: string | null; slug: string } }>>;
+  
+  // Marketplace - Unique categories (deduplicated by slug)
+  getUniqueCategories(): Promise<Category[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -495,6 +501,99 @@ export class DatabaseStorage implements IStorage {
 
   async deleteWebhook(id: number): Promise<void> {
     await db.delete(webhooks).where(eq(webhooks.id, id));
+  }
+
+  async getProductsWithSellers(): Promise<Array<Product & { seller: { id: number; name: string; storeName: string | null; logoUrl: string | null; slug: string } }>> {
+    try {
+      console.log("[Storage] getProductsWithSellers: Fetching all active products with seller info using INNER JOIN...");
+      
+      const result = await db
+        .select({
+          id: products.id,
+          name: products.name,
+          slug: products.slug,
+          description: products.description,
+          imageUrl: products.imageUrl,
+          originalPrice: products.originalPrice,
+          currentPrice: products.currentPrice,
+          stock: products.stock,
+          category: products.category,
+          categoryId: products.categoryId,
+          instructions: products.instructions,
+          warranty: products.warranty,
+          deliveryContent: products.deliveryContent,
+          active: products.active,
+          limitPerUser: products.limitPerUser,
+          resellerId: products.resellerId,
+          createdAt: products.createdAt,
+          sellerId: resellers.id,
+          sellerName: resellers.name,
+          sellerStoreName: resellers.storeName,
+          sellerLogoUrl: resellers.logoUrl,
+          sellerSlug: resellers.slug,
+        })
+        .from(products)
+        .innerJoin(resellers, eq(products.resellerId, resellers.id))
+        .where(eq(products.active, true))
+        .orderBy(desc(products.id));
+
+      console.log(`[Storage] getProductsWithSellers: Found ${result.length} products with valid sellers`);
+
+      const productsWithSellers = result.map(row => ({
+        id: row.id,
+        name: row.name,
+        slug: row.slug,
+        description: row.description,
+        imageUrl: row.imageUrl,
+        originalPrice: row.originalPrice,
+        currentPrice: row.currentPrice,
+        stock: row.stock,
+        category: row.category,
+        categoryId: row.categoryId,
+        instructions: row.instructions,
+        warranty: row.warranty,
+        deliveryContent: row.deliveryContent,
+        active: row.active,
+        limitPerUser: row.limitPerUser,
+        resellerId: row.resellerId,
+        createdAt: row.createdAt,
+        seller: {
+          id: row.sellerId,
+          name: row.sellerName,
+          storeName: row.sellerStoreName,
+          logoUrl: row.sellerLogoUrl,
+          slug: row.sellerSlug,
+        },
+      }));
+
+      console.log(`[Storage] getProductsWithSellers: Returning ${productsWithSellers.length} products with seller info`);
+      return productsWithSellers;
+    } catch (error: any) {
+      console.error("[Storage] getProductsWithSellers ERROR:", error.message, error.stack);
+      throw error;
+    }
+  }
+
+  async getUniqueCategories(): Promise<Category[]> {
+    try {
+      console.log("[Storage] getUniqueCategories: Fetching unique categories by slug...");
+      
+      const allCats = await db.select().from(categories).where(eq(categories.active, true)).orderBy(categories.name);
+      
+      const uniqueBySlug = new Map<string, Category>();
+      for (const cat of allCats) {
+        if (!uniqueBySlug.has(cat.slug)) {
+          uniqueBySlug.set(cat.slug, cat);
+        }
+      }
+      
+      const uniqueCats = Array.from(uniqueBySlug.values());
+      console.log(`[Storage] getUniqueCategories: Returning ${uniqueCats.length} unique categories`);
+      return uniqueCats;
+    } catch (error: any) {
+      console.error("[Storage] getUniqueCategories ERROR:", error.message, error.stack);
+      throw error;
+    }
   }
 }
 

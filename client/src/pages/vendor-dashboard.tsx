@@ -7,9 +7,6 @@ import { DashboardMain } from "./vendor-dashboard-main";
 import { VendorStoreManagement } from "./vendor-store-management";
 import { VendorOrdersEnhanced } from "./vendor-orders-enhanced";
 import { VendorSettingsEnhanced } from "./vendor-settings-enhanced";
-import { VendorCoupons } from "./vendor-coupons";
-import { VendorAnnouncement } from "./vendor-announcement";
-import { VendorAppearance } from "./vendor-appearance";
 import type { Reseller } from "@shared/schema";
 
 export default function VendorDashboard() {
@@ -121,9 +118,6 @@ export default function VendorDashboard() {
         {currentPage === "dashboard" && <DashboardMain vendorId={parseInt(vendorId)} subscriptionExpiresAt={vendor?.subscriptionExpiresAt ? vendor.subscriptionExpiresAt.toString() : null} />}
         {currentPage === "products" && vendor && <VendorStoreManagement vendorId={parseInt(vendorId)} />}
         {currentPage === "orders" && vendor && <VendorOrdersEnhanced vendorId={parseInt(vendorId)} />}
-        {currentPage === "coupons" && vendor && <VendorCoupons />}
-        {currentPage === "announcement" && vendor && <VendorAnnouncement />}
-        {currentPage === "appearance" && vendor && <VendorAppearance />}
         {currentPage === "settings" && vendor && <VendorSettingsEnhanced vendorId={parseInt(vendorId)} vendorData={vendor} />}
       </VendorLayout>
     </div>

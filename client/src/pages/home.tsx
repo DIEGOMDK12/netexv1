@@ -1,5 +1,6 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { 
   Search, 
   Bell, 
@@ -10,28 +11,85 @@ import {
   Star,
   Shield,
   Zap,
-  User
+  User,
+  Gamepad2,
+  Tv,
+  Gift,
+  Coins,
+  Headphones,
+  Smartphone
 } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { Product } from "@shared/schema";
+import type { Product, Category } from "@shared/schema";
+
+type ProductWithSeller = Product & {
+  seller: {
+    id: number;
+    name: string;
+    storeName: string | null;
+    logoUrl: string | null;
+    slug: string;
+  } | null;
+};
+
+const categoryIcons: Record<string, any> = {
+  "free-fire": Gamepad2,
+  "roblox": Gamepad2,
+  "fortnite": Gamepad2,
+  "fifa": Gamepad2,
+  "warzone": Gamepad2,
+  "streaming": Tv,
+  "premium": Star,
+  "gift-card": Gift,
+  "coins": Coins,
+  "audio": Headphones,
+  "mobile": Smartphone,
+  "default": Gamepad2,
+};
+
+const categoryImages: Record<string, string> = {
+  "warzone": "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=200&h=200&fit=crop",
+  "clash": "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=200&h=200&fit=crop",
+  "roblox": "https://images.unsplash.com/photo-1493711662062-fa541f7f70cd?w=200&h=200&fit=crop",
+  "fortnite": "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=200&h=200&fit=crop",
+  "fifa": "https://images.unsplash.com/photo-1493711662062-fa541f7f70cd?w=200&h=200&fit=crop",
+  "free-fire": "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=200&h=200&fit=crop",
+  "streaming": "https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=200&h=200&fit=crop",
+  "default": "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=200&h=200&fit=crop",
+};
 
 export default function Home() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const { data: products = [] } = useQuery<Product[]>({
-    queryKey: ["/api/products"],
+  const { data: products = [], isLoading } = useQuery<ProductWithSeller[]>({
+    queryKey: ["/api/marketplace/products"],
+  });
+
+  const { data: categories = [] } = useQuery<Category[]>({
+    queryKey: ["/api/marketplace/categories"],
   });
 
   const activeProducts = products.filter(p => p.active);
   
-  const popularCategories = [
-    { name: "Warzone", image: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=200&h=200&fit=crop", slug: "warzone" },
-    { name: "Clash", image: "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=200&h=200&fit=crop", slug: "clash" },
-    { name: "Roblox", image: "https://images.unsplash.com/photo-1493711662062-fa541f7f70cd?w=200&h=200&fit=crop", slug: "roblox" },
-    { name: "Fortnite", image: "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=200&h=200&fit=crop", slug: "fortnite" },
-    { name: "FIFA", image: "https://images.unsplash.com/photo-1493711662062-fa541f7f70cd?w=200&h=200&fit=crop", slug: "fifa" },
+  const defaultCategories = [
+    { id: 1, name: "Warzone", slug: "warzone" },
+    { id: 2, name: "Clash", slug: "clash" },
+    { id: 3, name: "Roblox", slug: "roblox" },
+    { id: 4, name: "Fortnite", slug: "fortnite" },
+    { id: 5, name: "FIFA", slug: "fifa" },
   ];
+
+  const uniqueCategories = categories.length > 0 
+    ? categories.reduce((acc: { id: number; name: string; slug: string }[], cat) => {
+        if (!acc.find(c => c.slug === cat.slug)) {
+          acc.push({ id: cat.id, name: cat.name, slug: cat.slug });
+        }
+        return acc;
+      }, []).slice(0, 8)
+    : defaultCategories;
+
+  const displayCategories = uniqueCategories;
 
   const steamProducts = activeProducts.filter(p => 
     p.category?.toLowerCase().includes('steam') || 
@@ -50,7 +108,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#0f172a]">
-      {/* Header */}
       <header className="sticky top-0 z-50 bg-[#0f172a]/95 backdrop-blur-md border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -61,19 +118,19 @@ export default function Home() {
           </div>
           
           <div className="flex items-center gap-2">
-            <Button size="icon" variant="ghost" className="text-gray-400 hover:text-white" data-testid="button-search">
+            <Button size="icon" variant="ghost" className="text-gray-400" data-testid="button-search">
               <Search className="w-5 h-5" />
             </Button>
-            <Button size="icon" variant="ghost" className="text-gray-400 hover:text-white" data-testid="button-notifications">
+            <Button size="icon" variant="ghost" className="text-gray-400" data-testid="button-notifications">
               <Bell className="w-5 h-5" />
             </Button>
-            <Button size="icon" variant="ghost" className="text-gray-400 hover:text-white" data-testid="button-cart">
+            <Button size="icon" variant="ghost" className="text-gray-400" data-testid="button-cart">
               <ShoppingCart className="w-5 h-5" />
             </Button>
             <Button 
               size="icon" 
               variant="ghost" 
-              className="text-gray-400 hover:text-white"
+              className="text-gray-400"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               data-testid="button-menu"
             >
@@ -83,7 +140,6 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Mobile Menu */}
       {isMenuOpen && (
         <div className="fixed inset-0 z-40 bg-[#0f172a]/95 backdrop-blur-md pt-14">
           <div className="p-4 space-y-4">
@@ -93,7 +149,7 @@ export default function Home() {
               </Button>
             </Link>
             <Link href="/register">
-              <Button className="w-full bg-blue-600 hover:bg-blue-700" data-testid="link-register">
+              <Button className="w-full bg-blue-600" data-testid="link-register">
                 Criar Conta
               </Button>
             </Link>
@@ -101,7 +157,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Hero Section */}
       <section className="relative py-16 px-4 text-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-blue-600/10 to-transparent" />
         <div className="relative max-w-2xl mx-auto">
@@ -113,7 +168,7 @@ export default function Home() {
           </p>
           <Button 
             size="lg" 
-            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg font-semibold rounded-xl"
+            className="bg-blue-600 text-white px-8 py-6 text-lg font-semibold rounded-xl"
             data-testid="button-how-it-works"
           >
             <Play className="w-5 h-5 mr-2" />
@@ -122,7 +177,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Popular Categories */}
       <section className="px-4 py-8">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
@@ -130,29 +184,31 @@ export default function Home() {
             <ChevronRight className="w-5 h-5 text-gray-500" />
           </h2>
           <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
-            {popularCategories.map((cat) => (
-              <div 
-                key={cat.slug}
-                className="flex-shrink-0 w-20 text-center cursor-pointer group"
-                data-testid={`category-${cat.slug}`}
-              >
-                <div className="w-20 h-20 rounded-xl overflow-hidden mb-2 border-2 border-transparent group-hover:border-blue-500 transition-colors">
-                  <img 
-                    src={cat.image} 
-                    alt={cat.name}
-                    className="w-full h-full object-cover"
-                  />
+            {displayCategories.map((cat) => {
+              const imageSrc = categoryImages[cat.slug.toLowerCase()] || categoryImages.default;
+              return (
+                <div 
+                  key={`cat-${cat.id}`}
+                  className="flex-shrink-0 w-20 text-center cursor-pointer group"
+                  data-testid={`category-${cat.slug}`}
+                >
+                  <div className="w-20 h-20 rounded-xl overflow-hidden mb-2 border-2 border-transparent group-hover:border-blue-500 transition-colors">
+                    <img 
+                      src={imageSrc} 
+                      alt={cat.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <span className="text-xs text-gray-400 group-hover:text-white transition-colors">
+                    {cat.name}
+                  </span>
                 </div>
-                <span className="text-xs text-gray-400 group-hover:text-white transition-colors">
-                  {cat.name}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* Steam Section */}
       {steamProducts.length > 0 && (
         <section className="px-4 py-6">
           <div className="max-w-7xl mx-auto">
@@ -169,7 +225,6 @@ export default function Home() {
         </section>
       )}
 
-      {/* Subscriptions Section */}
       {subscriptionProducts.length > 0 && (
         <section className="px-4 py-6">
           <div className="max-w-7xl mx-auto">
@@ -186,7 +241,6 @@ export default function Home() {
         </section>
       )}
 
-      {/* Featured Products */}
       <section className="px-4 py-6">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
@@ -194,15 +248,27 @@ export default function Home() {
             Em Destaque
             <ChevronRight className="w-5 h-5 text-gray-500" />
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {featuredProducts.map((product) => (
-              <ProductCardMini key={product.id} product={product} />
-            ))}
-          </div>
+          {isLoading ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="bg-[#1e293b] rounded-xl animate-pulse aspect-square" />
+              ))}
+            </div>
+          ) : featuredProducts.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {featuredProducts.map((product) => (
+                <ProductCardMini key={product.id} product={product} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-500">
+              <ShoppingCart className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>Nenhum produto disponivel no momento</p>
+            </div>
+          )}
         </div>
       </section>
 
-      {/* Trust Badges */}
       <section className="px-4 py-12">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -225,7 +291,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CTA Section */}
       <section className="px-4 py-12">
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="text-2xl font-bold text-white mb-4">
@@ -236,7 +301,7 @@ export default function Home() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/register">
-              <Button size="lg" className="bg-blue-600 hover:bg-blue-700 px-8" data-testid="button-cta-register">
+              <Button size="lg" className="bg-blue-600 px-8" data-testid="button-cta-register">
                 Criar Conta Gratis
               </Button>
             </Link>
@@ -249,7 +314,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="border-t border-white/5 py-8 px-4">
         <div className="max-w-7xl mx-auto text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
@@ -267,9 +331,20 @@ export default function Home() {
   );
 }
 
-function ProductCardMini({ product }: { product: Product }) {
+function ProductCardMini({ product }: { product: ProductWithSeller }) {
   const stockLines = product.stock?.split("\n").filter((line) => line.trim()) || [];
   const hasStock = stockLines.length > 0;
+  const sellerName = product.seller?.storeName || product.seller?.name || "Vendedor";
+  const sellerInitial = sellerName.charAt(0).toUpperCase();
+  const [, setLocation] = useLocation();
+
+  const handleSellerClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (product.seller?.slug) {
+      setLocation(`/loja/${product.seller.slug}`);
+    }
+  };
 
   return (
     <Link href={`/product/${product.id}`}>
@@ -277,7 +352,6 @@ function ProductCardMini({ product }: { product: Product }) {
         className="bg-[#1e293b] rounded-xl overflow-hidden cursor-pointer group"
         data-testid={`card-product-${product.id}`}
       >
-        {/* Product Image */}
         <div className="aspect-square relative overflow-hidden">
           {product.imageUrl ? (
             <img 
@@ -297,22 +371,32 @@ function ProductCardMini({ product }: { product: Product }) {
           )}
         </div>
 
-        {/* Product Info */}
         <div className="p-3">
           <h3 className="text-sm font-medium text-white line-clamp-2 min-h-[2.5rem] mb-2" data-testid={`text-product-name-${product.id}`}>
             {product.name}
           </h3>
           
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2 mb-2">
             <span className="text-lg font-bold text-blue-500" data-testid={`text-price-${product.id}`}>
               R$ {Number(product.currentPrice).toFixed(2)}
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5 mt-2" data-testid={`text-seller-${product.id}`}>
-            <User className="w-3 h-3 text-gray-500" />
-            <p className="text-xs text-gray-500 truncate">
-              Vendedor Verificado
+          <div 
+            className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+            data-testid={`seller-${product.id}`}
+            onClick={handleSellerClick}
+          >
+            <Avatar className="w-5 h-5">
+              {product.seller?.logoUrl ? (
+                <AvatarImage src={product.seller.logoUrl} alt={sellerName} />
+              ) : null}
+              <AvatarFallback className="text-[10px] bg-blue-600 text-white">
+                {sellerInitial}
+              </AvatarFallback>
+            </Avatar>
+            <p className="text-xs text-gray-400 truncate hover:text-blue-400 transition-colors">
+              {sellerName}
             </p>
           </div>
         </div>
