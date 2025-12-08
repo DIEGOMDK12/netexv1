@@ -137,6 +137,29 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**December 8, 2024 - Custom Domain System (White Label)**
+- Resellers can now configure their own domain (e.g., meusite.com) to serve their store
+- Schema: Added `.unique()` constraint to `customDomain` field in resellers table for fast lookups
+- Storage: Added `getResellerByDomain(domain)` function for domain-based reseller lookup
+- Frontend (vendor-settings.tsx):
+  - New "Dominio Personalizado" card with Globe icon
+  - Input for custom domain with automatic normalization (removes http://, www, trailing slashes)
+  - Clear Cloudflare CNAME instructions:
+    1. Create CNAME record pointing to `goldnetsteam.shop`
+    2. Set proxy mode (orange cloud)
+    3. Save domain in settings
+  - Copy button for CNAME target
+  - DNS propagation warning (up to 24 hours)
+- Backend (server/index.ts):
+  - Middleware runs BEFORE all routes
+  - Detects custom domains (excludes goldnetsteam.shop, localhost, replit.dev)
+  - Looks up reseller by domain using `storage.getResellerByDomain()`
+  - Rewrites URL to `/loja/[slug]` to serve correct store transparently
+  - Injects reseller info into request as `req.customDomainReseller`
+- API Endpoint: `GET /api/domain/lookup?domain=example.com`
+  - Returns `{ isCustomDomain: true/false, reseller: {...} }`
+  - Used by frontend to detect custom domain context
+
 **December 8, 2024 - AbacatePay Webhook at /webhook (Root Path)**
 - Created dedicated webhook endpoint at `POST /webhook` (NOT under /api prefix)
 - Production URL: `https://goldnetsteam.shop/webhook`

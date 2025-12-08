@@ -124,6 +124,41 @@ export async function registerRoutes(
   // Setup customer authentication (Google, GitHub, Apple, etc)
   await setupAuth(app);
 
+  // ============== DOMAIN LOOKUP API (White Label) ==============
+  // Returns reseller info for a custom domain
+  app.get("/api/domain/lookup", async (req, res) => {
+    const host = (req.query.domain as string) || req.headers.host?.toLowerCase().replace(/:\d+$/, "") || "";
+    
+    // Check if it's a main domain
+    const mainDomains = ["goldnetsteam.shop", "localhost", "127.0.0.1", "0.0.0.0"];
+    const isMainDomain = mainDomains.some((d) => host === d || host.endsWith(`.replit.dev`) || host.endsWith(`.repl.co`));
+    
+    if (isMainDomain) {
+      return res.json({ isCustomDomain: false, reseller: null });
+    }
+    
+    try {
+      const reseller = await storage.getResellerByDomain(host);
+      if (reseller) {
+        return res.json({
+          isCustomDomain: true,
+          reseller: {
+            id: reseller.id,
+            slug: reseller.slug,
+            storeName: reseller.storeName || reseller.name,
+            logoUrl: reseller.logoUrl,
+            themeColor: reseller.themeColor,
+            backgroundColor: reseller.backgroundColor,
+          }
+        });
+      }
+      return res.json({ isCustomDomain: false, reseller: null });
+    } catch (error) {
+      console.error("[Domain Lookup] Error:", error);
+      return res.json({ isCustomDomain: false, reseller: null });
+    }
+  });
+
   // ============== WEBHOOK ABACATEPAY - ROTA PRINCIPAL (goldnetsteam.shop/webhook) ==============
   // CORS configurado para aceitar requisições externas do AbacatePay
   app.options("/webhook", (req, res) => {

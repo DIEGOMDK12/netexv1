@@ -22,6 +22,81 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
+// Custom Domain Routing Middleware (White Label)
+// This MUST run before all other routes
+app.use(async (req: Request, res: Response, next: NextFunction) => {
+  const host = req.headers.host?.toLowerCase().replace(/:\d+$/, "") || "";
+  
+  // Skip for main domain and localhost variants
+  const mainDomains = [
+    "goldnetsteam.shop",
+    "localhost",
+    "127.0.0.1",
+    "0.0.0.0",
+  ];
+  
+  const isMainDomain = mainDomains.some((d) => host === d || host.endsWith(`.replit.dev`) || host.endsWith(`.repl.co`));
+  
+  if (isMainDomain) {
+    return next();
+  }
+  
+  // Skip for static assets (don't rewrite these paths)
+  const staticPaths = [
+    "/api",
+    "/loja/",
+    "/uploads",
+    "/assets",
+    "/favicon.ico",
+    "/favicon.png",
+    "/robots.txt",
+    "/sitemap.xml",
+    "/manifest.json",
+    "/.well-known",
+    "/sw.js",
+    "/workbox-",
+  ];
+  
+  if (staticPaths.some((p) => req.path.startsWith(p) || req.path === p.replace(/\/$/, ""))) {
+    return next();
+  }
+  
+  // This is a custom domain - look up the reseller
+  try {
+    const { storage } = await import("./storage");
+    const reseller = await storage.getResellerByDomain(host);
+    
+    if (reseller) {
+      console.log(`[Custom Domain] ${host} -> Reseller: ${reseller.slug} (ID: ${reseller.id})`);
+      
+      // Inject reseller info into request for downstream use
+      (req as any).customDomainReseller = reseller;
+      
+      // Preserve query string when rewriting
+      const queryString = req.originalUrl.includes("?") 
+        ? "?" + req.originalUrl.split("?")[1] 
+        : "";
+      
+      // Rewrite URL to serve the reseller's store
+      if (req.path === "/" || req.path === "") {
+        req.url = `/loja/${reseller.slug}${queryString}`;
+        console.log(`[Custom Domain] Rewriting / to ${req.url}`);
+      } else {
+        // For other frontend paths (like /produto/), prepend with reseller's loja path
+        const originalPath = req.path;
+        req.url = `/loja/${reseller.slug}${originalPath}${queryString}`;
+        console.log(`[Custom Domain] Rewriting ${originalPath} to ${req.url}`);
+      }
+    } else {
+      console.log(`[Custom Domain] No reseller found for domain: ${host}`);
+    }
+  } catch (error) {
+    console.error("[Custom Domain] Error looking up domain:", error);
+  }
+  
+  next();
+});
+
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
