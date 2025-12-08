@@ -217,7 +217,7 @@ export default function ProductDetails() {
                     <p className="whitespace-pre-wrap text-sm leading-relaxed">{product.warranty}</p>
                   ) : (
                     <p className="text-gray-500 italic text-sm">
-                      Garantia de 7 dias para suporte e reembolso total caso o produto nao funcione.
+                      Garantia de suporte e reembolso total caso o produto nao funcione.
                     </p>
                   )}
                 </div>

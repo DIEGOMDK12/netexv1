@@ -170,7 +170,7 @@ export default function ResellerProductDetails() {
                 </span>
                 <span className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
                   <Headphones className="w-3 h-3" />
-                  Suporte 7 dias
+                  Suporte Incluso
                 </span>
                 <span className={`inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-full ${hasStock ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'} border`}>
                   {hasStock ? `${stockLines.length} disponível` : 'Esgotado'}
@@ -193,12 +193,12 @@ export default function ResellerProductDetails() {
                 </div>
                 <div className="space-y-2 text-sm text-gray-400">
                   <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-blue-400" />
-                    <span>7 dias de suporte após a compra</span>
-                  </div>
-                  <div className="flex items-center gap-2">
                     <Shield className="w-4 h-4 text-green-400" />
                     <span>Garantia de funcionamento</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Headphones className="w-4 h-4 text-blue-400" />
+                    <span>Suporte ao cliente incluso</span>
                   </div>
                 </div>
               </Card>

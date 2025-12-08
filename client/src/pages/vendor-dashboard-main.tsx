@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, TrendingUp, ShoppingBag, DollarSign, Copy, Check, CheckCircle, Clock, Eye, AlertTriangle, Wallet, XCircle, ArrowUpRight } from "lucide-react";
+import { Loader2, TrendingUp, ShoppingBag, DollarSign, Copy, Check, CheckCircle, Clock, Wallet, XCircle, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,6 @@ import type { Reseller, Order, WithdrawalRequest } from "@shared/schema";
 interface DashboardMainProps {
   vendorId: number;
   isAdmin?: boolean;
-  subscriptionExpiresAt?: string | null;
 }
 
 interface VendorStats {
@@ -27,11 +26,9 @@ interface OrderWithDetails extends Order {
   items?: any[];
 }
 
-export function DashboardMain({ vendorId, isAdmin, subscriptionExpiresAt }: DashboardMainProps) {
-  const [copiedLink, setCopiedLink] = useState(false);
+export function DashboardMain({ vendorId, isAdmin }: DashboardMainProps) {
   const [recentOrders, setRecentOrders] = useState<OrderWithDetails[]>([]);
   const [productsCount, setProductsCount] = useState(0);
-  const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
   const [withdrawalDialogOpen, setWithdrawalDialogOpen] = useState(false);
   const [withdrawalAmount, setWithdrawalAmount] = useState("");
   const [pixKey, setPixKey] = useState("");
@@ -46,15 +43,6 @@ export function DashboardMain({ vendorId, isAdmin, subscriptionExpiresAt }: Dash
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  useEffect(() => {
-    if (subscriptionExpiresAt) {
-      const expiresAt = new Date(subscriptionExpiresAt);
-      const now = new Date();
-      const diffTime = expiresAt.getTime() - now.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      setDaysRemaining(diffDays);
-    }
-  }, [subscriptionExpiresAt]);
   
   const { data: vendor, isLoading } = useQuery<Reseller>({
     queryKey: ["/api/vendor/profile", vendorId],
@@ -185,16 +173,7 @@ export function DashboardMain({ vendorId, isAdmin, subscriptionExpiresAt }: Dash
     );
   }
 
-  const storeLink = vendor?.slug ? `${window.location.origin}/loja/${vendor.slug}` : "";
   const availableBalance = vendor?.totalCommission ? parseFloat(vendor.totalCommission.toString()) : 0;
-
-  const handleCopyLink = () => {
-    if (storeLink) {
-      navigator.clipboard.writeText(storeLink);
-      setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 2000);
-    }
-  };
 
   const handleWithdrawalSubmit = () => {
     const amount = parseFloat(withdrawalAmount);
@@ -294,55 +273,8 @@ export function DashboardMain({ vendorId, isAdmin, subscriptionExpiresAt }: Dash
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h1 className="text-3xl font-bold text-white">Dashboard</h1>
-        {!isAdmin && vendor && vendor.slug && (
-          <Button
-            onClick={() => window.open(`${window.location.origin}/loja/${vendor.slug}`, "_blank")}
-            variant="outline"
-            className="flex items-center gap-2 border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
-            data-testid="button-view-store"
-          >
-            <Eye className="w-4 h-4" />
-            Ver Minha Loja
-          </Button>
-        )}
       </div>
 
-
-      {/* Subscription Status Card */}
-      {daysRemaining !== null && (
-        <Card
-          style={{
-            background: daysRemaining <= 7 
-              ? "linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.15) 100%)"
-              : "linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%)",
-            backdropFilter: "blur(12px)",
-            border: daysRemaining <= 7 
-              ? "1px solid rgba(239, 68, 68, 0.4)"
-              : "1px solid rgba(59, 130, 246, 0.4)",
-          }}
-          className="shadow-lg"
-          data-testid="card-subscription-status"
-        >
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              {daysRemaining <= 7 ? (
-                <AlertTriangle className="w-8 h-8 text-red-500 flex-shrink-0" />
-              ) : (
-                <Clock className="w-8 h-8 text-blue-500 flex-shrink-0" />
-              )}
-              <div>
-                <p className="text-sm text-gray-400 font-semibold">Sua Assinatura Expira em</p>
-                <p className={`text-2xl font-bold ${daysRemaining <= 7 ? 'text-red-400' : 'text-white'}`}>
-                  {daysRemaining} dia{daysRemaining !== 1 ? 's' : ''}
-                </p>
-                {daysRemaining <= 7 && (
-                  <p className="text-xs text-red-400 mt-1">Renove sua assinatura para continuar vendendo</p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Stats Grid - 4 Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

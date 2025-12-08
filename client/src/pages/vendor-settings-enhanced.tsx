@@ -228,7 +228,6 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
         </CardHeader>
         <CardContent className="space-y-2">
           <p className="text-sm text-gray-400">Email: {vendorData?.email}</p>
-          <p className="text-sm text-gray-400">Link da loja: /{vendorData?.slug}</p>
           <p className="text-sm text-gray-400">Comissao: {vendorData?.commissionPercent}%</p>
           <p className="text-sm text-gray-400">Total de vendas: R$ {parseFloat(vendorData?.totalSales as any || "0").toFixed(2)}</p>
         </CardContent>

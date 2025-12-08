@@ -305,7 +305,6 @@ export function VendorSettings() {
               {profile && (
                 <div className="pt-4 border-t border-gray-700 space-y-2">
                   <p className="text-sm text-gray-400">E-mail: {profile.email}</p>
-                  <p className="text-sm text-gray-400">Link da loja: /{profile.slug}</p>
                   <p className="text-sm text-gray-400">
                     Membro desde: {new Date(profile.createdAt).toLocaleDateString('pt-BR')}
                   </p>
