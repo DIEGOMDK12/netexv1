@@ -165,9 +165,6 @@ export default function AdminResellers() {
                       Status
                     </th>
                     <th className="text-center py-4 text-gray-400 font-semibold">
-                      Assinatura
-                    </th>
-                    <th className="text-center py-4 text-gray-400 font-semibold">
                       Ações
                     </th>
                   </tr>
@@ -203,26 +200,6 @@ export default function AdminResellers() {
                           {reseller.active ? "Ativo" : "Bloqueado"}
                         </Badge>
                       </td>
-                      <td className="py-4 text-center">
-                        <div className="flex flex-col gap-1 items-center">
-                          <Badge
-                            variant={reseller.subscriptionStatus === "active" ? "default" : "secondary"}
-                            className={
-                              reseller.subscriptionStatus === "active"
-                                ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
-                                : "bg-orange-500/20 text-orange-400 border border-orange-500/30"
-                            }
-                            data-testid={`badge-subscription-${reseller.id}`}
-                          >
-                            {reseller.subscriptionStatus === "active" ? "Ativa" : "Inativa"}
-                          </Badge>
-                          {reseller.subscriptionExpiresAt && (
-                            <span className="text-xs text-gray-400">
-                              Expira: {new Date(reseller.subscriptionExpiresAt).toLocaleDateString("pt-BR")}
-                            </span>
-                          )}
-                        </div>
-                      </td>
                       <td className="py-4 text-center flex gap-2 justify-center">
                         <Button
                           size="sm"
@@ -255,27 +232,6 @@ export default function AdminResellers() {
                             </>
                           )}
                         </Button>
-                        {reseller.subscriptionStatus !== "active" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-blue-400 hover:bg-blue-500/10"
-                            onClick={() => renewSubscriptionMutation.mutate(reseller.id)}
-                            disabled={renewSubscriptionMutation.isPending}
-                            data-testid={`button-renew-subscription-${reseller.id}`}
-                          >
-                            {renewSubscriptionMutation.isPending ? (
-                              <>
-                                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                                Ativando...
-                              </>
-                            ) : (
-                              <>
-                                Ativar
-                              </>
-                            )}
-                          </Button>
-                        )}
                         <Button
                           size="sm"
                           variant="outline"

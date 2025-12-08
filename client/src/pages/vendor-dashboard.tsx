@@ -37,52 +37,7 @@ export default function VendorDashboard() {
       setLocation("/register");
       return;
     }
-
-    // Check subscription status - redirect if inactive or expired
-    if (vendor) {
-      console.log("[🟢 VendorDashboard] Subscription check:", {
-        subscriptionStatus: vendor.subscriptionStatus,
-        subscriptionExpiresAt: vendor.subscriptionExpiresAt,
-        timestamp: new Date().toISOString(),
-      });
-
-      // VALIDAÇÃO INFALÍVEL - Comparação precisa em milissegundos
-      const subscriptionStatus = vendor.subscriptionStatus;
-      const expiresAtValue = vendor.subscriptionExpiresAt;
-      const now = new Date();
-      
-      // Parse string to Date - garantir que é um objeto Date válido
-      const expiresAt = expiresAtValue ? new Date(expiresAtValue) : null;
-      
-      // Verificação robusta - status deve ser "active" ou "trial" e não expirado
-      const isSubscriptionActive = subscriptionStatus === "active" || subscriptionStatus === "trial";
-      const isNotExpired = expiresAt ? (expiresAt.getTime() > now.getTime()) : false;
-      const canAccess = isSubscriptionActive && isNotExpired;
-
-      console.log("[🟢 VendorDashboard] FINAL Access check:", {
-        subscriptionStatus,
-        isSubscriptionActive,
-        expiresAtISO: expiresAt?.toISOString(),
-        expiresAtMS: expiresAt?.getTime(),
-        nowISO: now.toISOString(),
-        nowMS: now.getTime(),
-        isNotExpired,
-        differenceMS: expiresAt ? expiresAt.getTime() - now.getTime() : 'N/A',
-        canAccess,
-      });
-
-      // DECISÃO FINAL
-      if (!canAccess) {
-        console.log("[🟢 VendorDashboard] ❌ BLOQUEANDO - Motivo:", {
-          statusCheck: isSubscriptionActive ? "OK" : "FAIL - Status não é 'active'",
-          expirationCheck: isNotExpired ? "OK" : "FAIL - Data expirada ou inválida",
-        });
-        setLocation("/subscription-payment");
-      } else {
-        console.log("[🟢 VendorDashboard] ✅ ACESSO PERMITIDO - Subscription válida e ativa");
-      }
-    }
-  }, [vendorId, vendorToken, adminToken, vendor, setLocation]);
+  }, [vendorId, vendorToken, adminToken, setLocation]);
 
   const handleLogout = () => {
     localStorage.removeItem("vendor_id");
@@ -113,10 +68,10 @@ export default function VendorDashboard() {
       <VendorLayout
         currentPage={currentPage}
         onLogout={handleLogout}
-        storeName={vendor?.storeName}
+        storeName={vendor?.storeName || undefined}
         logoUrl={vendor?.logoUrl || undefined}
       >
-        {currentPage === "dashboard" && <DashboardMain vendorId={parseInt(vendorId)} subscriptionExpiresAt={vendor?.subscriptionExpiresAt ? vendor.subscriptionExpiresAt.toString() : null} />}
+        {currentPage === "dashboard" && <DashboardMain vendorId={parseInt(vendorId)} />}
         {currentPage === "products" && vendor && <VendorStoreManagement vendorId={parseInt(vendorId)} />}
         {currentPage === "orders" && vendor && <VendorOrdersEnhanced vendorId={parseInt(vendorId)} />}
         {currentPage === "my-purchases" && vendor && <VendorMyPurchases vendorEmail={vendor.email} />}

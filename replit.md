@@ -137,6 +137,21 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**December 8, 2024 - Removed Subscription System for Resellers**
+- Resellers now have permanent access without subscription/expiration dates
+- Removed "Assinatura" column from admin resellers table
+- Removed "Ativar" subscription button from admin panel
+- Removed subscription validation in vendor dashboard (no more redirect to /subscription-payment)
+- Admin retains full control: can block/unblock and delete resellers
+- Vendor dashboard: removed subscriptionExpiresAt prop from DashboardMain component
+
+**December 8, 2024 - Buyer Module for Vendor Dashboard**
+- Added "Minhas Compras" (My Purchases) menu item to vendor dashboard navigation
+- Created VendorMyPurchases page showing orders where logged-in vendor is the buyer
+- Home page shows "Voltar para o Painel" for authenticated users instead of login buttons
+- Checkout flow redirects logged-in users to /vendor/my-purchases after successful payment
+- Vendors can now use the same dashboard for selling AND tracking their own purchases
+
 **December 8, 2024 - Resend Delivery Email Feature**
 - Added "Reenviar E-mail de Entrega" button on /pedidos page for paid orders
 - New API endpoint: POST /api/orders/:id/resend-email
