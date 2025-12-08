@@ -59,6 +59,104 @@ app.use((req, res, next) => {
   next();
 });
 
+async function verifyPendingPayments() {
+  try {
+    const { storage } = await import("./storage");
+    const { db } = await import("./db");
+    const { orders, orderItems } = await import("../shared/schema");
+    const { eq } = await import("drizzle-orm");
+    const { checkPaymentStatus } = await import("./abacatePayController");
+    const { sendDeliveryEmail } = await import("./email");
+
+    const pendingOrders = await db
+      .select({
+        id: orders.id,
+        email: orders.email,
+        status: orders.status,
+        abacatepayBillingId: orders.abacatepayBillingId,
+      })
+      .from(orders)
+      .where(eq(orders.status, "pending"));
+
+    if (pendingOrders.length === 0) {
+      console.log(`[Payment Verify Cron] No pending orders to verify (${new Date().toISOString()})`);
+      return;
+    }
+
+    console.log(`[Payment Verify Cron] Checking ${pendingOrders.length} pending orders...`);
+
+    for (const order of pendingOrders) {
+      try {
+        if (!order.abacatepayBillingId) {
+          console.log(`[Payment Verify Cron] Order ${order.id} has no billing ID, skipping`);
+          continue;
+        }
+
+        const paymentStatus = await checkPaymentStatus(order.abacatepayBillingId);
+        
+        if (paymentStatus.isPaid) {
+          console.log(`[Payment Verify Cron] ✓ Payment confirmed for order ${order.id}`);
+          
+          // Fetch order items to get product info
+          const items = await db
+            .select()
+            .from(orderItems)
+            .where(eq(orderItems.orderId, order.id));
+
+          let deliveredContent = "";
+          
+          // Process each item
+          for (const item of items) {
+            const product = await storage.getProduct(item.productId);
+            
+            if (product && product.stock) {
+              const stockLines = product.stock.split("\n").filter((line: string) => line.trim());
+              
+              if (stockLines.length > 0) {
+                // Take first line and remove from stock
+                deliveredContent += stockLines[0] + "\n";
+                const remainingStock = stockLines.slice(1).join("\n");
+                await storage.updateProduct(item.productId, { stock: remainingStock });
+                console.log(`[Payment Verify Cron] ✓ Delivered stock for product ${item.productId}`);
+              }
+            }
+          }
+
+          // Mark order as paid
+          await storage.updateOrder(order.id, {
+            status: "paid",
+            deliveredContent: deliveredContent.trim(),
+          });
+
+          // Send delivery email
+          if (order.email && deliveredContent.trim()) {
+            const productNames = items.map((i: any) => i.productName || "Produto Digital").join(", ");
+            sendDeliveryEmail({
+              to: order.email,
+              orderId: order.id,
+              productName: productNames,
+              deliveredContent: deliveredContent.trim(),
+              storeName: "NexStore",
+            }).then(result => {
+              if (result.success) {
+                console.log(`[Payment Verify Cron] ✓ Email sent to ${order.email}`);
+              } else {
+                console.error(`[Payment Verify Cron] ❌ Email failed: ${result.error}`);
+              }
+            });
+          }
+
+          console.log(`[Payment Verify Cron] ✓ Order ${order.id} processed successfully`);
+        }
+      } catch (err) {
+        console.error(`[Payment Verify Cron] Error processing order ${order.id}:`, (err as any).message);
+      }
+    }
+  } catch (error) {
+    console.error("[Payment Verify Cron] Error during payment verification:", (error as any).message);
+  }
+}
+
 async function cleanupExpiredOrders() {
   try {
     const { storage } = await import("./storage");
@@ -141,6 +239,15 @@ async function cleanupExpiredOrders() {
     },
     () => {
       log(`serving on port ${port}`);
+
+      console.log(
+        "[Cron] Starting payment verification for pending orders (every 60 seconds)"
+      );
+      setInterval(verifyPendingPayments, 60 * 1000);
+      
+      verifyPendingPayments().catch((err) =>
+        console.error("[Cron] Initial payment verification error:", err)
+      );
 
       console.log(
         "[Cron] Starting auto-cleanup for expired pending orders (every 60 minutes)"
