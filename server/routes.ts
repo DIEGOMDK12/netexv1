@@ -2427,6 +2427,33 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/vendor/categories/reorder", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const vendorId = tokenToVendor.get(token);
+    if (!vendorId) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    try {
+      const { orderedIds } = req.body;
+      
+      if (!Array.isArray(orderedIds)) {
+        return res.status(400).json({ error: "orderedIds must be an array" });
+      }
+
+      await storage.reorderCategories(vendorId, orderedIds);
+      console.log("[POST /api/vendor/categories/reorder] Reordered categories for vendor", vendorId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[POST /api/vendor/categories/reorder] Error:", error);
+      res.status(500).json({ error: "Failed to reorder categories" });
+    }
+  });
+
   // Vendor Settings Routes
   app.patch("/api/vendor/settings/:id", async (req, res) => {
     const vendorId = parseInt(req.params.id);

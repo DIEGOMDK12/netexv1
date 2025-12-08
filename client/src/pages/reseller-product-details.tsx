@@ -136,7 +136,7 @@ export default function ResellerProductDetails() {
                 <img
                   src={product.imageUrl}
                   alt={product.name}
-                  className="w-full h-72 md:h-96 object-cover rounded-xl"
+                  className="w-full h-72 md:h-96 object-contain bg-gray-900 rounded-xl"
                   data-testid="img-product"
                 />
               ) : (

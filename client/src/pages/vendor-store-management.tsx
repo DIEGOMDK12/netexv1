@@ -35,6 +35,23 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Product, Category } from "@shared/schema";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface VendorStoreManagementProps {
   vendorId: number;
@@ -176,6 +193,56 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
       toast({ title: "Erro ao remover categoria", variant: "destructive" });
     },
   });
+
+  const reorderCategoriesMutation = useMutation({
+    mutationFn: async (orderedIds: number[]) => {
+      const token = localStorage.getItem("vendor_token");
+      const response = await fetch("/api/vendor/categories/reorder", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ orderedIds }),
+      });
+      if (!response.ok) throw new Error("Failed to reorder categories");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Ordem das categorias atualizada" });
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vendor/categories"] });
+      toast({ title: "Erro ao reordenar categorias", variant: "destructive" });
+    },
+  });
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = categories.findIndex((cat) => cat.id === active.id);
+      const newIndex = categories.findIndex((cat) => cat.id === over.id);
+
+      const newOrder = arrayMove(categories, oldIndex, newIndex);
+      const orderedIds = newOrder.map((cat) => cat.id);
+      
+      queryClient.setQueryData<Category[]>(["/api/vendor/categories"], newOrder);
+      
+      reorderCategoriesMutation.mutate(orderedIds);
+    }
+  };
 
   const createProductMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -446,115 +513,36 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
       </div>
 
       <div className="space-y-2">
-        {categories.map((category) => {
-          const isExpanded = expandedCategories.has(category.id);
-          const categoryProducts = productsByCategory.grouped[category.id] || [];
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={categories.map((c) => c.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {categories.map((category) => {
+              const isExpanded = expandedCategories.has(category.id);
+              const categoryProducts = productsByCategory.grouped[category.id] || [];
 
-          return (
-            <div
-              key={category.id}
-              className="rounded-lg overflow-hidden"
-              data-testid={`category-accordion-${category.id}`}
-            >
-              <div
-                className="flex items-center gap-3 p-4 cursor-pointer transition-colors"
-                style={{ backgroundColor: "#1f2937" }}
-                onClick={() => toggleCategory(category.id)}
-                data-testid={`button-toggle-category-${category.id}`}
-              >
-                <GripVertical className="w-5 h-5 text-gray-500 flex-shrink-0" />
-                <FolderOpen className="w-5 h-5 text-blue-400 flex-shrink-0" />
-                <span className="font-bold text-white uppercase flex-1">
-                  {category.name}
-                </span>
-                <Badge variant="secondary" className="bg-blue-600/20 text-blue-400 border-0">
-                  Categoria
-                </Badge>
-                <Badge variant="outline" className="text-gray-400 border-gray-600">
-                  {categoryProducts.length} produto{categoryProducts.length !== 1 ? "s" : ""}
-                </Badge>
-                <div className="flex items-center gap-1">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="text-gray-400 hover:text-white"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openEditCategory(category);
-                    }}
-                    data-testid={`button-edit-category-${category.id}`}
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="text-gray-400 hover:text-red-400"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowDeleteCategoryConfirm(category.id);
-                    }}
-                    data-testid={`button-delete-category-${category.id}`}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-                {isExpanded ? (
-                  <ChevronUp className="w-5 h-5 text-gray-400 transition-transform" />
-                ) : (
-                  <ChevronDown className="w-5 h-5 text-gray-400 transition-transform" />
-                )}
-              </div>
-
-              <div
-                className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                  isExpanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
-                }`}
-                style={{ backgroundColor: "#111827" }}
-              >
-                <div className="p-4 space-y-3">
-                  {categoryProducts.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                      <p>Nenhum produto nesta categoria</p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-3 border-gray-600 text-gray-300"
-                        onClick={() => openNewProduct(category.id)}
-                        data-testid={`button-add-product-to-category-${category.id}`}
-                      >
-                        <Plus className="w-4 h-4 mr-1" />
-                        Adicionar Produto
-                      </Button>
-                    </div>
-                  ) : (
-                    categoryProducts.map((product) => (
-                      <ProductCard
-                        key={product.id}
-                        product={product}
-                        onEdit={() => openEditProduct(product)}
-                        onDelete={() => setShowDeleteProductConfirm(product.id)}
-                      />
-                    ))
-                  )}
-                  {categoryProducts.length > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full border-dashed border-gray-600 text-gray-400 hover:text-white"
-                      onClick={() => openNewProduct(category.id)}
-                      data-testid={`button-add-more-to-category-${category.id}`}
-                    >
-                      <Plus className="w-4 h-4 mr-1" />
-                      Adicionar produto a esta categoria
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
+              return (
+                <SortableCategoryItem
+                  key={category.id}
+                  category={category}
+                  isExpanded={isExpanded}
+                  categoryProducts={categoryProducts}
+                  onToggle={() => toggleCategory(category.id)}
+                  onEdit={() => openEditCategory(category)}
+                  onDelete={() => setShowDeleteCategoryConfirm(category.id)}
+                  onAddProduct={() => openNewProduct(category.id)}
+                  onEditProduct={openEditProduct}
+                  onDeleteProduct={(id) => setShowDeleteProductConfirm(id)}
+                />
+              );
+            })}
+          </SortableContext>
+        </DndContext>
 
         {productsByCategory.uncategorized.length > 0 && (
           <div className="rounded-lg overflow-hidden" data-testid="category-uncategorized">
@@ -564,7 +552,6 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
               onClick={() => toggleCategory(-1)}
               data-testid="button-toggle-uncategorized"
             >
-              <GripVertical className="w-5 h-5 text-gray-500 flex-shrink-0" />
               <Package className="w-5 h-5 text-gray-400 flex-shrink-0" />
               <span className="font-bold text-white uppercase flex-1">
                 SEM CATEGORIA
@@ -805,11 +792,11 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
                 </Button>
               </div>
               {productForm.imageUrl && (
-                <div className="mt-2 relative w-20 h-20 rounded-lg overflow-hidden border border-gray-600">
+                <div className="mt-2 relative w-20 h-20 rounded-lg overflow-hidden border border-gray-600 bg-gray-900">
                   <img
                     src={productForm.imageUrl}
                     alt="Preview"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                   />
                   <Button
                     size="icon"
@@ -992,6 +979,160 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
   );
 }
 
+interface SortableCategoryItemProps {
+  category: Category;
+  isExpanded: boolean;
+  categoryProducts: Product[];
+  onToggle: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onAddProduct: () => void;
+  onEditProduct: (product: Product) => void;
+  onDeleteProduct: (id: number) => void;
+}
+
+function SortableCategoryItem({
+  category,
+  isExpanded,
+  categoryProducts,
+  onToggle,
+  onEdit,
+  onDelete,
+  onAddProduct,
+  onEditProduct,
+  onDeleteProduct,
+}: SortableCategoryItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: category.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 1 : 0,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="rounded-lg overflow-hidden"
+      data-testid={`category-accordion-${category.id}`}
+    >
+      <div
+        className="flex items-center gap-3 p-4 cursor-pointer transition-colors"
+        style={{ backgroundColor: "#1f2937" }}
+        onClick={onToggle}
+        data-testid={`button-toggle-category-${category.id}`}
+      >
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing touch-none"
+          onClick={(e) => e.stopPropagation()}
+          data-testid={`drag-handle-category-${category.id}`}
+        >
+          <GripVertical className="w-5 h-5 text-gray-500 flex-shrink-0 hover:text-gray-300" />
+        </div>
+        <FolderOpen className="w-5 h-5 text-blue-400 flex-shrink-0" />
+        <span className="font-bold text-white uppercase flex-1">
+          {category.name}
+        </span>
+        <Badge variant="secondary" className="bg-blue-600/20 text-blue-400 border-0">
+          Categoria
+        </Badge>
+        <Badge variant="outline" className="text-gray-400 border-gray-600">
+          {categoryProducts.length} produto{categoryProducts.length !== 1 ? "s" : ""}
+        </Badge>
+        <div className="flex items-center gap-1">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="text-gray-400 hover:text-white"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
+            data-testid={`button-edit-category-${category.id}`}
+          >
+            <Edit2 className="w-4 h-4" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="text-gray-400 hover:text-red-400"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            data-testid={`button-delete-category-${category.id}`}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+        {isExpanded ? (
+          <ChevronUp className="w-5 h-5 text-gray-400 transition-transform" />
+        ) : (
+          <ChevronDown className="w-5 h-5 text-gray-400 transition-transform" />
+        )}
+      </div>
+
+      <div
+        className={`overflow-hidden transition-all duration-300 ease-in-out ${
+          isExpanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
+        }`}
+        style={{ backgroundColor: "#111827" }}
+      >
+        <div className="p-4 space-y-3">
+          {categoryProducts.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <p>Nenhum produto nesta categoria</p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3 border-gray-600 text-gray-300"
+                onClick={onAddProduct}
+                data-testid={`button-add-product-to-category-${category.id}`}
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Adicionar Produto
+              </Button>
+            </div>
+          ) : (
+            categoryProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onEdit={() => onEditProduct(product)}
+                onDelete={() => onDeleteProduct(product.id)}
+              />
+            ))
+          )}
+          {categoryProducts.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full border-dashed border-gray-600 text-gray-400 hover:text-white"
+              onClick={onAddProduct}
+              data-testid={`button-add-more-to-category-${category.id}`}
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Adicionar produto a esta categoria
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ProductCard({
   product,
   onEdit,
@@ -1009,12 +1150,12 @@ function ProductCard({
       style={{ backgroundColor: "rgba(31, 41, 55, 0.5)" }}
       data-testid={`product-card-${product.id}`}
     >
-      <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-gray-700">
+      <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-gray-900">
         {product.imageUrl ? (
           <img
             src={product.imageUrl}
             alt={product.name}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">

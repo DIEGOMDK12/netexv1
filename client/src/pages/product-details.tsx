@@ -99,7 +99,7 @@ export default function ProductDetails() {
             <img
               src={product.imageUrl}
               alt={product.name}
-              className="w-full max-h-96 object-cover rounded-lg"
+              className="w-full max-h-96 object-contain bg-gray-900 rounded-lg"
               data-testid="img-product-detail"
             />
           ) : (

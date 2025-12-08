@@ -425,7 +425,7 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
                     <img
                       src={formData.imageUrl}
                       alt="Preview"
-                      className="w-12 h-12 object-cover rounded"
+                      className="w-12 h-12 object-contain bg-gray-900 rounded"
                     />
                     <span className="text-green-400 text-sm flex-1 truncate">Imagem carregada</span>
                     <Button
@@ -560,7 +560,7 @@ Chave123456"
                     <img 
                       src={product.imageUrl} 
                       alt={product.name}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain bg-gray-900"
                     />
                   </div>
                 )}
