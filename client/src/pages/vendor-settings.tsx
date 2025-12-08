@@ -18,6 +18,9 @@ interface VendorProfile {
   totalSales: string;
   totalCommission: string;
   createdAt: string;
+  faviconUrl: string | null;
+  ogImageUrl: string | null;
+  storeDescription: string | null;
 }
 
 export function VendorSettings() {
@@ -27,6 +30,9 @@ export function VendorSettings() {
     pixKey: "",
     pixKeyType: "cpf",
     pixHolderName: "",
+    faviconUrl: "",
+    ogImageUrl: "",
+    storeDescription: "",
   });
 
   const vendorToken = localStorage.getItem("vendor_token");
@@ -52,6 +58,9 @@ export function VendorSettings() {
         pixKey: profile.pixKey || "",
         pixKeyType: "cpf",
         pixHolderName: profile.name || "",
+        faviconUrl: profile.faviconUrl || "",
+        ogImageUrl: profile.ogImageUrl || "",
+        storeDescription: profile.storeDescription || "",
       });
     }
   }, [profile]);
@@ -226,6 +235,64 @@ export function VendorSettings() {
               }}
               data-testid="input-store-name"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-white">Descrição da Loja</Label>
+            <textarea
+              value={settings.storeDescription}
+              onChange={(e) => setSettings({ ...settings, storeDescription: e.target.value })}
+              placeholder="Descreva sua loja para SEO e compartilhamentos sociais"
+              style={{
+                background: "rgba(30, 30, 40, 0.4)",
+                backdropFilter: "blur(10px)",
+                borderColor: "rgba(255,255,255,0.1)",
+                color: "#FFFFFF",
+              }}
+              className="w-full h-20 p-3 rounded-md resize-none"
+              data-testid="textarea-store-description"
+            />
+            <p className="text-xs text-gray-400">
+              Aparecerá no Google Search e ao compartilhar sua loja
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-white">URL do Favicon</Label>
+            <Input
+              value={settings.faviconUrl}
+              onChange={(e) => setSettings({ ...settings, faviconUrl: e.target.value })}
+              placeholder="https://example.com/favicon.png"
+              style={{
+                background: "rgba(30, 30, 40, 0.4)",
+                backdropFilter: "blur(10px)",
+                borderColor: "rgba(255,255,255,0.1)",
+                color: "#FFFFFF",
+              }}
+              data-testid="input-favicon-url"
+            />
+            <p className="text-xs text-gray-400">
+              Logo que aparece na aba do navegador
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-white">URL da Imagem de Compartilhamento</Label>
+            <Input
+              value={settings.ogImageUrl}
+              onChange={(e) => setSettings({ ...settings, ogImageUrl: e.target.value })}
+              placeholder="https://example.com/og-image.png"
+              style={{
+                background: "rgba(30, 30, 40, 0.4)",
+                backdropFilter: "blur(10px)",
+                borderColor: "rgba(255,255,255,0.1)",
+                color: "#FFFFFF",
+              }}
+              data-testid="input-og-image-url"
+            />
+            <p className="text-xs text-gray-400">
+              Imagem exibida ao compartilhar no WhatsApp, Facebook, etc
+            </p>
           </div>
 
           {profile && (

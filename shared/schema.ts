@@ -81,6 +81,9 @@ export const resellers = pgTable("resellers", {
   supportEmail: text("support_email"),
   whatsappContact: text("whatsapp_contact"),
   footerDescription: text("footer_description"),
+  faviconUrl: text("favicon_url"),
+  ogImageUrl: text("og_image_url"),
+  storeDescription: text("store_description"),
 });
 
 export const products = pgTable("products", {
