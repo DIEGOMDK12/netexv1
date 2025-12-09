@@ -400,6 +400,68 @@ export default function ProductDetails() {
                 <span className="text-gray-300">PIX ou Cartao</span>
               </div>
             </div>
+
+            {/* Recent Reviews Section */}
+            {reviews && reviews.length > 0 && (
+              <div className="bg-[#1e293b] rounded-xl p-4" data-testid="card-recent-reviews">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-white font-semibold text-sm">Avaliacoes Recentes</h3>
+                  <span className="text-gray-500 text-xs">({reviews.length})</span>
+                </div>
+                <div className="space-y-3">
+                  {reviews.slice(0, 5).map((review, index) => {
+                    const initial = review.customerEmail?.charAt(0).toUpperCase() || "C";
+                    const colors = [
+                      "from-blue-500 to-purple-500",
+                      "from-pink-500 to-orange-500",
+                      "from-green-500 to-teal-500",
+                      "from-yellow-500 to-red-500",
+                      "from-indigo-500 to-cyan-500",
+                    ];
+                    const gradientColor = colors[index % colors.length];
+
+                    return (
+                      <div 
+                        key={review.id} 
+                        className={index < Math.min(reviews.length, 5) - 1 ? "border-b border-gray-700 pb-3" : "pb-1"}
+                        data-testid={`recent-review-${review.id}`}
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${gradientColor} flex items-center justify-center text-white text-xs font-bold`}>
+                            {initial}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-white text-xs font-medium">
+                                {review.customerName || review.customerEmail?.split("@")[0] || "Cliente"}
+                              </span>
+                              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none">
+                                <circle cx="12" cy="12" r="10" fill="#1DA1F2"/>
+                                <path d="M9 12l2 2 4-4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            </div>
+                            <div className="flex items-center gap-0.5">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star 
+                                  key={star} 
+                                  className={`w-2.5 h-2.5 ${star <= review.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-600'}`} 
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        {review.comment && (
+                          <p className="text-gray-400 text-xs leading-relaxed line-clamp-2">{review.comment}</p>
+                        )}
+                        <div className="flex items-center gap-2 mt-1.5 text-xs text-gray-500">
+                          <span>{new Date(review.createdAt).toLocaleDateString("pt-BR")}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
