@@ -7,7 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { Info, Wallet, User, FileCheck, Upload, CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react";
+import { Info, Wallet, User, FileCheck, Upload, CheckCircle, XCircle, Clock, AlertCircle, Banknote, ArrowDownToLine } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: number; vendorData: any }) {
   const { toast } = useToast();
@@ -25,6 +27,11 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
   const [uploadingBack, setUploadingBack] = useState(false);
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
+  
+  const [withdrawalDialogOpen, setWithdrawalDialogOpen] = useState(false);
+  const [withdrawalAmount, setWithdrawalAmount] = useState("");
+  const [withdrawalPixKeyType, setWithdrawalPixKeyType] = useState("cpf");
+  const [withdrawalPixHolderName, setWithdrawalPixHolderName] = useState("");
 
   const vendorToken = localStorage.getItem("vendor_token");
 
@@ -99,6 +106,145 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
       });
     },
   });
+
+  const { data: withdrawalsData, isLoading: loadingWithdrawals } = useQuery({
+    queryKey: ["/api/vendor/withdrawals"],
+    queryFn: async () => {
+      const response = await fetch("/api/vendor/withdrawals", {
+        headers: {
+          'Authorization': `Bearer ${vendorToken}`,
+        },
+      });
+      if (!response.ok) throw new Error('Erro ao buscar saques');
+      return response.json();
+    },
+    enabled: !!vendorToken,
+  });
+
+  const withdrawalMutation = useMutation({
+    mutationFn: async (data: { amount: number; pixKey: string; pixKeyType: string; pixHolderName: string }) => {
+      const response = await fetch("/api/vendor/withdrawals", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${vendorToken}`,
+        },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Erro ao solicitar saque');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vendor/withdrawals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/vendor/profile", vendorId] });
+      setWithdrawalDialogOpen(false);
+      setWithdrawalAmount("");
+      toast({
+        title: "Solicitacao enviada",
+        description: "Seu pedido de saque foi enviado e sera processado em breve.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro",
+        description: error?.message || "Nao foi possivel solicitar o saque",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const TAXA_DE_SAQUE = 1.60;
+  const MIN_WITHDRAWAL = 5.00;
+
+  const handleRequestWithdrawal = () => {
+    const normalizedAmount = withdrawalAmount.replace(',', '.');
+    const amount = parseFloat(normalizedAmount);
+    const availableBalance = parseFloat(vendorData?.walletBalance as string || "0");
+    
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: "Valor invalido",
+        description: "Digite um valor valido para o saque",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (amount < MIN_WITHDRAWAL) {
+      toast({
+        title: "Valor minimo",
+        description: `O valor minimo para saque e R$ ${MIN_WITHDRAWAL.toFixed(2)}`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (amount > availableBalance) {
+      toast({
+        title: "Saldo insuficiente",
+        description: `O valor solicitado excede seu saldo disponivel de R$ ${availableBalance.toFixed(2)}`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const pixKey = settings.pixKey;
+    if (!pixKey) {
+      toast({
+        title: "Chave PIX nao configurada",
+        description: "Configure sua chave PIX antes de solicitar um saque",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const holderName = withdrawalPixHolderName.trim() || vendorData?.storeName || "";
+    if (!holderName) {
+      toast({
+        title: "Nome do titular obrigatorio",
+        description: "Informe o nome do titular da chave PIX",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    withdrawalMutation.mutate({
+      amount,
+      pixKey,
+      pixKeyType: withdrawalPixKeyType,
+      pixHolderName: holderName,
+    });
+  };
+
+  const getWithdrawalStatusBadge = (status: string) => {
+    switch (status) {
+      case "approved":
+        return (
+          <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Aprovado
+          </Badge>
+        );
+      case "rejected":
+        return (
+          <Badge className="bg-red-500/20 text-red-400 border-red-500/30">
+            <XCircle className="w-3 h-3 mr-1" />
+            Rejeitado
+          </Badge>
+        );
+      case "pending":
+      default:
+        return (
+          <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
+            <Clock className="w-3 h-3 mr-1" />
+            Pendente
+          </Badge>
+        );
+    }
+  };
 
   const handleSaveSettings = () => {
     saveMutation.mutate({
@@ -470,6 +616,214 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
               data-testid="input-phone"
             />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Solicitar Saque */}
+      <Card
+        style={{
+          background: "rgba(30, 30, 30, 0.4)",
+          backdropFilter: "blur(12px)",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
+        }}
+      >
+        <CardHeader>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                <Banknote className="w-5 h-5 text-emerald-400" />
+              </div>
+              <div>
+                <CardTitle className="text-white">Solicitar Saque</CardTitle>
+                <p className="text-sm text-gray-400 mt-1">Retire seu saldo via PIX</p>
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Saldo disponivel */}
+          <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <p className="text-sm text-gray-400">Saldo disponivel</p>
+                <p className="text-2xl font-bold text-emerald-400">
+                  R$ {parseFloat(vendorData?.walletBalance as any || "0").toFixed(2)}
+                </p>
+              </div>
+              <Dialog open={withdrawalDialogOpen} onOpenChange={setWithdrawalDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    disabled={
+                      verificationData?.verificationStatus !== "approved" ||
+                      parseFloat(vendorData?.walletBalance as any || "0") <= 0 ||
+                      !settings.pixKey
+                    }
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    data-testid="button-request-withdrawal"
+                  >
+                    <ArrowDownToLine className="w-4 h-4 mr-2" />
+                    Solicitar Saque
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-gray-900 border-white/10">
+                  <DialogHeader>
+                    <DialogTitle className="text-white">Solicitar Saque via PIX</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 pt-4">
+                    <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30 space-y-1">
+                      <p className="text-sm text-blue-300">
+                        Saldo disponivel: <strong>R$ {parseFloat(vendorData?.walletBalance as any || "0").toFixed(2)}</strong>
+                      </p>
+                      <p className="text-xs text-blue-300/70">
+                        Taxa de saque: R$ {TAXA_DE_SAQUE.toFixed(2)} | Minimo: R$ {MIN_WITHDRAWAL.toFixed(2)}
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label className="text-white">Valor do Saque (R$)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max={parseFloat(vendorData?.walletBalance as any || "0")}
+                        value={withdrawalAmount}
+                        onChange={(e) => setWithdrawalAmount(e.target.value)}
+                        placeholder="0,00"
+                        style={{
+                          background: "rgba(30, 30, 40, 0.4)",
+                          borderColor: "rgba(255,255,255,0.1)",
+                          color: "#FFFFFF",
+                        }}
+                        data-testid="input-withdrawal-amount"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label className="text-white">Chave PIX</Label>
+                      <Input
+                        value={settings.pixKey}
+                        disabled
+                        style={{
+                          background: "rgba(30, 30, 40, 0.4)",
+                          borderColor: "rgba(255,255,255,0.1)",
+                          color: "#9CA3AF",
+                        }}
+                      />
+                      <p className="text-xs text-gray-500">A chave PIX configurada acima sera usada</p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label className="text-white">Tipo de Chave PIX</Label>
+                      <Select value={withdrawalPixKeyType} onValueChange={setWithdrawalPixKeyType}>
+                        <SelectTrigger 
+                          style={{
+                            background: "rgba(30, 30, 40, 0.4)",
+                            borderColor: "rgba(255,255,255,0.1)",
+                            color: "#FFFFFF",
+                          }}
+                          data-testid="select-pix-key-type"
+                        >
+                          <SelectValue placeholder="Selecione o tipo" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-900 border-white/10">
+                          <SelectItem value="cpf">CPF</SelectItem>
+                          <SelectItem value="cnpj">CNPJ</SelectItem>
+                          <SelectItem value="email">E-mail</SelectItem>
+                          <SelectItem value="phone">Telefone</SelectItem>
+                          <SelectItem value="random">Chave Aleatoria</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label className="text-white">Nome do Titular</Label>
+                      <Input
+                        value={withdrawalPixHolderName}
+                        onChange={(e) => setWithdrawalPixHolderName(e.target.value)}
+                        placeholder={vendorData?.storeName || "Nome completo do titular"}
+                        style={{
+                          background: "rgba(30, 30, 40, 0.4)",
+                          borderColor: "rgba(255,255,255,0.1)",
+                          color: "#FFFFFF",
+                        }}
+                        data-testid="input-pix-holder-name"
+                      />
+                    </div>
+                    
+                    <Button
+                      onClick={handleRequestWithdrawal}
+                      disabled={withdrawalMutation.isPending || !withdrawalAmount}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                      data-testid="button-confirm-withdrawal"
+                    >
+                      {withdrawalMutation.isPending ? "Enviando..." : "Confirmar Solicitacao"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+          
+          {/* Mensagens de aviso */}
+          {verificationData?.verificationStatus !== "approved" && (
+            <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-yellow-400" />
+                <p className="text-sm text-yellow-300">
+                  Voce precisa ter sua identidade verificada para solicitar saques.
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {!settings.pixKey && (
+            <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-yellow-400" />
+                <p className="text-sm text-yellow-300">
+                  Configure sua chave PIX acima para poder solicitar saques.
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {/* Historico de saques */}
+          {withdrawalsData && withdrawalsData.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium text-white">Historico de Solicitacoes</h4>
+              <div className="space-y-2">
+                {withdrawalsData.map((withdrawal: any) => (
+                  <div 
+                    key={withdrawal.id}
+                    className="p-3 rounded-lg bg-white/5 border border-white/10 flex items-center justify-between gap-3 flex-wrap"
+                    data-testid={`withdrawal-item-${withdrawal.id}`}
+                  >
+                    <div>
+                      <p className="text-sm text-white font-medium">
+                        R$ {parseFloat(withdrawal.amount as any || "0").toFixed(2)}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {new Date(withdrawal.createdAt).toLocaleDateString('pt-BR', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                    {getWithdrawalStatusBadge(withdrawal.status)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {loadingWithdrawals && (
+            <div className="text-center py-4">
+              <div className="animate-spin w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full mx-auto"></div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
