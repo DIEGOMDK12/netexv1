@@ -3236,6 +3236,10 @@ export async function registerRoutes(
     try {
       const { documentFrontUrl, documentBackUrl } = req.body;
       
+      console.log("[Vendor Documents] Received upload request for vendor:", vendorId);
+      console.log("[Vendor Documents] Front URL:", documentFrontUrl ? 'received' : 'missing');
+      console.log("[Vendor Documents] Back URL:", documentBackUrl ? 'received' : 'missing');
+      
       if (!documentFrontUrl || !documentBackUrl) {
         return res.status(400).json({ error: "Both document front and back images are required" });
       }
@@ -3249,7 +3253,13 @@ export async function registerRoutes(
         verifiedAt: null,
       });
       
-      console.log("[Vendor Documents] Documents uploaded for vendor:", vendorId);
+      console.log("[Vendor Documents] Documents uploaded successfully for vendor:", vendorId);
+      console.log("[Vendor Documents] Updated vendor data:", {
+        id: vendor?.id,
+        documentFrontUrl: vendor?.documentFrontUrl ? 'set' : 'not set',
+        documentBackUrl: vendor?.documentBackUrl ? 'set' : 'not set',
+        verificationStatus: vendor?.verificationStatus
+      });
       
       res.json({
         success: true,
@@ -3305,10 +3315,18 @@ export async function registerRoutes(
     try {
       const resellers = await storage.getResellers();
       
-      // Filter vendors with pending verification and documents uploaded
+      // Debug: Log all resellers with documents
+      const withDocs = resellers.filter((r: any) => r.documentFrontUrl || r.documentBackUrl);
+      console.log("[Admin Pending Verifications] Total resellers:", resellers.length);
+      console.log("[Admin Pending Verifications] Resellers with any doc:", withDocs.length);
+      withDocs.forEach((r: any) => {
+        console.log(`  - ID ${r.id}: status=${r.verificationStatus}, front=${r.documentFrontUrl ? 'yes' : 'no'}, back=${r.documentBackUrl ? 'yes' : 'no'}`);
+      });
+      
+      // Filter vendors with documents uploaded and pending/null status (null defaults to pending)
       const pendingVerifications = resellers
         .filter((r: any) => 
-          r.verificationStatus === "pending" && 
+          (r.verificationStatus === "pending" || r.verificationStatus === null || r.verificationStatus === undefined) && 
           r.documentFrontUrl && 
           r.documentBackUrl
         )
@@ -3324,7 +3342,7 @@ export async function registerRoutes(
           createdAt: r.createdAt,
         }));
       
-      console.log("[Admin Pending Verifications] Found", pendingVerifications.length, "pending");
+      console.log("[Admin Pending Verifications] Found", pendingVerifications.length, "pending verifications");
       res.json(pendingVerifications);
     } catch (error) {
       console.error("[Admin Pending Verifications] Error:", error);
