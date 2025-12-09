@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import nexStoreLogo from "@assets/generated_images/nex_store_marketplace_logo.png";
+import nexStoreLogo from "@assets/generated_images/nex_store_modern_logo.png";
 import { 
   Search, 
   Bell, 
