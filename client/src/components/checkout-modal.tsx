@@ -660,6 +660,30 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
                     <Copy className="w-4 h-4 mr-2" />
                     {copied ? "Código copiado!" : "Copiar Código PIX"}
                   </Button>
+                  
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    onClick={() => {
+                      setPaymentStatus("checking");
+                      checkPaymentStatus().finally(() => {
+                        if (paymentStatus !== "paid") {
+                          setPaymentStatus("pending");
+                        }
+                      });
+                    }}
+                    disabled={paymentStatus === "checking"}
+                    data-testid="button-check-payment"
+                  >
+                    {paymentStatus === "checking" ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Verificando...
+                      </>
+                    ) : (
+                      "Já realizei o pagamento"
+                    )}
+                  </Button>
                 </>
               ) : PIX_KEY && PIX_KEY !== "Chave PIX não configurada" ? (
                 <>
