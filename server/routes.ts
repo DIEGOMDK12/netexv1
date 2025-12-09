@@ -3091,6 +3091,81 @@ export async function registerRoutes(
     }
   });
 
+  // Token validation/restoration endpoint
+  // Allows frontend to restore session after server restart
+  app.post("/api/vendor/restore-session", async (req, res) => {
+    const { vendorId, email } = req.body;
+    const existingToken = req.headers.authorization?.replace("Bearer ", "");
+
+    console.log("[Vendor Restore Session] Attempting to restore session for vendor:", vendorId || email);
+
+    try {
+      // Check if token is already valid
+      if (existingToken && tokenToVendor.has(existingToken)) {
+        const storedVendorId = tokenToVendor.get(existingToken);
+        const vendor = await storage.getReseller(storedVendorId!);
+        if (vendor && vendor.active) {
+          console.log("[Vendor Restore Session] Token already valid for vendor:", vendor.id);
+          return res.json({
+            success: true,
+            token: existingToken,
+            vendor: {
+              id: vendor.id,
+              name: vendor.name,
+              email: vendor.email,
+              slug: vendor.slug,
+              storeName: vendor.storeName,
+              subscriptionStatus: vendor.subscriptionStatus,
+              subscriptionExpiresAt: vendor.subscriptionExpiresAt,
+            },
+          });
+        }
+      }
+
+      // Token is invalid, try to restore by vendorId or email
+      let vendor = null;
+      if (vendorId) {
+        vendor = await storage.getReseller(vendorId);
+      } else if (email) {
+        vendor = await storage.getResellerByEmail(email);
+      }
+
+      if (!vendor) {
+        console.log("[Vendor Restore Session] Vendor not found");
+        return res.status(401).json({ error: "Sessão expirada. Faça login novamente.", requireLogin: true });
+      }
+
+      if (!vendor.active) {
+        console.log("[Vendor Restore Session] Vendor is inactive");
+        return res.status(403).json({ error: "Sua loja foi bloqueada", requireLogin: true });
+      }
+
+      // Generate new token and establish session
+      const newToken = generateToken();
+      vendorTokens.set(vendor.id, newToken);
+      tokenToVendor.set(newToken, vendor.id);
+
+      console.log("[Vendor Restore Session] Session restored successfully for vendor:", vendor.id);
+
+      res.json({
+        success: true,
+        token: newToken,
+        vendor: {
+          id: vendor.id,
+          name: vendor.name,
+          email: vendor.email,
+          slug: vendor.slug,
+          storeName: vendor.storeName,
+          subscriptionStatus: vendor.subscriptionStatus,
+          subscriptionExpiresAt: vendor.subscriptionExpiresAt,
+        },
+      });
+    } catch (error: any) {
+      console.error("[Vendor Restore Session] Error:", error?.message || error);
+      res.status(500).json({ error: "Erro ao restaurar sessão", requireLogin: true });
+    }
+  });
+
   // Vendor/Reseller Routes
   app.post("/api/vendor/register", async (req, res) => {
     console.log("[Vendor Register] Request received:", { name: req.body.name, email: req.body.email });

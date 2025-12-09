@@ -8,22 +8,73 @@ async function throwIfResNotOk(res: Response) {
 }
 
 function getAuthHeaders(): HeadersInit {
-  // Priority 1: Check for admin token (admin login)
   const adminToken = localStorage.getItem("admin_token");
   if (adminToken) {
-    console.log("[getAuthHeaders] Using admin token");
     return { Authorization: `Bearer ${adminToken}` };
   }
   
-  // Priority 2: Check for vendor token (vendor login)
   const vendorToken = localStorage.getItem("vendor_token");
   if (vendorToken) {
-    console.log("[getAuthHeaders] Using vendor token");
     return { Authorization: `Bearer ${vendorToken}` };
   }
   
-  console.log("[getAuthHeaders] No token found");
   return {};
+}
+
+let isRestoringSession = false;
+
+export async function restoreVendorSession(): Promise<boolean> {
+  if (isRestoringSession) return false;
+  
+  const vendorId = localStorage.getItem("vendor_id");
+  const vendorToken = localStorage.getItem("vendor_token");
+  
+  if (!vendorId) {
+    console.log("[restoreVendorSession] No vendor_id in localStorage");
+    return false;
+  }
+  
+  isRestoringSession = true;
+  
+  try {
+    console.log("[restoreVendorSession] Attempting to restore session for vendor:", vendorId);
+    
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+    
+    if (vendorToken) {
+      headers["Authorization"] = `Bearer ${vendorToken}`;
+    }
+    
+    const res = await fetch("/api/vendor/restore-session", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ vendorId: parseInt(vendorId) }),
+      credentials: "include",
+    });
+    
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.token) {
+        localStorage.setItem("vendor_token", data.token);
+        if (data.vendor?.id) {
+          localStorage.setItem("vendor_id", data.vendor.id.toString());
+        }
+        console.log("[restoreVendorSession] Session restored successfully");
+        isRestoringSession = false;
+        return true;
+      }
+    }
+    
+    console.log("[restoreVendorSession] Failed to restore session, status:", res.status);
+    isRestoringSession = false;
+    return false;
+  } catch (error) {
+    console.error("[restoreVendorSession] Error:", error);
+    isRestoringSession = false;
+    return false;
+  }
 }
 
 export async function apiRequest(
@@ -37,18 +88,32 @@ export async function apiRequest(
     "Content-Type": "application/json",
   };
 
-  console.log("[apiRequest] Method:", method);
-  console.log("[apiRequest] URL:", url);
-  console.log("[apiRequest] Has Authorization header?", 'Authorization' in authHeaders);
-
-  const res = await fetch(url, {
+  let res = await fetch(url, {
     method,
     headers,
     body: data && Object.keys(data).length > 0 ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
 
-  console.log("[apiRequest] Response status:", res.status);
+  if (res.status === 401 && localStorage.getItem("vendor_id")) {
+    console.log("[apiRequest] Got 401, attempting session restoration...");
+    const restored = await restoreVendorSession();
+    
+    if (restored) {
+      const newAuthHeaders = getAuthHeaders();
+      const newHeaders: HeadersInit = {
+        ...newAuthHeaders,
+        "Content-Type": "application/json",
+      };
+      
+      res = await fetch(url, {
+        method,
+        headers: newHeaders,
+        body: data && Object.keys(data).length > 0 ? JSON.stringify(data) : undefined,
+        credentials: "include",
+      });
+    }
+  }
 
   await throwIfResNotOk(res);
   return res;
