@@ -17,6 +17,8 @@ import SubscriptionPayment from "@/pages/subscription-payment";
 import SubscriptionSuccess from "@/pages/subscription-success";
 import ResellerStore from "@/pages/reseller-store";
 import ResellerProductDetails from "@/pages/reseller-product-details";
+import TermsOfService from "@/pages/terms-of-service";
+import RefundPolicy from "@/pages/refund-policy";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -36,6 +38,8 @@ function Router() {
       <Route path="/vendor/:page" component={VendorDashboard} />
       <Route path="/loja/:slug" component={ResellerStore} />
       <Route path="/loja/:slug/produto/:productId" component={ResellerProductDetails} />
+      <Route path="/termos" component={TermsOfService} />
+      <Route path="/garantia" component={RefundPolicy} />
       <Route component={NotFound} />
     </Switch>
   );

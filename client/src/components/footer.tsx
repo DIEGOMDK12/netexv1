@@ -1,6 +1,7 @@
 import { MessageCircle, Shield, CreditCard, Lock } from "lucide-react";
 import { useStore } from "@/lib/store-context";
 import { SiPix } from "react-icons/si";
+import { Link } from "wouter";
 
 export function Footer() {
   const { settings, currentReseller } = useStore();
@@ -64,20 +65,20 @@ export function Footer() {
               Institucional
             </h3>
             <div className="space-y-2">
-              <a
-                href="#termos"
+              <Link
+                href="/termos"
                 className="block text-gray-300 hover:text-yellow-400 transition-colors text-sm"
                 data-testid="link-footer-terms"
               >
-                Termos de Serviço
-              </a>
-              <a
-                href="#garantia"
+                Termos de Servico
+              </Link>
+              <Link
+                href="/garantia"
                 className="block text-gray-300 hover:text-yellow-400 transition-colors text-sm"
                 data-testid="link-footer-warranty"
               >
                 Garantia e Reembolso
-              </a>
+              </Link>
             </div>
           </div>
         </div>

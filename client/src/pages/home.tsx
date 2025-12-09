@@ -227,6 +227,7 @@ export default function Home() {
           <Button 
             className="bg-blue-600 text-white px-6 py-3 text-sm font-semibold rounded-lg"
             data-testid="button-how-it-works"
+            onClick={() => document.getElementById('como-funciona')?.scrollIntoView({ behavior: 'smooth' })}
           >
             <Play className="w-4 h-4 mr-1.5" />
             COMO FUNCIONA?
@@ -386,6 +387,77 @@ export default function Home() {
               <p className="text-sm">Nenhum produto disponivel no momento</p>
             </div>
           )}
+        </div>
+      </section>
+
+      <section className="px-4 py-12 bg-gradient-to-b from-[#0f172a] to-[#1e293b]/50" id="como-funciona">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-2xl font-bold text-white text-center mb-2">
+            Como Funciona?
+          </h2>
+          <p className="text-gray-400 text-center mb-8 text-sm">
+            Entenda o processo de compra e venda na nossa plataforma
+          </p>
+          
+          <div className="grid gap-6 md:grid-cols-2 mb-8">
+            <div className="bg-[#1e293b] rounded-xl p-6 border border-blue-500/20">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center">
+                  <ShoppingCart className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="text-lg font-semibold text-white">Para Compradores</h3>
+              </div>
+              <ol className="space-y-3 text-sm">
+                <li className="flex items-start gap-3">
+                  <span className="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold flex-shrink-0">1</span>
+                  <span className="text-gray-300">Escolha o produto digital que deseja comprar</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold flex-shrink-0">2</span>
+                  <span className="text-gray-300">Faca o pagamento via PIX ou Cartao (processado na hora)</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold flex-shrink-0">3</span>
+                  <span className="text-gray-300">Receba automaticamente os dados de acesso na tela e por e-mail</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                    <Zap className="w-3 h-3" />
+                  </span>
+                  <span className="text-gray-300">Entrega instantanea - sem espera!</span>
+                </li>
+              </ol>
+            </div>
+
+            <div className="bg-[#1e293b] rounded-xl p-6 border border-purple-500/20">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center">
+                  <User className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="text-lg font-semibold text-white">Para Vendedores</h3>
+              </div>
+              <ol className="space-y-3 text-sm">
+                <li className="flex items-start gap-3">
+                  <span className="w-6 h-6 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center text-xs font-bold flex-shrink-0">1</span>
+                  <span className="text-gray-300">Crie sua conta gratuitamente e monte sua loja</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="w-6 h-6 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center text-xs font-bold flex-shrink-0">2</span>
+                  <span className="text-gray-300">Cadastre seus produtos digitais com estoque automatico</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="w-6 h-6 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center text-xs font-bold flex-shrink-0">3</span>
+                  <span className="text-gray-300">Vendas sao processadas automaticamente 24h por dia</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                    <Coins className="w-3 h-3" />
+                  </span>
+                  <span className="text-gray-300">Receba o valor das vendas diretamente na sua carteira</span>
+                </li>
+              </ol>
+            </div>
+          </div>
         </div>
       </section>
 

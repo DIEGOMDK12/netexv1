@@ -31,6 +31,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [currentReseller, setCurrentReseller] = useState<Reseller | null>(null);
 
   useEffect(() => {
+    fetch("/api/settings")
+      .then(res => res.json())
+      .then(data => setSettings(data))
+      .catch(err => console.error("Erro ao carregar configurações:", err));
+  }, []);
+
+  useEffect(() => {
     const savedCart = localStorage.getItem("cart");
     if (savedCart) {
       try {
