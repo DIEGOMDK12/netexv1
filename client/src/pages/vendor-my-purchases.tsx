@@ -13,6 +13,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { OrderChat } from "@/components/OrderChat";
 
 interface OrderItem {
   id: number;
@@ -193,11 +194,20 @@ export function VendorMyPurchases({ vendorEmail }: VendorMyPurchasesProps) {
                   </div>
                 ))}
 
-                <div className="flex items-center justify-between pt-3 border-t border-gray-700">
-                  <span className="text-gray-400">Total:</span>
-                  <span className="text-lg font-bold text-blue-400">
-                    R$ {Number(order.totalAmount).toFixed(2)}
-                  </span>
+                <div className="flex items-center justify-between pt-3 border-t border-gray-700 flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400">Total:</span>
+                    <span className="text-lg font-bold text-blue-400">
+                      R$ {Number(order.totalAmount).toFixed(2)}
+                    </span>
+                  </div>
+                  {order.status === "paid" && (
+                    <OrderChat
+                      orderId={order.id}
+                      buyerEmail={vendorEmail}
+                      buyerName={vendorEmail.split("@")[0]}
+                    />
+                  )}
                 </div>
 
                 {order.status === "pending" && (

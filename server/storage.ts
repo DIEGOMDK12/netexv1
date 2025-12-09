@@ -1,5 +1,5 @@
 import { 
-  products, orders, orderItems, coupons, settings, resellers, categories, customerUsers, withdrawalRequests, announcementSettings, webhooks,
+  products, orders, orderItems, coupons, settings, resellers, categories, customerUsers, withdrawalRequests, announcementSettings, webhooks, chatMessages,
   type Product, type InsertProduct,
   type Order, type InsertOrder,
   type OrderItem, type InsertOrderItem,
@@ -10,7 +10,8 @@ import {
   type CustomerUser, type UpsertCustomerUser,
   type WithdrawalRequest, type InsertWithdrawalRequest,
   type AnnouncementSetting, type InsertAnnouncementSetting,
-  type Webhook, type InsertWebhook
+  type Webhook, type InsertWebhook,
+  type ChatMessage, type InsertChatMessage
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, isNotNull, inArray, and, sql } from "drizzle-orm";
@@ -93,6 +94,12 @@ export interface IStorage {
   
   // Marketplace - Unique categories (deduplicated by slug)
   getUniqueCategories(): Promise<Category[]>;
+
+  // Chat messages
+  getChatMessages(orderId: number): Promise<ChatMessage[]>;
+  createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
+  markMessagesAsRead(orderId: number, senderType: string): Promise<void>;
+  getUnreadMessageCount(orderId: number, forSenderType: string): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -605,6 +612,37 @@ export class DatabaseStorage implements IStorage {
       console.error("[Storage] getUniqueCategories ERROR:", error.message, error.stack);
       throw error;
     }
+  }
+
+  async getChatMessages(orderId: number): Promise<ChatMessage[]> {
+    return db.select().from(chatMessages).where(eq(chatMessages.orderId, orderId)).orderBy(chatMessages.createdAt);
+  }
+
+  async createChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
+    const [newMessage] = await db.insert(chatMessages).values(message).returning();
+    return newMessage;
+  }
+
+  async markMessagesAsRead(orderId: number, senderType: string): Promise<void> {
+    const oppositeType = senderType === "buyer" ? "seller" : "buyer";
+    await db.update(chatMessages)
+      .set({ read: true })
+      .where(and(
+        eq(chatMessages.orderId, orderId),
+        eq(chatMessages.senderType, oppositeType)
+      ));
+  }
+
+  async getUnreadMessageCount(orderId: number, forSenderType: string): Promise<number> {
+    const oppositeType = forSenderType === "buyer" ? "seller" : "buyer";
+    const result = await db.select({ count: sql<number>`count(*)` })
+      .from(chatMessages)
+      .where(and(
+        eq(chatMessages.orderId, orderId),
+        eq(chatMessages.senderType, oppositeType),
+        eq(chatMessages.read, false)
+      ));
+    return Number(result[0]?.count || 0);
   }
 }
 

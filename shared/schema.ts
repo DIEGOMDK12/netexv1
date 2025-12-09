@@ -272,3 +272,22 @@ export type InsertWithdrawalRequest = z.infer<typeof insertWithdrawalRequestSche
 export const insertWebhookSchema = createInsertSchema(webhooks).omit({ id: true, createdAt: true });
 export type Webhook = typeof webhooks.$inferSelect;
 export type InsertWebhook = z.infer<typeof insertWebhookSchema>;
+
+// Chat messages table for buyer-seller communication
+export const chatMessages = pgTable("chat_messages", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  orderId: integer("order_id").notNull(),
+  senderId: text("sender_id").notNull(),
+  senderType: text("sender_type").notNull(),
+  senderName: text("sender_name"),
+  message: text("message"),
+  attachmentUrl: text("attachment_url"),
+  attachmentType: text("attachment_type"),
+  read: boolean("read").default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// @ts-expect-error drizzle-zod omit type inference issue
+export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({ id: true, createdAt: true });
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;

@@ -155,6 +155,9 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Serve uploaded files statically
+  const express = await import("express");
+  app.use("/uploads", express.default.static(uploadDir));
 
   // Setup customer authentication (Google, GitHub, Apple, etc)
   await setupAuth(app);
@@ -5457,6 +5460,174 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("[Withdrawal] Error updating request:", error);
       res.status(500).json({ error: "Erro ao processar solicitação" });
+    }
+  });
+
+  // ==============================================
+  // CHAT ROUTES - Buyer/Seller Communication
+  // ==============================================
+
+  // Get chat messages for an order
+  app.get("/api/chat/:orderId", async (req, res) => {
+    const orderId = parseInt(req.params.orderId);
+    
+    if (isNaN(orderId)) {
+      return res.status(400).json({ error: "ID do pedido inválido" });
+    }
+    
+    try {
+      const messages = await storage.getChatMessages(orderId);
+      res.json(messages);
+    } catch (error: any) {
+      console.error("[Chat] Error fetching messages:", error);
+      res.status(500).json({ error: "Erro ao buscar mensagens" });
+    }
+  });
+
+  // Send a text chat message
+  app.post("/api/chat/:orderId", async (req, res) => {
+    const orderId = parseInt(req.params.orderId);
+    const { senderId, senderType, senderName, message } = req.body;
+    
+    if (isNaN(orderId)) {
+      return res.status(400).json({ error: "ID do pedido inválido" });
+    }
+    
+    if (!senderId || !senderType || !message) {
+      return res.status(400).json({ error: "Dados incompletos" });
+    }
+    
+    if (!["buyer", "seller"].includes(senderType)) {
+      return res.status(400).json({ error: "Tipo de remetente inválido" });
+    }
+    
+    try {
+      const newMessage = await storage.createChatMessage({
+        orderId,
+        senderId,
+        senderType,
+        senderName: senderName || null,
+        message,
+        attachmentUrl: null,
+        attachmentType: null,
+        read: false,
+      });
+      
+      res.json(newMessage);
+    } catch (error: any) {
+      console.error("[Chat] Error sending message:", error);
+      res.status(500).json({ error: "Erro ao enviar mensagem" });
+    }
+  });
+
+  // Send a chat message with attachment
+  app.post("/api/chat/:orderId/attachment", upload.single("attachment"), async (req, res) => {
+    const orderId = parseInt(req.params.orderId);
+    const { senderId, senderType, senderName, message } = req.body;
+    
+    if (isNaN(orderId)) {
+      return res.status(400).json({ error: "ID do pedido inválido" });
+    }
+    
+    if (!senderId || !senderType) {
+      return res.status(400).json({ error: "Dados incompletos" });
+    }
+    
+    if (!["buyer", "seller"].includes(senderType)) {
+      return res.status(400).json({ error: "Tipo de remetente inválido" });
+    }
+    
+    try {
+      let attachmentUrl: string | null = null;
+      let attachmentType: string | null = null;
+      
+      if (req.file) {
+        const fileBuffer = req.file.buffer;
+        const fileExtension = req.file.originalname.split(".").pop() || "jpg";
+        const fileName = `chat_${orderId}_${Date.now()}.${fileExtension}`;
+        
+        const objStorage = await getObjectStorage();
+        
+        if (objStorage) {
+          try {
+            await objStorage.uploadFromBytes(fileName, fileBuffer);
+            const { url } = await objStorage.downloadAsBytes(fileName);
+            attachmentUrl = url || `/api/uploads/${fileName}`;
+          } catch (uploadError: any) {
+            console.log("[Chat] Object storage upload failed, using local fallback");
+            const localPath = path.join(uploadDir, fileName);
+            fs.writeFileSync(localPath, fileBuffer);
+            attachmentUrl = `/uploads/${fileName}`;
+          }
+        } else {
+          ensureUploadDir();
+          const localPath = path.join(uploadDir, fileName);
+          fs.writeFileSync(localPath, fileBuffer);
+          attachmentUrl = `/uploads/${fileName}`;
+        }
+        
+        attachmentType = req.file.mimetype;
+      }
+      
+      const newMessage = await storage.createChatMessage({
+        orderId,
+        senderId,
+        senderType,
+        senderName: senderName || null,
+        message: message || null,
+        attachmentUrl,
+        attachmentType,
+        read: false,
+      });
+      
+      res.json(newMessage);
+    } catch (error: any) {
+      console.error("[Chat] Error sending attachment:", error);
+      res.status(500).json({ error: "Erro ao enviar anexo" });
+    }
+  });
+
+  // Mark messages as read
+  app.post("/api/chat/:orderId/read", async (req, res) => {
+    const orderId = parseInt(req.params.orderId);
+    const { senderType } = req.body;
+    
+    if (isNaN(orderId)) {
+      return res.status(400).json({ error: "ID do pedido inválido" });
+    }
+    
+    if (!senderType || !["buyer", "seller"].includes(senderType)) {
+      return res.status(400).json({ error: "Tipo de remetente inválido" });
+    }
+    
+    try {
+      await storage.markMessagesAsRead(orderId, senderType);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[Chat] Error marking messages as read:", error);
+      res.status(500).json({ error: "Erro ao marcar mensagens como lidas" });
+    }
+  });
+
+  // Get unread message count
+  app.get("/api/chat/:orderId/unread", async (req, res) => {
+    const orderId = parseInt(req.params.orderId);
+    const forSenderType = req.query.for as string;
+    
+    if (isNaN(orderId)) {
+      return res.status(400).json({ error: "ID do pedido inválido" });
+    }
+    
+    if (!forSenderType || !["buyer", "seller"].includes(forSenderType)) {
+      return res.status(400).json({ error: "Tipo de remetente inválido" });
+    }
+    
+    try {
+      const count = await storage.getUnreadMessageCount(orderId, forSenderType);
+      res.json({ count });
+    } catch (error: any) {
+      console.error("[Chat] Error getting unread count:", error);
+      res.status(500).json({ error: "Erro ao contar mensagens não lidas" });
     }
   });
 
