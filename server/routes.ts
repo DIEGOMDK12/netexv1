@@ -5489,11 +5489,21 @@ export async function registerRoutes(
     const orderId = parseInt(req.params.orderId);
     const { senderId, senderType, senderName, message } = req.body;
     
+    console.log("[Chat] POST /api/chat/:orderId received");
+    console.log("[Chat] orderId:", orderId);
+    console.log("[Chat] senderId:", senderId);
+    console.log("[Chat] senderType:", senderType);
+    console.log("[Chat] senderName:", senderName);
+    console.log("[Chat] message:", message);
+    console.log("[Chat] Full body:", JSON.stringify(req.body));
+    
     if (isNaN(orderId)) {
+      console.log("[Chat] Error: Invalid orderId");
       return res.status(400).json({ error: "ID do pedido inválido" });
     }
     
     if (!senderId || !senderType || !message) {
+      console.log("[Chat] Error: Incomplete data - senderId:", !!senderId, "senderType:", !!senderType, "message:", !!message);
       return res.status(400).json({ error: "Dados incompletos" });
     }
     

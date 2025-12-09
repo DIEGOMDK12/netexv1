@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState } from "react";
 import type { Order } from "@shared/schema";
+import { SellerOrderChat } from "@/components/SellerOrderChat";
 
 export function VendorOrdersEnhanced({ vendorId }: { vendorId: number }) {
   const { toast } = useToast();
@@ -359,6 +360,16 @@ export function VendorOrdersEnhanced({ vendorId }: { vendorId: number }) {
                         <p className="text-xs text-yellow-400">
                           Cliente nao informou WhatsApp. Produto entregue via email.
                         </p>
+                      </div>
+                    )}
+                    
+                    {order.status === "paid" && (
+                      <div className="mt-2">
+                        <SellerOrderChat
+                          orderId={order.id!}
+                          sellerId={String(vendorId)}
+                          sellerName="Vendedor"
+                        />
                       </div>
                     )}
                   </div>

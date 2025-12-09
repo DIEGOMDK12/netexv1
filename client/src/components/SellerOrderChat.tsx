@@ -13,7 +13,6 @@ import {
 import {
   MessageCircle,
   Send,
-  Paperclip,
   Image,
   X,
   Loader2,
@@ -35,14 +34,13 @@ interface ChatMessage {
   createdAt: string;
 }
 
-interface OrderChatProps {
+interface SellerOrderChatProps {
   orderId: number;
-  buyerEmail: string;
-  buyerName?: string;
-  userType?: "buyer" | "seller";
+  sellerId: string;
+  sellerName?: string;
 }
 
-export function OrderChat({ orderId, buyerEmail, buyerName, userType = "buyer" }: OrderChatProps) {
+export function SellerOrderChat({ orderId, sellerId, sellerName }: SellerOrderChatProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -63,9 +61,9 @@ export function OrderChat({ orderId, buyerEmail, buyerName, userType = "buyer" }
   });
 
   const { data: unreadCount = 0 } = useQuery<number>({
-    queryKey: ["/api/chat/unread", orderId, userType],
+    queryKey: ["/api/chat/unread", orderId, "seller"],
     queryFn: async () => {
-      const response = await fetch(`/api/chat/${orderId}/unread?for=${userType}`);
+      const response = await fetch(`/api/chat/${orderId}/unread?for=seller`);
       if (!response.ok) return 0;
       const data = await response.json();
       return data.count || 0;
@@ -78,9 +76,9 @@ export function OrderChat({ orderId, buyerEmail, buyerName, userType = "buyer" }
       if (data.file) {
         const formData = new FormData();
         formData.append("attachment", data.file);
-        formData.append("senderId", buyerEmail);
-        formData.append("senderType", userType);
-        formData.append("senderName", buyerName || buyerEmail);
+        formData.append("senderId", sellerId);
+        formData.append("senderType", "seller");
+        formData.append("senderName", sellerName || "Vendedor");
         if (data.message) {
           formData.append("message", data.message);
         }
@@ -94,9 +92,9 @@ export function OrderChat({ orderId, buyerEmail, buyerName, userType = "buyer" }
         return response.json();
       } else {
         const response = await apiRequest("POST", `/api/chat/${orderId}`, {
-          senderId: buyerEmail,
-          senderType: userType,
-          senderName: buyerName || buyerEmail,
+          senderId: sellerId,
+          senderType: "seller",
+          senderName: sellerName || "Vendedor",
           message: data.message,
         });
         return response.json();
@@ -120,12 +118,12 @@ export function OrderChat({ orderId, buyerEmail, buyerName, userType = "buyer" }
   const markAsReadMutation = useMutation({
     mutationFn: async () => {
       return apiRequest("POST", `/api/chat/${orderId}/read`, {
-        senderType: userType,
+        senderType: "seller",
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["/api/chat/unread", orderId, userType],
+        queryKey: ["/api/chat/unread", orderId, "seller"],
       });
     },
   });
@@ -191,10 +189,10 @@ export function OrderChat({ orderId, buyerEmail, buyerName, userType = "buyer" }
         variant="outline"
         onClick={() => setIsOpen(true)}
         className="relative bg-transparent border-blue-500/30 text-blue-400"
-        data-testid={`button-chat-${orderId}`}
+        data-testid={`button-seller-chat-${orderId}`}
       >
         <MessageCircle className="w-4 h-4 mr-1" />
-        Suporte
+        Chat
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
             {unreadCount}
@@ -230,7 +228,7 @@ export function OrderChat({ orderId, buyerEmail, buyerName, userType = "buyer" }
                 <MessageCircle className="w-12 h-12 mb-2 opacity-50" />
                 <p className="text-sm">Nenhuma mensagem ainda</p>
                 <p className="text-xs mt-1">
-                  Envie uma mensagem para iniciar o chat
+                  Aguardando mensagem do cliente
                 </p>
               </div>
             ) : (
@@ -239,18 +237,18 @@ export function OrderChat({ orderId, buyerEmail, buyerName, userType = "buyer" }
                   <div
                     key={msg.id}
                     className={`flex ${
-                      msg.senderType === "buyer" ? "justify-end" : "justify-start"
+                      msg.senderType === "seller" ? "justify-end" : "justify-start"
                     }`}
                   >
                     <div
                       className={`max-w-[80%] rounded-lg p-3 ${
-                        msg.senderType === "buyer"
-                          ? "bg-blue-600 text-white"
+                        msg.senderType === "seller"
+                          ? "bg-green-600 text-white"
                           : "bg-zinc-800 text-white"
                       }`}
                     >
                       <p className="text-xs opacity-70 mb-1">
-                        {msg.senderType === "buyer" ? "Voce" : msg.senderName || "Vendedor"}
+                        {msg.senderType === "seller" ? "Voce" : msg.senderName || "Cliente"}
                       </p>
                       {msg.attachmentUrl && (
                         <a
@@ -267,7 +265,6 @@ export function OrderChat({ orderId, buyerEmail, buyerName, userType = "buyer" }
                             />
                           ) : (
                             <div className="flex items-center gap-2 text-sm underline">
-                              <Paperclip className="w-4 h-4" />
                               Ver anexo
                             </div>
                           )}
@@ -324,7 +321,7 @@ export function OrderChat({ orderId, buyerEmail, buyerName, userType = "buyer" }
                 variant="ghost"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={sendMessageMutation.isPending}
-                data-testid={`button-attach-${orderId}`}
+                data-testid={`button-seller-attach-${orderId}`}
               >
                 <Image className="w-5 h-5 text-gray-400" />
               </Button>
@@ -332,10 +329,10 @@ export function OrderChat({ orderId, buyerEmail, buyerName, userType = "buyer" }
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Digite sua mensagem..."
+                placeholder="Responder ao cliente..."
                 className="flex-1 bg-zinc-800 border-gray-700 text-white"
                 disabled={sendMessageMutation.isPending}
-                data-testid={`input-chat-message-${orderId}`}
+                data-testid={`input-seller-chat-message-${orderId}`}
               />
               <Button
                 size="icon"
@@ -344,7 +341,7 @@ export function OrderChat({ orderId, buyerEmail, buyerName, userType = "buyer" }
                   sendMessageMutation.isPending ||
                   (!message.trim() && !selectedFile)
                 }
-                data-testid={`button-send-${orderId}`}
+                data-testid={`button-seller-send-${orderId}`}
               >
                 {sendMessageMutation.isPending ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
