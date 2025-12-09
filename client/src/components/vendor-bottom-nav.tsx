@@ -74,12 +74,12 @@ export function VendorBottomNav({ vendorEmail, vendorId, onLogout }: VendorBotto
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 md:hidden safe-area-inset-bottom"
       style={{
-        background: "linear-gradient(180deg, rgba(15, 15, 15, 0.95) 0%, rgba(10, 10, 10, 0.98) 100%)",
-        backdropFilter: "blur(10px)",
-        borderTop: "1px solid rgba(255,255,255,0.08)",
+        background: "rgba(10, 10, 10, 0.85)",
+        backdropFilter: "blur(8px)",
+        borderTop: "1px solid rgba(255,255,255,0.05)",
       }}
     >
-      <div className="flex items-center justify-around h-14 max-w-lg mx-auto px-2">
+      <div className="flex items-center justify-around h-12 max-w-lg mx-auto px-1">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
@@ -87,20 +87,20 @@ export function VendorBottomNav({ vendorEmail, vendorId, onLogout }: VendorBotto
           return (
             <Link key={item.href} href={item.href}>
               <div 
-                className={`relative flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all duration-200 ${
+                className={`relative flex flex-col items-center justify-center py-1 px-2 rounded-lg transition-all duration-200 ${
                   active
-                    ? "bg-emerald-500/15"
-                    : "hover:bg-white/5"
+                    ? "bg-emerald-500/10"
+                    : ""
                 }`}
                 data-testid={`button-bottom-nav-${item.label.toLowerCase()}`}
               >
-                <Icon className={`w-5 h-5 mb-0.5 ${active ? "text-emerald-400" : "text-gray-500"}`} />
-                <span className={`text-[10px] font-medium ${active ? "text-emerald-400" : "text-gray-500"}`}>
+                <Icon className={`w-4 h-4 ${active ? "text-emerald-400" : "text-gray-500"}`} />
+                <span className={`text-[9px] font-medium mt-0.5 ${active ? "text-emerald-400" : "text-gray-500"}`}>
                   {item.label}
                 </span>
                 {item.showBadge && (
                   <span 
-                    className="absolute top-0 right-1 w-2 h-2 bg-red-500 rounded-full"
+                    className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-red-500 rounded-full"
                     data-testid="notification-badge-purchases-mobile"
                   />
                 )}
@@ -112,11 +112,11 @@ export function VendorBottomNav({ vendorEmail, vendorId, onLogout }: VendorBotto
         {/* Logout Button */}
         <div 
           onClick={handleLogout}
-          className="flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all duration-200 hover:bg-red-500/10 cursor-pointer"
+          className="flex flex-col items-center justify-center py-1 px-2 rounded-lg transition-all duration-200 cursor-pointer"
           data-testid="button-bottom-logout"
         >
-          <LogOut className="w-5 h-5 mb-0.5 text-red-400" />
-          <span className="text-[10px] font-medium text-red-400">Sair</span>
+          <LogOut className="w-4 h-4 text-red-400" />
+          <span className="text-[9px] font-medium mt-0.5 text-red-400">Sair</span>
         </div>
       </div>
     </nav>
