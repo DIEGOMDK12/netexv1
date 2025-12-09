@@ -108,6 +108,7 @@ export interface IStorage {
   getReviewByOrderId(orderId: number): Promise<Review | undefined>;
   getResellerReviews(resellerId: number): Promise<Review[]>;
   getResellerStats(resellerId: number): Promise<{ averageRating: number; totalReviews: number; positivePercent: number; totalSales: number }>;
+  getBatchSellerStats(resellerIds: number[]): Promise<Record<number, { averageRating: number; totalReviews: number }>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -692,6 +693,42 @@ export class DatabaseStorage implements IStorage {
     const totalSales = Number(paidOrders[0]?.count || 0);
     
     return { averageRating: Math.round(averageRating * 10) / 10, totalReviews, positivePercent, totalSales };
+  }
+
+  async getBatchSellerStats(resellerIds: number[]): Promise<Record<number, { averageRating: number; totalReviews: number }>> {
+    if (resellerIds.length === 0) return {};
+    
+    // Get all reviews for the given reseller IDs in a single query
+    const allReviews = await db.select()
+      .from(reviews)
+      .where(sql`${reviews.resellerId} IN (${sql.join(resellerIds.map(id => sql`${id}`), sql`,`)})`);
+    
+    // Group reviews by reseller ID and calculate stats
+    const statsMap: Record<number, { averageRating: number; totalReviews: number }> = {};
+    
+    // Initialize all reseller IDs with default stats
+    for (const id of resellerIds) {
+      statsMap[id] = { averageRating: 0, totalReviews: 0 };
+    }
+    
+    // Group reviews by reseller
+    const reviewsByReseller = new Map<number, number[]>();
+    for (const review of allReviews) {
+      const ratings = reviewsByReseller.get(review.resellerId) || [];
+      ratings.push(review.rating);
+      reviewsByReseller.set(review.resellerId, ratings);
+    }
+    
+    // Calculate stats for each reseller
+    for (const [resellerId, ratings] of reviewsByReseller) {
+      const totalReviews = ratings.length;
+      const averageRating = totalReviews > 0 
+        ? Math.round((ratings.reduce((a, b) => a + b, 0) / totalReviews) * 10) / 10
+        : 0;
+      statsMap[resellerId] = { averageRating, totalReviews };
+    }
+    
+    return statsMap;
   }
 }
 

@@ -713,6 +713,21 @@ export async function registerRoutes(
     }
   });
 
+  // Get batch seller stats for marketplace product cards
+  app.post("/api/marketplace/seller-stats", async (req, res) => {
+    try {
+      const { sellerIds } = req.body;
+      if (!Array.isArray(sellerIds) || sellerIds.length === 0) {
+        return res.json({});
+      }
+      const stats = await storage.getBatchSellerStats(sellerIds.map(Number));
+      res.json(stats);
+    } catch (error: any) {
+      console.error("[POST /api/marketplace/seller-stats] Error:", error.message);
+      res.status(500).json({ error: "Failed to fetch seller stats" });
+    }
+  });
+
   // Get global unique categories (for marketplace home) - only fixed categories
   app.get("/api/marketplace/categories", async (req, res) => {
     try {

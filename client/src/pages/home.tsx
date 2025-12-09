@@ -35,6 +35,8 @@ type ProductWithSeller = Product & {
   } | null;
 };
 
+type SellerStats = Record<number, { averageRating: number; totalReviews: number }>;
+
 const categoryIcons: Record<string, any> = {
   "games-mobile": Smartphone,
   "games-pc": Gamepad2,
@@ -84,6 +86,25 @@ export default function Home() {
       if (!response.ok) throw new Error("Failed to fetch categories");
       return response.json();
     },
+  });
+
+  // Get unique seller IDs from products
+  const uniqueSellerIds = Array.from(new Set(products.map(p => p.seller?.id).filter(Boolean) as number[]));
+
+  // Fetch batch seller stats
+  const { data: sellerStats = {} } = useQuery<SellerStats>({
+    queryKey: ["/api/marketplace/seller-stats", uniqueSellerIds],
+    queryFn: async () => {
+      if (uniqueSellerIds.length === 0) return {};
+      const response = await fetch("/api/marketplace/seller-stats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sellerIds: uniqueSellerIds }),
+      });
+      if (!response.ok) throw new Error("Failed to fetch seller stats");
+      return response.json();
+    },
+    enabled: uniqueSellerIds.length > 0,
   });
 
   const activeProducts = products.filter(p => p.active);
@@ -318,7 +339,7 @@ export default function Home() {
             {filteredProducts.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
                 {filteredProducts.map((product) => (
-                  <ProductCardMini key={product.id} product={product} />
+                  <ProductCardMini key={product.id} product={product} stats={product.seller?.id ? sellerStats[product.seller.id] : undefined} />
                 ))}
               </div>
             ) : (
@@ -339,7 +360,7 @@ export default function Home() {
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
               {steamProducts.map((product) => (
-                <ProductCardMini key={product.id} product={product} />
+                <ProductCardMini key={product.id} product={product} stats={product.seller?.id ? sellerStats[product.seller.id] : undefined} />
               ))}
             </div>
           </div>
@@ -355,7 +376,7 @@ export default function Home() {
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
               {subscriptionProducts.map((product) => (
-                <ProductCardMini key={product.id} product={product} />
+                <ProductCardMini key={product.id} product={product} stats={product.seller?.id ? sellerStats[product.seller.id] : undefined} />
               ))}
             </div>
           </div>
@@ -378,7 +399,7 @@ export default function Home() {
           ) : featuredProducts.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
               {featuredProducts.map((product) => (
-                <ProductCardMini key={product.id} product={product} />
+                <ProductCardMini key={product.id} product={product} stats={product.seller?.id ? sellerStats[product.seller.id] : undefined} />
               ))}
             </div>
           ) : (
@@ -546,7 +567,7 @@ export default function Home() {
   );
 }
 
-function ProductCardMini({ product }: { product: ProductWithSeller }) {
+function ProductCardMini({ product, stats }: { product: ProductWithSeller; stats?: { averageRating: number; totalReviews: number } }) {
   const stockLines = product.stock?.split("\n").filter((line) => line.trim()) || [];
   const hasStock = stockLines.length > 0;
   const sellerName = product.seller?.storeName || product.seller?.name || "Vendedor";
@@ -597,6 +618,12 @@ function ProductCardMini({ product }: { product: ProductWithSeller }) {
             <span className="text-sm font-bold text-blue-500" data-testid={`text-price-${product.id}`}>
               R$ {Number(product.currentPrice).toFixed(2)}
             </span>
+            {stats && stats.totalReviews > 0 && (
+              <div className="flex items-center gap-0.5" data-testid={`rating-${product.id}`}>
+                <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                <span className="text-[10px] text-gray-400">{stats.averageRating}</span>
+              </div>
+            )}
           </div>
 
           <div 
