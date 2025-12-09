@@ -60,7 +60,24 @@ async function runStartupMigrations() {
     `);
     console.log("[Migration] Created chat_messages table");
     
-    // Add product_id and product_name columns to reviews table for product-specific reviews
+    // Create reviews table if it doesn't exist
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS reviews (
+        id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        order_id INTEGER NOT NULL UNIQUE,
+        reseller_id INTEGER NOT NULL,
+        product_id INTEGER,
+        product_name TEXT,
+        customer_email TEXT NOT NULL,
+        customer_name TEXT,
+        rating INTEGER NOT NULL,
+        comment TEXT,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+    console.log("[Migration] Created reviews table");
+    
+    // Add product_id and product_name columns to reviews table for product-specific reviews (for existing tables)
     await client.query(`
       ALTER TABLE reviews 
       ADD COLUMN IF NOT EXISTS product_id INTEGER,
