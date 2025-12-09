@@ -5619,29 +5619,8 @@ export async function registerRoutes(
     }
   });
 
-  // Get unread message count
-  app.get("/api/chat/:orderId/unread", async (req, res) => {
-    const orderId = parseInt(req.params.orderId);
-    const forSenderType = req.query.for as string;
-    
-    if (isNaN(orderId)) {
-      return res.status(400).json({ error: "ID do pedido inválido" });
-    }
-    
-    if (!forSenderType || !["buyer", "seller"].includes(forSenderType)) {
-      return res.status(400).json({ error: "Tipo de remetente inválido" });
-    }
-    
-    try {
-      const count = await storage.getUnreadMessageCount(orderId, forSenderType);
-      res.json({ count });
-    } catch (error: any) {
-      console.error("[Chat] Error getting unread count:", error);
-      res.status(500).json({ error: "Erro ao contar mensagens não lidas" });
-    }
-  });
-
   // Get total unread chat messages count for a buyer (by email)
+  // IMPORTANT: This route must come BEFORE /api/chat/:orderId/unread to avoid matching "unread-total" as orderId
   app.get("/api/chat/unread-total", async (req, res) => {
     const email = req.query.email as string;
     
@@ -5663,6 +5642,28 @@ export async function registerRoutes(
       res.json({ count: totalUnread });
     } catch (error: any) {
       console.error("[Chat] Error getting total unread count:", error);
+      res.status(500).json({ error: "Erro ao contar mensagens não lidas" });
+    }
+  });
+
+  // Get unread message count for a specific order
+  app.get("/api/chat/:orderId/unread", async (req, res) => {
+    const orderId = parseInt(req.params.orderId);
+    const forSenderType = req.query.for as string;
+    
+    if (isNaN(orderId)) {
+      return res.status(400).json({ error: "ID do pedido inválido" });
+    }
+    
+    if (!forSenderType || !["buyer", "seller"].includes(forSenderType)) {
+      return res.status(400).json({ error: "Tipo de remetente inválido" });
+    }
+    
+    try {
+      const count = await storage.getUnreadMessageCount(orderId, forSenderType);
+      res.json({ count });
+    } catch (error: any) {
+      console.error("[Chat] Error getting unread count:", error);
       res.status(500).json({ error: "Erro ao contar mensagens não lidas" });
     }
   });
