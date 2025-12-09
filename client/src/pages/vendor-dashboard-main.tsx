@@ -276,40 +276,42 @@ export function DashboardMain({ vendorId, isAdmin }: DashboardMainProps) {
       </div>
 
 
-      {/* Stats Grid - 4 Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {/* Saldo Disponível */}
-        <Card
-          style={{
-            background: "linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.15) 100%)",
-            backdropFilter: "blur(12px)",
-            border: "1px solid rgba(16, 185, 129, 0.3)",
-          }}
-          className="shadow-lg"
-          data-testid="card-saldo-disponivel"
-        >
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-gray-400">Saldo Disponivel</CardTitle>
-              <Wallet className="w-5 h-5 text-emerald-500" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-emerald-400">
-              R$ {availableBalance.toFixed(2)}
-            </p>
-            <p className="text-xs text-yellow-400 mt-1">Taxa de saque: R$ 3,00 | Min: R$ 5,00</p>
-            <Button
-              onClick={() => setWithdrawalDialogOpen(true)}
-              disabled={availableBalance < MIN_WITHDRAWAL}
-              className="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-              data-testid="button-solicitar-retirada"
-            >
-              <ArrowUpRight className="w-4 h-4 mr-2" />
-              Solicitar Retirada
-            </Button>
-          </CardContent>
-        </Card>
+      {/* Stats Grid - Cards dinamicos baseados em vendas */}
+      <div className={`grid grid-cols-1 md:grid-cols-2 ${(stats?.paidOrders ?? 0) > 0 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-6 mb-8`}>
+        {/* Saldo Disponível - Só aparece após fazer vendas confirmadas */}
+        {(stats?.paidOrders ?? 0) > 0 && (
+          <Card
+            style={{
+              background: "linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.15) 100%)",
+              backdropFilter: "blur(12px)",
+              border: "1px solid rgba(16, 185, 129, 0.3)",
+            }}
+            className="shadow-lg"
+            data-testid="card-saldo-disponivel"
+          >
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium text-gray-400">Saldo Disponivel</CardTitle>
+                <Wallet className="w-5 h-5 text-emerald-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold text-emerald-400">
+                R$ {availableBalance.toFixed(2)}
+              </p>
+              <p className="text-xs text-yellow-400 mt-1">Taxa de saque: R$ 3,00 | Min: R$ 5,00</p>
+              <Button
+                onClick={() => setWithdrawalDialogOpen(true)}
+                disabled={availableBalance < MIN_WITHDRAWAL}
+                className="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                data-testid="button-solicitar-retirada"
+              >
+                <ArrowUpRight className="w-4 h-4 mr-2" />
+                Solicitar Retirada
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Total Vendido */}
         <Card
@@ -380,7 +382,8 @@ export function DashboardMain({ vendorId, isAdmin }: DashboardMainProps) {
         </Card>
       </div>
 
-      {/* Withdrawal History */}
+      {/* Withdrawal History - Só aparece após fazer vendas confirmadas */}
+      {(stats?.paidOrders ?? 0) > 0 && (
       <Card
         style={{
           background: "rgba(30, 30, 30, 0.4)",
@@ -449,6 +452,7 @@ export function DashboardMain({ vendorId, isAdmin }: DashboardMainProps) {
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* Últimas Vendas - Table */}
       <Card
