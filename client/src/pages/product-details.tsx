@@ -41,7 +41,7 @@ export default function ProductDetails() {
     enabled: !!product?.resellerId,
   });
 
-  const themeColor = "#2563eb"; // GGMAX blue
+  const themeColor = "#2563eb"; // NEX STORE blue
   const textColor = "#FFFFFF";
 
   // Get related products (random 2-4 products excluding current)
