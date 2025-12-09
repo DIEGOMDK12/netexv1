@@ -557,23 +557,6 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
                 />
               </div>
 
-              <div className="space-y-2 w-full">
-                <Label style={{ color: textColor || "#FFFFFF" }}>Nome completo</Label>
-                <Input
-                  type="text"
-                  placeholder="Seu nome"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  className="w-full"
-                  style={{
-                    backgroundColor: "#242424",
-                    borderColor: "rgba(255,255,255,0.1)",
-                    color: textColor || "#FFFFFF",
-                  }}
-                  data-testid="input-customer-name"
-                />
-              </div>
-
               <Button
                 className="w-full h-10 font-medium rounded-lg"
                 style={{ backgroundColor: themeColor || "#3B82F6", color: "#FFFFFF" }}
