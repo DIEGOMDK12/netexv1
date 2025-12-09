@@ -664,25 +664,10 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
                   <Button
                     className="w-full"
                     variant="outline"
-                    onClick={() => {
-                      setPaymentStatus("checking");
-                      checkPaymentStatus().finally(() => {
-                        if (paymentStatus !== "paid") {
-                          setPaymentStatus("pending");
-                        }
-                      });
-                    }}
-                    disabled={paymentStatus === "checking"}
+                    onClick={() => window.location.reload()}
                     data-testid="button-check-payment"
                   >
-                    {paymentStatus === "checking" ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Verificando...
-                      </>
-                    ) : (
-                      "Já realizei o pagamento"
-                    )}
+                    Já realizei o pagamento
                   </Button>
                 </>
               ) : PIX_KEY && PIX_KEY !== "Chave PIX não configurada" ? (
@@ -713,6 +698,15 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
                     data-testid="button-copy-pix-key"
                   >
                     {copied ? "Chave copiada!" : "Copiar Chave PIX"}
+                  </Button>
+                  
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    onClick={() => window.location.reload()}
+                    data-testid="button-check-payment-manual"
+                  >
+                    Já realizei o pagamento
                   </Button>
                 </>
               ) : (
