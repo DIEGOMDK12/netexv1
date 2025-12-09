@@ -213,31 +213,21 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
   });
 
   const handleAddProduct = () => {
-    // Validate based on mode
-    if (!formData.name || !formData.price || !formData.originalPrice) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Nome, preço e preço original são necessários",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // For dynamic mode, validate variants; for normal mode, validate stock
+    // Validate based on mode - for dynamic mode, only name is required
     if (dynamicMode) {
-      if (variants.length === 0) {
+      if (!formData.name) {
         toast({
-          title: "Adicione pelo menos um item",
-          description: "No modo dinâmico, você precisa adicionar pelo menos um item/variante",
+          title: "Campo obrigatório",
+          description: "Nome do produto é necessário",
           variant: "destructive",
         });
         return;
       }
-      // Validate all variants have name and price
+      // If variants are provided, validate them
       for (const v of variants) {
-        if (!v.name || !v.price) {
+        if (v.name && !v.price) {
           toast({
-            title: "Preencha todos os campos dos itens",
+            title: "Preencha o preço do item",
             description: "Cada item precisa de nome e preço",
             variant: "destructive",
           });
@@ -245,6 +235,14 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
         }
       }
     } else {
+      if (!formData.name || !formData.price || !formData.originalPrice) {
+        toast({
+          title: "Campos obrigatórios",
+          description: "Nome, preço e preço original são necessários",
+          variant: "destructive",
+        });
+        return;
+      }
       if (!formData.stock) {
         toast({
           title: "Estoque obrigatório",
@@ -313,26 +311,36 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
   };
 
   const handleSaveEdit = () => {
-    if (!formData.name || !formData.price || !formData.originalPrice) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Nome, preço e preço original são necessários",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate based on mode
+    // Validate based on mode - for dynamic mode, only name is required
     if (dynamicMode) {
-      if (variants.length === 0) {
+      if (!formData.name) {
         toast({
-          title: "Adicione pelo menos um item",
-          description: "No modo dinâmico, você precisa adicionar pelo menos um item/variante",
+          title: "Campo obrigatório",
+          description: "Nome do produto é necessário",
           variant: "destructive",
         });
         return;
       }
+      // If variants are provided, validate them
+      for (const v of variants) {
+        if (v.name && !v.price) {
+          toast({
+            title: "Preencha o preço do item",
+            description: "Cada item precisa de nome e preço",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
     } else {
+      if (!formData.name || !formData.price || !formData.originalPrice) {
+        toast({
+          title: "Campos obrigatórios",
+          description: "Nome, preço e preço original são necessários",
+          variant: "destructive",
+        });
+        return;
+      }
       if (!formData.stock) {
         toast({
           title: "Estoque obrigatório",
@@ -690,9 +698,6 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
                 checked={dynamicMode}
                 onCheckedChange={(checked) => {
                   setDynamicMode(checked);
-                  if (checked && variants.length === 0) {
-                    setVariants([{ name: "", price: "", stock: "" }]);
-                  }
                 }}
                 data-testid="switch-dynamic-mode"
               />
