@@ -286,7 +286,7 @@ export function DashboardMain({ vendorId, isAdmin }: DashboardMainProps) {
               Inicio
             </Button>
           </Link>
-          <Link href={`/loja/${vendorId}`}>
+          <Link href={vendor?.slug ? `/loja/${vendor.slug}` : `/loja/${vendorId}`}>
             <Button
               variant="outline"
               size="sm"
