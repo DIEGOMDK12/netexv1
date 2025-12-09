@@ -5641,6 +5641,32 @@ export async function registerRoutes(
     }
   });
 
+  // Get total unread chat messages count for a buyer (by email)
+  app.get("/api/chat/unread-total", async (req, res) => {
+    const email = req.query.email as string;
+    
+    if (!email) {
+      return res.status(400).json({ error: "Email é obrigatório" });
+    }
+    
+    try {
+      // Get all orders for this buyer
+      const orders = await storage.getOrdersByBuyerEmail(email);
+      
+      // Count unread messages from sellers for each order
+      let totalUnread = 0;
+      for (const order of orders) {
+        const count = await storage.getUnreadMessageCount(order.id, "buyer");
+        totalUnread += count;
+      }
+      
+      res.json({ count: totalUnread });
+    } catch (error: any) {
+      console.error("[Chat] Error getting total unread count:", error);
+      res.status(500).json({ error: "Erro ao contar mensagens não lidas" });
+    }
+  });
+
   return httpServer;
 }
 

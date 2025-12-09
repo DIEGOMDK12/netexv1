@@ -23,7 +23,21 @@ export function VendorBottomNav({ vendorEmail, onLogout }: VendorBottomNavProps)
     refetchInterval: 30000,
   });
 
+  // Get unread chat messages count for buyer
+  const { data: unreadChatData } = useQuery<{ count: number }>({
+    queryKey: ["/api/chat/unread-total", vendorEmail],
+    queryFn: async () => {
+      const response = await fetch(`/api/chat/unread-total?email=${encodeURIComponent(vendorEmail || "")}`);
+      if (!response.ok) return { count: 0 };
+      return response.json();
+    },
+    enabled: !!vendorEmail,
+    refetchInterval: 10000,
+  });
+
   const unviewedCount = unviewedData?.count || 0;
+  const unreadChatCount = unreadChatData?.count || 0;
+  const hasPurchasesNotification = unviewedCount > 0 || unreadChatCount > 0;
 
   const isActive = (href: string) => location === href;
 
@@ -31,7 +45,7 @@ export function VendorBottomNav({ vendorEmail, onLogout }: VendorBottomNavProps)
     { label: "Inicio", href: "/vendor/dashboard", icon: Home, showBadge: false },
     { label: "Produtos", href: "/vendor/products", icon: Package, showBadge: false },
     { label: "Pedidos", href: "/vendor/orders", icon: ShoppingCart, showBadge: false },
-    { label: "Compras", href: "/vendor/my-purchases", icon: ShoppingBag, showBadge: unviewedCount > 0 },
+    { label: "Compras", href: "/vendor/my-purchases", icon: ShoppingBag, showBadge: hasPurchasesNotification },
     { label: "Sacar", href: "/vendor/settings", icon: Wallet, showBadge: false },
   ];
 
