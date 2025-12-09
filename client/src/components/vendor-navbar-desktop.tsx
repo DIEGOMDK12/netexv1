@@ -7,13 +7,15 @@ interface VendorNavbarDesktopProps {
   storeName?: string;
   logoUrl?: string;
   vendorEmail?: string;
+  vendorId?: number;
   onLogout: () => void;
 }
 
-export function VendorNavbarDesktop({ storeName, logoUrl, vendorEmail, onLogout }: VendorNavbarDesktopProps) {
+export function VendorNavbarDesktop({ storeName, logoUrl, vendorEmail, vendorId, onLogout }: VendorNavbarDesktopProps) {
   const [location] = useLocation();
   const [, setLocation] = useLocation();
 
+  // Unviewed orders for buyer (purchases)
   const { data: unviewedData } = useQuery<{ count: number }>({
     queryKey: ["/api/orders/unviewed-count", vendorEmail],
     queryFn: async () => {
@@ -25,13 +27,41 @@ export function VendorNavbarDesktop({ storeName, logoUrl, vendorEmail, onLogout 
     refetchInterval: 30000,
   });
 
+  // Unread chat messages for buyer (purchases)
+  const { data: unreadChatData } = useQuery<{ count: number }>({
+    queryKey: ["/api/chat/unread-total", vendorEmail],
+    queryFn: async () => {
+      const response = await fetch(`/api/chat/unread-total?email=${encodeURIComponent(vendorEmail || "")}`);
+      if (!response.ok) return { count: 0 };
+      return response.json();
+    },
+    enabled: !!vendorEmail,
+    refetchInterval: 10000,
+  });
+
+  // Unread chat messages for seller (orders from customers)
+  const { data: sellerUnreadChatData } = useQuery<{ count: number }>({
+    queryKey: ["/api/chat/seller-unread-total", vendorId],
+    queryFn: async () => {
+      const response = await fetch(`/api/chat/seller-unread-total?resellerId=${vendorId}`);
+      if (!response.ok) return { count: 0 };
+      return response.json();
+    },
+    enabled: !!vendorId,
+    refetchInterval: 10000,
+  });
+
   const unviewedCount = unviewedData?.count || 0;
+  const unreadChatCount = unreadChatData?.count || 0;
+  const sellerUnreadChatCount = sellerUnreadChatData?.count || 0;
+  const hasPurchasesNotification = unviewedCount > 0 || unreadChatCount > 0;
+  const hasOrdersNotification = sellerUnreadChatCount > 0;
 
   const menuItems = [
     { label: "Dashboard", href: "/vendor/dashboard", showBadge: false },
     { label: "Meus Produtos", href: "/vendor/products", showBadge: false },
-    { label: "Pedidos", href: "/vendor/orders", showBadge: false },
-    { label: "Minhas Compras", href: "/vendor/my-purchases", showBadge: unviewedCount > 0 },
+    { label: "Pedidos", href: "/vendor/orders", showBadge: hasOrdersNotification },
+    { label: "Minhas Compras", href: "/vendor/my-purchases", showBadge: hasPurchasesNotification },
     { label: "Sacar", href: "/vendor/settings", showBadge: false },
   ];
 

@@ -71,6 +71,7 @@ export default function VendorDashboard() {
         storeName={vendor?.storeName || undefined}
         logoUrl={vendor?.logoUrl || undefined}
         vendorEmail={vendor?.email || undefined}
+        vendorId={parseInt(vendorId)}
         verificationStatus={vendor?.verificationStatus}
       >
         {currentPage === "dashboard" && <DashboardMain vendorId={parseInt(vendorId)} />}

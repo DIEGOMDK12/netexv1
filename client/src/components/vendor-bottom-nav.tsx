@@ -5,13 +5,15 @@ import { useQuery } from "@tanstack/react-query";
 
 interface VendorBottomNavProps {
   vendorEmail?: string;
+  vendorId?: number;
   onLogout: () => void;
 }
 
-export function VendorBottomNav({ vendorEmail, onLogout }: VendorBottomNavProps) {
+export function VendorBottomNav({ vendorEmail, vendorId, onLogout }: VendorBottomNavProps) {
   const [location] = useLocation();
   const [, setLocation] = useLocation();
 
+  // Get unviewed orders count for buyer (purchases)
   const { data: unviewedData } = useQuery<{ count: number }>({
     queryKey: ["/api/orders/unviewed-count", vendorEmail],
     queryFn: async () => {
@@ -23,7 +25,7 @@ export function VendorBottomNav({ vendorEmail, onLogout }: VendorBottomNavProps)
     refetchInterval: 30000,
   });
 
-  // Get unread chat messages count for buyer
+  // Get unread chat messages count for buyer (purchases)
   const { data: unreadChatData } = useQuery<{ count: number }>({
     queryKey: ["/api/chat/unread-total", vendorEmail],
     queryFn: async () => {
@@ -35,16 +37,30 @@ export function VendorBottomNav({ vendorEmail, onLogout }: VendorBottomNavProps)
     refetchInterval: 10000,
   });
 
+  // Get unread chat messages count for seller (orders from customers)
+  const { data: sellerUnreadChatData } = useQuery<{ count: number }>({
+    queryKey: ["/api/chat/seller-unread-total", vendorId],
+    queryFn: async () => {
+      const response = await fetch(`/api/chat/seller-unread-total?resellerId=${vendorId}`);
+      if (!response.ok) return { count: 0 };
+      return response.json();
+    },
+    enabled: !!vendorId,
+    refetchInterval: 10000,
+  });
+
   const unviewedCount = unviewedData?.count || 0;
   const unreadChatCount = unreadChatData?.count || 0;
+  const sellerUnreadChatCount = sellerUnreadChatData?.count || 0;
   const hasPurchasesNotification = unviewedCount > 0 || unreadChatCount > 0;
+  const hasOrdersNotification = sellerUnreadChatCount > 0;
 
   const isActive = (href: string) => location === href;
 
   const navItems = [
     { label: "Inicio", href: "/vendor/dashboard", icon: Home, showBadge: false },
     { label: "Produtos", href: "/vendor/products", icon: Package, showBadge: false },
-    { label: "Pedidos", href: "/vendor/orders", icon: ShoppingCart, showBadge: false },
+    { label: "Pedidos", href: "/vendor/orders", icon: ShoppingCart, showBadge: hasOrdersNotification },
     { label: "Compras", href: "/vendor/my-purchases", icon: ShoppingBag, showBadge: hasPurchasesNotification },
     { label: "Sacar", href: "/vendor/settings", icon: Wallet, showBadge: false },
   ];

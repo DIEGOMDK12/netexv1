@@ -5646,6 +5646,33 @@ export async function registerRoutes(
     }
   });
 
+  // Get total unread chat messages count for a seller/reseller (by resellerId)
+  // IMPORTANT: This route must come BEFORE /api/chat/:orderId/unread to avoid matching "seller-unread-total" as orderId
+  app.get("/api/chat/seller-unread-total", async (req, res) => {
+    const resellerId = parseInt(req.query.resellerId as string);
+    
+    if (isNaN(resellerId)) {
+      return res.status(400).json({ error: "ID do revendedor inválido" });
+    }
+    
+    try {
+      // Get all orders for this seller
+      const orders = await storage.getResellerOrders(resellerId);
+      
+      // Count unread messages from buyers for each order
+      let totalUnread = 0;
+      for (const order of orders) {
+        const count = await storage.getUnreadMessageCount(order.id, "seller");
+        totalUnread += count;
+      }
+      
+      res.json({ count: totalUnread });
+    } catch (error: any) {
+      console.error("[Chat] Error getting seller total unread count:", error);
+      res.status(500).json({ error: "Erro ao contar mensagens não lidas" });
+    }
+  });
+
   // Get unread message count for a specific order
   app.get("/api/chat/:orderId/unread", async (req, res) => {
     const orderId = parseInt(req.params.orderId);
