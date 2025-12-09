@@ -32,6 +32,17 @@ async function runStartupMigrations() {
     `);
     console.log("[Migration] Added viewed_by_buyer column to orders table");
     
+    // Add document verification columns to resellers table
+    await client.query(`
+      ALTER TABLE resellers 
+      ADD COLUMN IF NOT EXISTS document_front_url TEXT,
+      ADD COLUMN IF NOT EXISTS document_back_url TEXT,
+      ADD COLUMN IF NOT EXISTS verification_status TEXT DEFAULT 'pending',
+      ADD COLUMN IF NOT EXISTS verification_notes TEXT,
+      ADD COLUMN IF NOT EXISTS verified_at TIMESTAMP
+    `);
+    console.log("[Migration] Added verification columns to resellers table");
+    
     client.release();
     console.log("[Migration] Startup migrations completed successfully");
   } catch (error: any) {

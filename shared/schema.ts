@@ -88,6 +88,11 @@ export const resellers = pgTable("resellers", {
   faviconUrl: text("favicon_url"),
   ogImageUrl: text("og_image_url"),
   storeDescription: text("store_description"),
+  documentFrontUrl: text("document_front_url"),
+  documentBackUrl: text("document_back_url"),
+  verificationStatus: text("verification_status").default("pending"),
+  verificationNotes: text("verification_notes"),
+  verifiedAt: timestamp("verified_at"),
 });
 
 // Webhooks table for purchase notifications
