@@ -5415,6 +5415,14 @@ export async function registerRoutes(
       // A taxa é descontada do saldo, mas não do valor transferido
       const netAmount = numericAmount; // Valor que será transferido via PIX
       
+      // DEDUZIR SALDO IMEDIATAMENTE ao criar a solicitação de saque
+      const newBalance = availableBalance - totalRequired;
+      await storage.updateReseller(vendorId, {
+        walletBalance: newBalance.toFixed(2),
+      });
+      
+      console.log(`[Withdrawal] Balance deducted immediately: Vendor ${vendorId} walletBalance: R$ ${availableBalance.toFixed(2)} -> R$ ${newBalance.toFixed(2)} (deducted R$ ${totalRequired.toFixed(2)})`);
+      
       // Create withdrawal request
       const withdrawal = await storage.createWithdrawalRequest({
         resellerId: vendorId,
@@ -5517,20 +5525,23 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Solicitação já processada" });
       }
       
-      // If approving, deduct from reseller's walletBalance (total incluindo taxa)
-      if (status === "approved") {
+      // O saldo já foi deduzido no momento da criação do saque
+      // Se REJEITADO, devolver o valor ao saldo do revendedor
+      if (status === "rejected") {
         const reseller = await storage.getReseller(withdrawal.resellerId);
         if (reseller) {
           const currentBalance = parseFloat(reseller.walletBalance as string || "0");
-          const withdrawalAmount = parseFloat(withdrawal.amount); // Já inclui valor + taxa
-          const newBalance = Math.max(0, currentBalance - withdrawalAmount);
+          const withdrawalAmount = parseFloat(withdrawal.amount); // Total que foi descontado (valor + taxa)
+          const newBalance = currentBalance + withdrawalAmount;
           
           await storage.updateReseller(withdrawal.resellerId, {
             walletBalance: newBalance.toFixed(2),
           });
           
-          console.log(`[Withdrawal] Approved ${withdrawalId}: R$ ${withdrawalAmount} deducted from vendor ${withdrawal.resellerId}. New walletBalance: R$ ${newBalance.toFixed(2)}`);
+          console.log(`[Withdrawal] Rejected ${withdrawalId}: R$ ${withdrawalAmount} returned to vendor ${withdrawal.resellerId}. New walletBalance: R$ ${newBalance.toFixed(2)}`);
         }
+      } else if (status === "approved") {
+        console.log(`[Withdrawal] Approved ${withdrawalId}: Balance was already deducted at request creation time`);
       }
       
       // Update withdrawal status
