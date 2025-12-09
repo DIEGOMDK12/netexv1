@@ -1422,13 +1422,15 @@ export async function registerRoutes(
         console.log("[POST /api/orders] Order created successfully:", order.id);
 
         for (const item of items) {
-          console.log(`[POST /api/orders] Creating item: productId=${item.productId}, quantity=1 (FORCED)`);
+          console.log(`[POST /api/orders] Creating item: productId=${item.productId}, variantId=${item.variantId || 'none'}, quantity=1 (FORCED)`);
           await storage.createOrderItem({
             orderId: order.id,
             productId: item.productId,
             productName: item.productName,
             price: item.price,
             quantity: 1, // FORCED: Digital products are always qty=1
+            variantId: item.variantId || null,
+            variantName: item.variantName || null,
           });
         }
 

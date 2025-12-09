@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ShoppingCart, Zap, Shield, Star, User, CheckCircle, MessageCircle, Package } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Zap, Shield, Star, User, CheckCircle, MessageCircle, Package, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,7 +9,7 @@ import { CheckoutModal } from "@/components/checkout-modal";
 import { ProductCard } from "@/components/product-card";
 import { useStore } from "@/lib/store-context";
 import { SiPix } from "react-icons/si";
-import type { Product, Settings, Reseller, Review } from "@shared/schema";
+import type { Product, Settings, Reseller, Review, ProductVariant } from "@shared/schema";
 
 export default function ProductDetails() {
   const [, setLocation] = useLocation();
@@ -17,6 +17,7 @@ export default function ProductDetails() {
   const { addToCart, setIsCartOpen } = useStore();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
 
   const productId = params?.id ? String(params.id) : null;
 
@@ -47,6 +48,20 @@ export default function ProductDetails() {
     enabled: !!productId,
   });
 
+  // Fetch variants for dynamic mode products
+  const { data: variants = [] } = useQuery<ProductVariant[]>({
+    queryKey: ["/api/products", productId, "variants"],
+    queryFn: async () => {
+      const response = await fetch(`/api/products/${productId}/variants`);
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!productId && !!(product as any)?.dynamicMode,
+  });
+
+  // Check if product is in dynamic mode
+  const isDynamicMode = !!(product as any)?.dynamicMode && variants.length > 0;
+
   const themeColor = "#2563eb"; // NEX STORE blue
   const textColor = "#FFFFFF";
 
@@ -74,20 +89,62 @@ export default function ProductDetails() {
     );
   }
 
-  const stockLines = product.stock?.split("\n").filter((line) => line.trim()) || [];
-  const hasStock = stockLines.length > 0;
+  // For dynamic mode, stock is based on selected variant
+  const stockLines = isDynamicMode && selectedVariant
+    ? selectedVariant.stock?.split("\n").filter((line) => line.trim()) || []
+    : product.stock?.split("\n").filter((line) => line.trim()) || [];
+  
+  // For dynamic mode without selection, check if any variant has stock
+  const anyVariantHasStock = isDynamicMode 
+    ? variants.some(v => v.stock?.split("\n").filter(l => l.trim()).length > 0)
+    : false;
+  
+  const hasStock = isDynamicMode 
+    ? (selectedVariant ? stockLines.length > 0 : anyVariantHasStock)
+    : stockLines.length > 0;
+  
   const hasDiscount = Number(product.originalPrice) > Number(product.currentPrice);
+  
+  // Get the display price - for dynamic mode show selected variant price or min price
+  const displayPrice = isDynamicMode && selectedVariant 
+    ? parseFloat(selectedVariant.price).toFixed(2)
+    : Number(product.currentPrice).toFixed(2);
+  
+  // Helper to get variant stock count
+  const getVariantStockCount = (stock: string | null | undefined) => {
+    return stock?.split("\n").filter((line) => line.trim()).length || 0;
+  };
 
   const handleAddToCart = () => {
+    if (isDynamicMode && !selectedVariant) return;
     if (hasStock) {
-      addToCart(product);
+      // For dynamic mode, pass variant as second parameter
+      if (isDynamicMode && selectedVariant) {
+        addToCart(product, {
+          id: selectedVariant.id,
+          name: selectedVariant.name,
+          price: selectedVariant.price,
+        });
+      } else {
+        addToCart(product);
+      }
       setIsCartOpen(true);
     }
   };
 
   const handleBuyNow = () => {
+    if (isDynamicMode && !selectedVariant) return;
     if (hasStock) {
-      addToCart(product);
+      // For dynamic mode, pass variant as second parameter
+      if (isDynamicMode && selectedVariant) {
+        addToCart(product, {
+          id: selectedVariant.id,
+          name: selectedVariant.name,
+          price: selectedVariant.price,
+        });
+      } else {
+        addToCart(product);
+      }
       setIsCheckoutOpen(true);
     }
   };
@@ -348,19 +405,107 @@ export default function ProductDetails() {
             <div className="bg-[#1e293b] rounded-xl p-4" data-testid="card-purchase">
               {/* Price */}
               <div className="mb-4">
-                {hasDiscount && (
-                  <p className="text-sm line-through text-gray-500" data-testid="text-original-price">
-                    R$ {Number(product.originalPrice).toFixed(2)}
-                  </p>
+                {isDynamicMode ? (
+                  <>
+                    {selectedVariant ? (
+                      <p className="text-3xl font-bold text-blue-500" data-testid="text-current-price">
+                        R$ {displayPrice}
+                      </p>
+                    ) : (
+                      <p className="text-2xl font-bold text-blue-500" data-testid="text-current-price">
+                        <span className="text-gray-400 text-sm font-normal">A partir de </span>
+                        R$ {displayPrice}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {hasDiscount && (
+                      <p className="text-sm line-through text-gray-500" data-testid="text-original-price">
+                        R$ {Number(product.originalPrice).toFixed(2)}
+                      </p>
+                    )}
+                    <p className="text-3xl font-bold text-blue-500" data-testid="text-current-price">
+                      R$ {displayPrice}
+                    </p>
+                  </>
                 )}
-                <p className="text-3xl font-bold text-blue-500" data-testid="text-current-price">
-                  R$ {Number(product.currentPrice).toFixed(2)}
-                </p>
               </div>
+
+              {/* Variant Selector for Dynamic Mode Products */}
+              {isDynamicMode && (
+                <div className="mb-4 space-y-2" data-testid="variant-selector">
+                  <p className="text-sm text-gray-400 mb-2">Selecione uma opcao:</p>
+                  <div className="space-y-2">
+                    {variants.map((variant) => {
+                      const variantStock = getVariantStockCount(variant.stock);
+                      const isSelected = selectedVariant?.id === variant.id;
+                      const isAvailable = variantStock > 0;
+                      
+                      return (
+                        <button
+                          key={variant.id}
+                          onClick={() => isAvailable && setSelectedVariant(variant)}
+                          disabled={!isAvailable}
+                          className={`w-full p-3 rounded-lg border transition-all text-left ${
+                            isSelected
+                              ? "border-blue-500 bg-blue-500/20"
+                              : isAvailable
+                                ? "border-gray-600 hover:border-gray-500 bg-[#0f172a]"
+                                : "border-gray-700 bg-gray-800/50 opacity-50 cursor-not-allowed"
+                          }`}
+                          data-testid={`variant-option-${variant.id}`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                                isSelected ? "border-blue-500 bg-blue-500" : "border-gray-500"
+                              }`}>
+                                {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
+                              </div>
+                              <span className={`font-medium truncate ${isSelected ? "text-white" : "text-gray-300"}`}>
+                                {variant.name}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <span className={`text-sm ${isAvailable ? "text-green-400" : "text-red-400"}`}>
+                                {isAvailable ? `${variantStock} disp.` : "Esgotado"}
+                              </span>
+                              <span className="font-bold text-blue-400">
+                                R$ {parseFloat(variant.price).toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Stock Status */}
               <div className="flex items-center gap-2 mb-4 text-sm" data-testid="text-stock-status">
-                {hasStock ? (
+                {isDynamicMode ? (
+                  selectedVariant ? (
+                    stockLines.length > 0 ? (
+                      <>
+                        <span className="w-2 h-2 rounded-full bg-green-400"></span>
+                        <span className="text-green-400">Disponivel:</span>
+                        <span className="text-white">{stockLines.length} unidades</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="w-2 h-2 rounded-full bg-red-400"></span>
+                        <span className="text-red-400">Variante esgotada</span>
+                      </>
+                    )
+                  ) : (
+                    <>
+                      <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                      <span className="text-amber-400">Selecione uma opcao acima</span>
+                    </>
+                  )
+                ) : hasStock ? (
                   <>
                     <span className="w-2 h-2 rounded-full bg-green-400"></span>
                     <span className="text-green-400">Disponivel:</span>
@@ -377,11 +522,11 @@ export default function ProductDetails() {
               {/* Buy Button */}
               <Button
                 onClick={handleBuyNow}
-                disabled={!hasStock}
+                disabled={!hasStock || (isDynamicMode && !selectedVariant)}
                 className="w-full py-2 text-sm font-bold rounded-lg transition-all bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600"
                 data-testid="button-buy-now-desktop"
               >
-                COMPRAR
+                {isDynamicMode && !selectedVariant ? "SELECIONE UMA OPCAO" : "COMPRAR"}
               </Button>
             </div>
 

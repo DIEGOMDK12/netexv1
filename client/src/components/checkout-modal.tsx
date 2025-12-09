@@ -249,8 +249,11 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
         items: cart.map((item) => ({
           productId: item.product.id,
           productName: item.product.name,
-          price: item.product.currentPrice,
+          price: item.variant ? item.variant.price : item.product.currentPrice,
           quantity: 1, // Force quantity to 1 for digital products
+          // Include variant info if product has variant (dynamic mode)
+          variantId: item.variant?.id || undefined,
+          variantName: item.variant?.name || undefined,
         })),
         couponCode: couponCode.trim() || undefined,
         discountAmount: discount > 0 ? discount.toString() : undefined,
