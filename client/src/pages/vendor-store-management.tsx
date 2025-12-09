@@ -82,6 +82,7 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
     subcategory: "",
     active: true,
     limitPerUser: false,
+    dynamicMode: false,
   });
 
   // Fetch vendor categories for organizing products
@@ -266,6 +267,7 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
       subcategory: "",
       active: true,
       limitPerUser: false,
+      dynamicMode: false,
     });
   };
 
@@ -314,6 +316,7 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
       subcategory: (product as any).subcategory || "",
       active: product.active ?? true,
       limitPerUser: product.limitPerUser ?? false,
+      dynamicMode: (product as any).dynamicMode ?? false,
     });
     setShowProductModal(true);
   };
@@ -362,6 +365,7 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
       subcategory: productForm.subcategory || null,
       active: productForm.active,
       limitPerUser: productForm.limitPerUser,
+      dynamicMode: productForm.dynamicMode,
       resellerId: vendorId,
     };
 
@@ -834,6 +838,27 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
                   </span>
                 </Label>
               </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <Switch
+                id="dynamicMode"
+                checked={productForm.dynamicMode}
+                onCheckedChange={(checked) => 
+                  setProductForm((prev) => ({ ...prev, dynamicMode: checked }))
+                }
+                data-testid="switch-product-dynamic"
+              />
+              <Label htmlFor="dynamicMode" className="text-gray-300 cursor-pointer">
+                <div className="flex items-center gap-2">
+                  Modo Dinâmico (Revenda)
+                </div>
+                <span className="text-xs text-gray-500 block">
+                  {productForm.dynamicMode 
+                    ? "Produto disponível para revenda com variantes" 
+                    : "Produto padrão sem modo de revenda"}
+                </span>
+              </Label>
             </div>
           </div>
           <DialogFooter>
