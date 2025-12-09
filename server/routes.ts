@@ -3218,6 +3218,169 @@ export async function registerRoutes(
     }
   });
 
+  // ============== VENDOR DOCUMENT VERIFICATION ENDPOINTS ==============
+  
+  // PUT /api/vendor/documents - Vendor uploads document images
+  app.put("/api/vendor/documents", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    
+    if (!isVendorAuthenticated(token)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    const vendorId = tokenToVendor.get(token!);
+    if (!vendorId) {
+      return res.status(401).json({ error: "Vendor not found" });
+    }
+    
+    try {
+      const { documentFrontUrl, documentBackUrl } = req.body;
+      
+      if (!documentFrontUrl || !documentBackUrl) {
+        return res.status(400).json({ error: "Both document front and back images are required" });
+      }
+      
+      // Update vendor with document URLs and set status to pending
+      const vendor = await storage.updateReseller(vendorId, {
+        documentFrontUrl,
+        documentBackUrl,
+        verificationStatus: "pending",
+        verificationNotes: null,
+        verifiedAt: null,
+      });
+      
+      console.log("[Vendor Documents] Documents uploaded for vendor:", vendorId);
+      
+      res.json({
+        success: true,
+        verificationStatus: vendor?.verificationStatus,
+        message: "Documentos enviados com sucesso. Aguarde a verificacao.",
+      });
+    } catch (error) {
+      console.error("[Vendor Documents] Error:", error);
+      res.status(500).json({ error: "Failed to upload documents" });
+    }
+  });
+
+  // GET /api/vendor/verification-status - Get current verification status
+  app.get("/api/vendor/verification-status", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    
+    if (!isVendorAuthenticated(token)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    const vendorId = tokenToVendor.get(token!);
+    if (!vendorId) {
+      return res.status(401).json({ error: "Vendor not found" });
+    }
+    
+    try {
+      const vendor = await storage.getReseller(vendorId);
+      if (!vendor) {
+        return res.status(404).json({ error: "Vendor not found" });
+      }
+      
+      res.json({
+        documentFrontUrl: vendor.documentFrontUrl || null,
+        documentBackUrl: vendor.documentBackUrl || null,
+        verificationStatus: vendor.verificationStatus || "pending",
+        verificationNotes: vendor.verificationNotes || null,
+        verifiedAt: vendor.verifiedAt || null,
+      });
+    } catch (error) {
+      console.error("[Vendor Verification Status] Error:", error);
+      res.status(500).json({ error: "Failed to fetch verification status" });
+    }
+  });
+
+  // GET /api/admin/pending-verifications - List vendors pending verification
+  app.get("/api/admin/pending-verifications", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    
+    if (!isAuthenticated(token)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const resellers = await storage.getResellers();
+      
+      // Filter vendors with pending verification and documents uploaded
+      const pendingVerifications = resellers
+        .filter((r: any) => 
+          r.verificationStatus === "pending" && 
+          r.documentFrontUrl && 
+          r.documentBackUrl
+        )
+        .map((r: any) => ({
+          id: r.id,
+          name: r.name,
+          email: r.email,
+          storeName: r.storeName,
+          slug: r.slug,
+          documentFrontUrl: r.documentFrontUrl,
+          documentBackUrl: r.documentBackUrl,
+          verificationStatus: r.verificationStatus,
+          createdAt: r.createdAt,
+        }));
+      
+      console.log("[Admin Pending Verifications] Found", pendingVerifications.length, "pending");
+      res.json(pendingVerifications);
+    } catch (error) {
+      console.error("[Admin Pending Verifications] Error:", error);
+      res.status(500).json({ error: "Failed to fetch pending verifications" });
+    }
+  });
+
+  // POST /api/admin/verify-vendor/:id - Approve or reject vendor verification
+  app.post("/api/admin/verify-vendor/:id", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    
+    if (!isAuthenticated(token)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    const vendorId = parseInt(req.params.id);
+    if (isNaN(vendorId)) {
+      return res.status(400).json({ error: "Invalid vendor ID" });
+    }
+    
+    try {
+      const { action, notes } = req.body;
+      
+      if (action !== "approve" && action !== "reject") {
+        return res.status(400).json({ error: "Action must be 'approve' or 'reject'" });
+      }
+      
+      const vendor = await storage.getReseller(vendorId);
+      if (!vendor) {
+        return res.status(404).json({ error: "Vendor not found" });
+      }
+      
+      const updateData: any = {
+        verificationStatus: action === "approve" ? "approved" : "rejected",
+        verificationNotes: notes || null,
+        verifiedAt: new Date().toISOString(),
+      };
+      
+      await storage.updateReseller(vendorId, updateData);
+      
+      console.log("[Admin Verify Vendor] Vendor", vendorId, "verification:", action);
+      
+      res.json({
+        success: true,
+        vendorId,
+        verificationStatus: updateData.verificationStatus,
+        message: action === "approve" 
+          ? "Vendedor verificado com sucesso" 
+          : "Verificacao rejeitada",
+      });
+    } catch (error) {
+      console.error("[Admin Verify Vendor] Error:", error);
+      res.status(500).json({ error: "Failed to verify vendor" });
+    }
+  });
+
   // Vendor Products Routes
   app.get("/api/vendor/products", async (req, res) => {
     // CORREÇÃO 2: Pegar vendorId do query OU do token autenticado

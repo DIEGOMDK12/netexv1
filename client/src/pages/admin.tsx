@@ -1,16 +1,17 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Home, Package, Settings, LogOut, Store, Wallet } from "lucide-react";
+import { Home, Package, Settings, LogOut, Store, Wallet, FileCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AdminHome from "./admin-home";
 import AdminProductsModeration from "./admin-products-moderation";
 import AdminSettings from "./admin-settings";
 import AdminResellers from "./admin-resellers";
 import AdminWithdrawals from "./admin-withdrawals";
+import AdminVerifications from "./admin-verifications";
 
 export default function Admin() {
   const [, setLocation] = useLocation();
-  const [currentPage, setCurrentPage] = useState<"home" | "products" | "settings" | "resellers" | "withdrawals">("home");
+  const [currentPage, setCurrentPage] = useState<"home" | "products" | "settings" | "resellers" | "withdrawals" | "verifications">("home");
 
   useEffect(() => {
     const token = localStorage.getItem("admin_token");
@@ -27,9 +28,10 @@ export default function Admin() {
   const navItems = [
     { id: "home" as const, label: "Dashboard", icon: Home },
     { id: "resellers" as const, label: "Lojas/Revendas", icon: Store },
+    { id: "verifications" as const, label: "Verificacoes", icon: FileCheck },
     { id: "products" as const, label: "Produtos", icon: Package },
     { id: "withdrawals" as const, label: "Retiradas", icon: Wallet },
-    { id: "settings" as const, label: "Configurações", icon: Settings },
+    { id: "settings" as const, label: "Configuracoes", icon: Settings },
   ];
 
   return (
@@ -77,6 +79,7 @@ export default function Admin() {
       <div className="flex-1 overflow-auto p-6">
         {currentPage === "home" && <AdminHome />}
         {currentPage === "resellers" && <AdminResellers />}
+        {currentPage === "verifications" && <AdminVerifications />}
         {currentPage === "products" && <AdminProductsModeration />}
         {currentPage === "withdrawals" && <AdminWithdrawals />}
         {currentPage === "settings" && <AdminSettings />}
