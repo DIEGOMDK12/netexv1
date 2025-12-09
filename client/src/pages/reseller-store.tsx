@@ -4,7 +4,7 @@ import { Loader2, Store, ShoppingCart, Search, Headphones, Package, Zap, Gift, S
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useState, useMemo, useEffect } from "react";
-import type { Product, Reseller } from "@shared/schema";
+import type { Product, Reseller, Review } from "@shared/schema";
 import { CheckoutModal } from "@/components/checkout-modal";
 import { useStore } from "@/lib/store-context";
 import { useAuth } from "@/hooks/useAuth";
@@ -42,6 +42,17 @@ export default function ResellerStore() {
       if (!reseller?.id) return null;
       const response = await fetch(`/api/seller/${reseller.id}/stats`);
       if (!response.ok) throw new Error("Failed to fetch stats");
+      return response.json();
+    },
+    enabled: !!reseller?.id,
+  });
+
+  const { data: sellerReviews = [] } = useQuery<Review[]>({
+    queryKey: ["/api/reviews/seller", reseller?.id],
+    queryFn: async () => {
+      if (!reseller?.id) return [];
+      const response = await fetch(`/api/reviews/seller/${reseller.id}`);
+      if (!response.ok) return [];
       return response.json();
     },
     enabled: !!reseller?.id,
@@ -572,6 +583,48 @@ export default function ResellerStore() {
                 </div>
               )}
             </div>
+
+            {sellerReviews.length > 0 && (
+              <div className="mt-8">
+                <div className="section-title">
+                  <Star className="w-5 h-5" style={{ color: buttonColor }} />
+                  <span style={{ color: textColor }}>Avaliacoes Recentes</span>
+                  <span className="text-sm font-normal text-gray-400 ml-2">
+                    ({sellerReviews.length} {sellerReviews.length === 1 ? "avaliacao" : "avaliacoes"})
+                  </span>
+                </div>
+                
+                <div className="grid gap-4">
+                  {sellerReviews.slice(0, 6).map((review) => (
+                    <Card key={review.id} style={{ backgroundColor: cardBackgroundColor }} className="p-4" data-testid={`card-review-${review.id}`}>
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="flex">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star
+                                  key={star}
+                                  className={`w-4 h-4 ${star <= review.rating ? "text-yellow-400 fill-yellow-400" : "text-gray-600"}`}
+                                />
+                              ))}
+                            </div>
+                            {review.productName && (
+                              <span className="text-sm text-gray-400">- {review.productName}</span>
+                            )}
+                          </div>
+                          {review.comment && (
+                            <p className="text-sm" style={{ color: textColor }}>{review.comment}</p>
+                          )}
+                          <p className="text-xs text-gray-500 mt-1">
+                            {new Date(review.createdAt).toLocaleDateString('pt-BR')}
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
           </main>
 
           <footer className="mt-16 relative overflow-hidden">
