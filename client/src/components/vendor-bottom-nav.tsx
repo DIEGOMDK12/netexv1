@@ -72,35 +72,35 @@ export function VendorBottomNav({ vendorEmail, vendorId, onLogout }: VendorBotto
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 border-t md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-50 md:hidden safe-area-inset-bottom"
       style={{
-        backgroundColor: "#1A1A1A",
-        borderColor: "rgba(255,255,255,0.1)",
+        background: "linear-gradient(180deg, rgba(15, 15, 15, 0.95) 0%, rgba(10, 10, 10, 0.98) 100%)",
+        backdropFilter: "blur(10px)",
+        borderTop: "1px solid rgba(255,255,255,0.08)",
       }}
     >
-      <div className="flex items-center justify-around h-16 max-w-md mx-auto">
+      <div className="flex items-center justify-around h-14 max-w-lg mx-auto px-2">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
           
           return (
             <Link key={item.href} href={item.href}>
-              <div className="relative">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={`rounded-lg transition ${
-                    active
-                      ? "text-teal-400 bg-teal-500/20 border border-teal-500/30"
-                      : "text-gray-400 hover:text-gray-200"
-                  }`}
-                  data-testid={`button-bottom-nav-${item.label.toLowerCase()}`}
-                >
-                  <Icon className="w-5 h-5" />
-                </Button>
+              <div 
+                className={`relative flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all duration-200 ${
+                  active
+                    ? "bg-emerald-500/15"
+                    : "hover:bg-white/5"
+                }`}
+                data-testid={`button-bottom-nav-${item.label.toLowerCase()}`}
+              >
+                <Icon className={`w-5 h-5 mb-0.5 ${active ? "text-emerald-400" : "text-gray-500"}`} />
+                <span className={`text-[10px] font-medium ${active ? "text-emerald-400" : "text-gray-500"}`}>
+                  {item.label}
+                </span>
                 {item.showBadge && (
                   <span 
-                    className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"
+                    className="absolute top-0 right-1 w-2 h-2 bg-red-500 rounded-full"
                     data-testid="notification-badge-purchases-mobile"
                   />
                 )}
@@ -110,15 +110,14 @@ export function VendorBottomNav({ vendorEmail, vendorId, onLogout }: VendorBotto
         })}
 
         {/* Logout Button */}
-        <Button
-          variant="ghost"
-          size="icon"
+        <div 
           onClick={handleLogout}
-          className="rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition"
+          className="flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all duration-200 hover:bg-red-500/10 cursor-pointer"
           data-testid="button-bottom-logout"
         >
-          <LogOut className="w-5 h-5" />
-        </Button>
+          <LogOut className="w-5 h-5 mb-0.5 text-red-400" />
+          <span className="text-[10px] font-medium text-red-400">Sair</span>
+        </div>
       </div>
     </nav>
   );
