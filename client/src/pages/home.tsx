@@ -288,31 +288,31 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="px-2 py-4">
+      <section className="px-2 md:px-4 py-4 md:py-6">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-base font-bold text-white mb-3 flex items-center gap-2 px-1">
+          <h2 className="text-base md:text-xl font-bold text-white mb-3 md:mb-5 flex items-center gap-2 px-1">
             Categorias
             <ChevronRight className="w-4 h-4 text-gray-500" />
           </h2>
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3 md:gap-4">
             {displayCategories.map((cat) => {
               const imageSrc = categoryImages[cat.slug.toLowerCase()] || categoryImages.default;
               const isSelected = selectedCategory === cat.name;
               return (
                 <div 
                   key={`cat-${cat.id}`}
-                  className={`flex-shrink-0 w-16 text-center cursor-pointer group ${isSelected ? 'ring-2 ring-blue-500 rounded-lg' : ''}`}
+                  className={`text-center cursor-pointer group ${isSelected ? 'ring-2 ring-blue-500 rounded-xl' : ''}`}
                   onClick={() => handleCategoryClick(cat.name)}
                   data-testid={`category-${cat.slug}`}
                 >
-                  <div className={`w-16 h-16 rounded-lg overflow-hidden mb-1 border ${isSelected ? 'border-blue-500' : 'border-transparent group-hover:border-blue-500'} transition-colors`}>
+                  <div className={`w-full aspect-square rounded-xl overflow-hidden mb-2 border-2 ${isSelected ? 'border-blue-500' : 'border-transparent group-hover:border-blue-500'} transition-colors`}>
                     <img 
                       src={imageSrc} 
                       alt={cat.name}
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  <span className={`text-[10px] ${isSelected ? 'text-blue-400 font-semibold' : 'text-gray-400 group-hover:text-white'} transition-colors line-clamp-1`}>
+                  <span className={`text-xs md:text-sm ${isSelected ? 'text-blue-400 font-semibold' : 'text-gray-400 group-hover:text-white'} transition-colors line-clamp-2`}>
                     {cat.name}
                   </span>
                 </div>
