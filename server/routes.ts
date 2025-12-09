@@ -3633,6 +3633,22 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Missing resellerId - usuário não autenticado" });
       }
 
+      // VERIFICAÇÃO: Bloquear criação de produtos para revendedores não verificados
+      const reseller = await storage.getReseller(finalResellerId);
+      if (!reseller) {
+        console.error("[Create Product] ❌ Reseller not found:", finalResellerId);
+        return res.status(404).json({ error: "Revendedor não encontrado" });
+      }
+      
+      if (reseller.verificationStatus !== "approved") {
+        console.log("[Create Product] ❌ Reseller not verified:", finalResellerId, "status:", reseller.verificationStatus);
+        return res.status(403).json({ 
+          error: "Você precisa ter sua conta verificada para adicionar produtos. Envie seus documentos para verificação.",
+          code: "NOT_VERIFIED"
+        });
+      }
+      console.log("[Create Product] ✓ Reseller verified:", finalResellerId);
+
       if (!name || !name.trim()) {
         console.error("[Create Product] Missing product name!");
         return res.status(400).json({ error: "Nome do produto é obrigatório" });
