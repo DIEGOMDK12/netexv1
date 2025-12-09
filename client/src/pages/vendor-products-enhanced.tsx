@@ -254,13 +254,17 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
       }
       return productData;
     },
-    onSuccess: async () => {
+    onSuccess: async (productData: any) => {
       console.log("[createMutation] Produto criado, invalidando cache e refetching...");
       
       // Invalidar cache para forçar atualização da lista
       await queryClient.invalidateQueries({ queryKey: ["/api/vendor/products", vendorId] });
       await queryClient.invalidateQueries({ queryKey: ["/api/vendor/products"] });
       await queryClient.invalidateQueries({ queryKey: ["/api/marketplace/products"] });
+      // Invalidar cache de variantes do produto criado
+      if (productData?.id) {
+        await queryClient.invalidateQueries({ queryKey: ["/api/products", productData.id, "variants"] });
+      }
       
       // Forçar refetch imediato
       await refetch();
@@ -331,8 +335,13 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
       }
       return result;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/vendor/products", vendorId] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/vendor/products", vendorId] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/marketplace/products"] });
+      // Invalidar cache de variantes do produto editado
+      if (editingProductId) {
+        await queryClient.invalidateQueries({ queryKey: ["/api/products", editingProductId, "variants"] });
+      }
       setEditingProductId(null);
       setSelectedCategoryId(null);
       setDynamicMode(false);
