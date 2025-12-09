@@ -5908,6 +5908,23 @@ export async function registerRoutes(
     }
   });
 
+  // Get all reviews by customer email
+  app.get("/api/reviews/by-email", async (req, res) => {
+    const email = req.query.email as string;
+    
+    if (!email) {
+      return res.status(400).json({ error: "Email é obrigatório" });
+    }
+    
+    try {
+      const reviews = await storage.getReviewsByCustomerEmail(email);
+      res.json(reviews);
+    } catch (error: any) {
+      console.error("[Reviews] Error fetching customer reviews:", error);
+      res.status(500).json({ error: "Erro ao buscar avaliações do cliente" });
+    }
+  });
+
   // Get all reviews for a seller
   app.get("/api/reviews/seller/:resellerId", async (req, res) => {
     const resellerId = parseInt(req.params.resellerId);

@@ -130,6 +130,24 @@ export default function MyOrders() {
     enabled: submitted && !!email,
   });
 
+  const { data: customerReviews } = useQuery({
+    queryKey: ["/api/reviews/by-email", email],
+    queryFn: async () => {
+      const response = await fetch(`/api/reviews/by-email?email=${encodeURIComponent(email)}`);
+      if (!response.ok) throw new Error("Failed to fetch reviews");
+      return response.json();
+    },
+    enabled: submitted && !!email,
+  });
+
+  // Populate reviewedOrders when customer reviews load
+  React.useEffect(() => {
+    if (customerReviews && Array.isArray(customerReviews)) {
+      const reviewedOrderIds = new Set(customerReviews.map((r: any) => r.orderId));
+      setReviewedOrders(reviewedOrderIds);
+    }
+  }, [customerReviews]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (email.trim()) {
