@@ -292,6 +292,8 @@ async function verifyPendingPayments() {
         email: orders.email,
         status: orders.status,
         abacatepayBillingId: orders.abacatepayBillingId,
+        resellerId: orders.resellerId,
+        totalAmount: orders.totalAmount,
       })
       .from(orders)
       .where(eq(orders.status, "pending"));
@@ -345,6 +347,27 @@ async function verifyPendingPayments() {
             status: "paid",
             deliveredContent: deliveredContent.trim(),
           });
+
+          // ========== ATUALIZAR SALDO DO REVENDEDOR ==========
+          try {
+            if (order.resellerId) {
+              const reseller = await storage.getReseller(order.resellerId);
+              if (reseller) {
+                const valorVenda = parseFloat(order.totalAmount as string || "0");
+                const currentBalance = parseFloat(reseller.walletBalance as string || "0");
+                const newBalance = currentBalance + valorVenda;
+
+                await storage.updateReseller(order.resellerId, {
+                  walletBalance: newBalance.toFixed(2),
+                  totalSales: (parseFloat(reseller.totalSales as string || "0") + valorVenda).toFixed(2),
+                  totalCommission: (parseFloat(reseller.totalCommission as string || "0") + valorVenda).toFixed(2),
+                });
+                console.log(`[Payment Verify Cron] ✓ Saldo revendedor atualizado: R$ ${newBalance.toFixed(2)}`);
+              }
+            }
+          } catch (walletError: any) {
+            console.error("[Payment Verify Cron] Erro ao atualizar saldo:", walletError.message);
+          }
 
           // Send delivery email
           if (order.email && deliveredContent.trim()) {
