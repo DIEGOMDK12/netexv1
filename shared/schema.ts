@@ -262,7 +262,8 @@ export const withdrawalRequests = pgTable("withdrawal_requests", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const insertWithdrawalRequestSchema = createInsertSchema(withdrawalRequests);
+// @ts-expect-error drizzle-zod omit type inference issue
+export const insertWithdrawalRequestSchema = createInsertSchema(withdrawalRequests).omit({ id: true, createdAt: true });
 
 export type WithdrawalRequest = typeof withdrawalRequests.$inferSelect;
 export type InsertWithdrawalRequest = z.infer<typeof insertWithdrawalRequestSchema>;
