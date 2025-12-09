@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Product, Category } from "@shared/schema";
+import type { Product, Category, ProductVariant } from "@shared/schema";
 import {
   DndContext,
   closestCenter,
@@ -69,6 +69,16 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showDeleteProductConfirm, setShowDeleteProductConfirm] = useState<number | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Variant management state
+  const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [showVariantModal, setShowVariantModal] = useState(false);
+  const [editingVariant, setEditingVariant] = useState<ProductVariant | null>(null);
+  const [variantForm, setVariantForm] = useState({
+    name: "",
+    price: "",
+    stock: "",
+  });
 
   const [productForm, setProductForm] = useState({
     name: "",
@@ -123,6 +133,23 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
       return response.json();
     },
   });
+
+  // Fetch variants when editing a product with dynamicMode enabled
+  const { data: productVariants = [], refetch: refetchVariants } = useQuery<ProductVariant[]>({
+    queryKey: ["/api/products", editingProduct?.id, "variants"],
+    queryFn: async () => {
+      if (!editingProduct?.id) return [];
+      const response = await fetch(`/api/products/${editingProduct.id}/variants`);
+      if (!response.ok) throw new Error("Failed to fetch variants");
+      return response.json();
+    },
+    enabled: !!editingProduct?.id && productForm.dynamicMode,
+  });
+
+  // Sync productVariants to local state - always sync to handle deletions
+  useEffect(() => {
+    setVariants(productVariants);
+  }, [productVariants]);
 
   const productsByCategory = useMemo(() => {
     const grouped: Record<number, Product[]> = {};
@@ -254,6 +281,59 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
     },
   });
 
+  // Variant mutations
+  const createVariantMutation = useMutation({
+    mutationFn: async ({ productId, data }: { productId: number; data: any }) => {
+      return apiRequest("POST", `/api/products/${productId}/variants`, data);
+    },
+    onSuccess: () => {
+      refetchVariants();
+      setShowVariantModal(false);
+      resetVariantForm();
+      toast({ title: "Variante criada com sucesso" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Erro ao criar variante", 
+        description: error?.message,
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const updateVariantMutation = useMutation({
+    mutationFn: async ({ productId, variantId, data }: { productId: number; variantId: number; data: any }) => {
+      return apiRequest("PUT", `/api/products/${productId}/variants/${variantId}`, data);
+    },
+    onSuccess: () => {
+      refetchVariants();
+      setShowVariantModal(false);
+      setEditingVariant(null);
+      resetVariantForm();
+      toast({ title: "Variante atualizada com sucesso" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Erro ao atualizar variante",
+        description: error?.message,
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const deleteVariantMutation = useMutation({
+    mutationFn: async ({ productId, variantId }: { productId: number; variantId: number }) => {
+      return apiRequest("DELETE", `/api/products/${productId}/variants/${variantId}`, null);
+    },
+    onSuccess: () => {
+      refetchVariants();
+      toast({ title: "Variante removida com sucesso" });
+    },
+    onError: () => {
+      toast({ title: "Erro ao remover variante", variant: "destructive" });
+    },
+  });
+
   const resetProductForm = () => {
     setProductForm({
       name: "",
@@ -269,6 +349,82 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
       limitPerUser: false,
       dynamicMode: false,
     });
+    setVariants([]);
+  };
+
+  const resetVariantForm = () => {
+    setVariantForm({
+      name: "",
+      price: "",
+      stock: "",
+    });
+    setEditingVariant(null);
+  };
+
+  const openNewVariant = () => {
+    resetVariantForm();
+    setShowVariantModal(true);
+  };
+
+  const openEditVariant = (variant: ProductVariant) => {
+    setEditingVariant(variant);
+    setVariantForm({
+      name: variant.name,
+      price: variant.price?.toString() || "",
+      stock: variant.stock || "",
+    });
+    setShowVariantModal(true);
+  };
+
+  const handleSaveVariant = () => {
+    if (!variantForm.name.trim() || !variantForm.price) {
+      toast({ 
+        title: "Campos obrigatórios", 
+        description: "Nome e preço são obrigatórios",
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    if (!editingProduct?.id) {
+      toast({ 
+        title: "Erro", 
+        description: "Salve o produto primeiro antes de adicionar variantes",
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    const data = {
+      name: variantForm.name,
+      price: variantForm.price,
+      stock: variantForm.stock,
+    };
+
+    if (editingVariant) {
+      updateVariantMutation.mutate({ 
+        productId: editingProduct.id, 
+        variantId: editingVariant.id, 
+        data 
+      });
+    } else {
+      createVariantMutation.mutate({ 
+        productId: editingProduct.id, 
+        data 
+      });
+    }
+  };
+
+  const handleDeleteVariant = (variantId: number) => {
+    if (!editingProduct?.id) return;
+    deleteVariantMutation.mutate({ 
+      productId: editingProduct.id, 
+      variantId 
+    });
+  };
+
+  const getVariantStockCount = (stock: string) => {
+    return stock?.split("\n").filter((line) => line.trim()).length || 0;
   };
 
   // Auto-expand "SEM CATEGORIA" section when there are uncategorized products
@@ -339,27 +495,40 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
   };
 
   const handleSaveProduct = () => {
-    if (!productForm.name.trim() || !productForm.currentPrice || !productForm.originalPrice) {
-      toast({ 
-        title: "Campos obrigatórios", 
-        description: "Nome, preço e preço original são obrigatórios",
-        variant: "destructive" 
-      });
-      return;
+    // For dynamic mode, prices are managed by variants - use placeholder values
+    if (productForm.dynamicMode) {
+      if (!productForm.name.trim()) {
+        toast({ 
+          title: "Campos obrigatórios", 
+          description: "Nome do produto é obrigatório",
+          variant: "destructive" 
+        });
+        return;
+      }
+    } else {
+      if (!productForm.name.trim() || !productForm.currentPrice || !productForm.originalPrice) {
+        toast({ 
+          title: "Campos obrigatórios", 
+          description: "Nome, preço e preço original são obrigatórios",
+          variant: "destructive" 
+        });
+        return;
+      }
     }
 
     const slug = productForm.slug || productForm.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 
     const selectedCat = marketplaceCategories.find(c => c.id === parseInt(productForm.categoryId));
     
+    // For dynamic mode, use placeholder values for price/stock (variants manage these)
     const data = {
       name: productForm.name,
       slug,
       description: productForm.description,
       imageUrl: productForm.imageUrl || "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400",
-      currentPrice: productForm.currentPrice,
-      originalPrice: productForm.originalPrice,
-      stock: productForm.stock,
+      currentPrice: productForm.dynamicMode ? "0" : productForm.currentPrice,
+      originalPrice: productForm.dynamicMode ? "0" : productForm.originalPrice,
+      stock: productForm.dynamicMode ? "" : productForm.stock,
       category: selectedCat?.name || "Outros",
       categoryId: productForm.categoryId ? parseInt(productForm.categoryId) : null,
       subcategory: productForm.subcategory || null,
@@ -604,32 +773,34 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-gray-300">Preço Atual (R$) *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={productForm.currentPrice}
-                  onChange={(e) => setProductForm((prev) => ({ ...prev, currentPrice: e.target.value }))}
-                  placeholder="29.90"
-                  className="bg-gray-800 border-gray-600 text-white"
-                  data-testid="input-product-price"
-                />
+            {!productForm.dynamicMode && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-gray-300">Preço Atual (R$) *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={productForm.currentPrice}
+                    onChange={(e) => setProductForm((prev) => ({ ...prev, currentPrice: e.target.value }))}
+                    placeholder="29.90"
+                    className="bg-gray-800 border-gray-600 text-white"
+                    data-testid="input-product-price"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-gray-300">Preço Original (R$) *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={productForm.originalPrice}
+                    onChange={(e) => setProductForm((prev) => ({ ...prev, originalPrice: e.target.value }))}
+                    placeholder="49.90"
+                    className="bg-gray-800 border-gray-600 text-white"
+                    data-testid="input-product-original-price"
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label className="text-gray-300">Preço Original (R$) *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={productForm.originalPrice}
-                  onChange={(e) => setProductForm((prev) => ({ ...prev, originalPrice: e.target.value }))}
-                  placeholder="49.90"
-                  className="bg-gray-800 border-gray-600 text-white"
-                  data-testid="input-product-original-price"
-                />
-              </div>
-            </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -753,45 +924,136 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
               )}
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-gray-300">
-                  Estoque de Keys / Licenças
-                </Label>
-                <div className="flex items-center gap-2">
-                  <Badge 
-                    variant={stockCount > 0 ? "default" : "destructive"}
-                    className={stockCount > 0 ? "bg-green-600" : ""}
-                  >
-                    Estoque: {stockCount} {stockCount === 1 ? "item" : "itens"}
-                  </Badge>
-                  {productForm.stock && (
+            {!productForm.dynamicMode && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-gray-300">
+                    Estoque de Keys / Licenças
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Badge 
+                      variant={stockCount > 0 ? "default" : "destructive"}
+                      className={stockCount > 0 ? "bg-green-600" : ""}
+                    >
+                      Estoque: {stockCount} {stockCount === 1 ? "item" : "itens"}
+                    </Badge>
+                    {productForm.stock && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-400 hover:text-red-300"
+                        onClick={() => setProductForm((prev) => ({ ...prev, stock: "" }))}
+                        data-testid="button-clear-stock"
+                      >
+                        Limpar
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <Textarea
+                  value={productForm.stock}
+                  onChange={(e) => setProductForm((prev) => ({ ...prev, stock: e.target.value }))}
+                  placeholder={"Cole suas keys/licenças aqui (uma por linha):\n\nemail1@gmail.com:senha123\nemail2@gmail.com:senha456\nABC123-DEF456-GHI789\n..."}
+                  className="bg-gray-800 border-gray-600 text-white font-mono text-sm resize-none"
+                  rows={8}
+                  data-testid="textarea-product-stock"
+                />
+                <p className="text-xs text-gray-500">
+                  Cada linha representa um item de estoque. Quando uma venda ocorre, 
+                  o primeiro item disponível é enviado ao cliente automaticamente.
+                </p>
+              </div>
+            )}
+
+            {/* Variant Management Section - Only shown when dynamicMode is ON */}
+            {productForm.dynamicMode && (
+              <div className="space-y-4 border border-purple-600/30 rounded-lg p-4 bg-purple-900/10">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <Label className="text-gray-300 text-base">Variantes do Produto</Label>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Cada variante tem seu próprio preço e estoque
+                    </p>
+                  </div>
+                  {editingProduct?.id ? (
                     <Button
                       type="button"
-                      variant="ghost"
                       size="sm"
-                      className="text-red-400 hover:text-red-300"
-                      onClick={() => setProductForm((prev) => ({ ...prev, stock: "" }))}
-                      data-testid="button-clear-stock"
+                      onClick={openNewVariant}
+                      className="bg-purple-600 hover:bg-purple-700"
+                      data-testid="button-add-variant"
                     >
-                      Limpar
+                      <Plus className="w-4 h-4 mr-1" />
+                      Nova Variante
                     </Button>
+                  ) : (
+                    <Badge variant="outline" className="text-amber-400 border-amber-600/50">
+                      Salve o produto primeiro
+                    </Badge>
                   )}
                 </div>
+
+                {productVariants.length === 0 ? (
+                  <div className="text-center py-6 text-gray-500">
+                    <Package className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">
+                      {editingProduct?.id 
+                        ? "Nenhuma variante cadastrada. Clique em 'Nova Variante' para adicionar."
+                        : "Salve o produto primeiro para adicionar variantes."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {productVariants.map((variant) => (
+                      <div
+                        key={variant.id}
+                        className="flex items-center gap-3 p-3 rounded-lg bg-gray-800/50 border border-gray-700"
+                        data-testid={`variant-item-${variant.id}`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-white truncate">{variant.name}</div>
+                          <div className="text-sm text-green-400">
+                            R$ {parseFloat(variant.price).toFixed(2)}
+                          </div>
+                        </div>
+                        <Badge
+                          variant={getVariantStockCount(variant.stock) > 0 ? "default" : "destructive"}
+                          className={getVariantStockCount(variant.stock) > 0 ? "bg-green-600/20 text-green-400 border-green-600/30" : ""}
+                        >
+                          {getVariantStockCount(variant.stock)} em estoque
+                        </Badge>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="text-gray-400 hover:text-white"
+                            onClick={() => openEditVariant(variant)}
+                            data-testid={`button-edit-variant-${variant.id}`}
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="text-gray-400 hover:text-red-400"
+                            onClick={() => handleDeleteVariant(variant.id)}
+                            disabled={deleteVariantMutation.isPending}
+                            data-testid={`button-delete-variant-${variant.id}`}
+                          >
+                            {deleteVariantMutation.isPending ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              <Textarea
-                value={productForm.stock}
-                onChange={(e) => setProductForm((prev) => ({ ...prev, stock: e.target.value }))}
-                placeholder={"Cole suas keys/licenças aqui (uma por linha):\n\nemail1@gmail.com:senha123\nemail2@gmail.com:senha456\nABC123-DEF456-GHI789\n..."}
-                className="bg-gray-800 border-gray-600 text-white font-mono text-sm resize-none"
-                rows={8}
-                data-testid="textarea-product-stock"
-              />
-              <p className="text-xs text-gray-500">
-                Cada linha representa um item de estoque. Quando uma venda ocorre, 
-                o primeiro item disponível é enviado ao cliente automaticamente.
-              </p>
-            </div>
+            )}
 
             <div className="flex flex-col sm:flex-row gap-4 pt-2">
               <div className="flex items-center gap-3 flex-1">
@@ -914,6 +1176,86 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
           </div>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Variant Modal */}
+      <Dialog open={showVariantModal} onOpenChange={setShowVariantModal}>
+        <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {editingVariant ? "Editar Variante" : "Nova Variante"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label className="text-gray-300">Nome da Variante *</Label>
+              <Input
+                value={variantForm.name}
+                onChange={(e) => setVariantForm((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="Ex: 30 dias, 1 mês, Premium..."
+                className="bg-gray-800 border-gray-600 text-white"
+                data-testid="input-variant-name"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-gray-300">Preço (R$) *</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={variantForm.price}
+                onChange={(e) => setVariantForm((prev) => ({ ...prev, price: e.target.value }))}
+                placeholder="29.90"
+                className="bg-gray-800 border-gray-600 text-white"
+                data-testid="input-variant-price"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-gray-300">Estoque de Keys</Label>
+                <Badge 
+                  variant={getVariantStockCount(variantForm.stock) > 0 ? "default" : "destructive"}
+                  className={getVariantStockCount(variantForm.stock) > 0 ? "bg-green-600" : ""}
+                >
+                  {getVariantStockCount(variantForm.stock)} {getVariantStockCount(variantForm.stock) === 1 ? "item" : "itens"}
+                </Badge>
+              </div>
+              <Textarea
+                value={variantForm.stock}
+                onChange={(e) => setVariantForm((prev) => ({ ...prev, stock: e.target.value }))}
+                placeholder={"Cole suas keys aqui (uma por linha):\nemail1@gmail.com:senha123\nemail2@gmail.com:senha456\n..."}
+                className="bg-gray-800 border-gray-600 text-white font-mono text-sm resize-none"
+                rows={6}
+                data-testid="textarea-variant-stock"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowVariantModal(false);
+                resetVariantForm();
+              }}
+              className="border-gray-600"
+              data-testid="button-cancel-variant"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveVariant}
+              disabled={createVariantMutation.isPending || updateVariantMutation.isPending}
+              className="bg-purple-600 hover:bg-purple-700"
+              data-testid="button-save-variant"
+            >
+              {(createVariantMutation.isPending || updateVariantMutation.isPending) && (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              )}
+              Salvar Variante
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
