@@ -3419,6 +3419,54 @@ export async function registerRoutes(
     }
   });
 
+  // POST /api/admin/resellers/:id/toggle-verification - Toggle verification status from admin panel
+  app.post("/api/admin/resellers/:id/toggle-verification", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    
+    if (!isAuthenticated(token)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    const resellerId = parseInt(req.params.id);
+    if (isNaN(resellerId)) {
+      return res.status(400).json({ error: "Invalid reseller ID" });
+    }
+    
+    try {
+      const { action } = req.body;
+      console.log("[Admin Toggle Verification] Request:", { resellerId, action });
+      
+      if (action !== "approve" && action !== "revoke") {
+        return res.status(400).json({ error: "Action must be 'approve' or 'revoke'" });
+      }
+      
+      const reseller = await storage.getReseller(resellerId);
+      if (!reseller) {
+        return res.status(404).json({ error: "Reseller not found" });
+      }
+      
+      const updateData = {
+        verificationStatus: action === "approve" ? "approved" : null,
+        verifiedAt: action === "approve" ? new Date() : null,
+      };
+      
+      const updated = await storage.updateReseller(resellerId, updateData);
+      console.log("[Admin Toggle Verification] Updated reseller:", resellerId, "to:", updateData.verificationStatus);
+      
+      res.json({
+        success: true,
+        resellerId,
+        verificationStatus: updateData.verificationStatus,
+        message: action === "approve" 
+          ? "Revenda verificada com sucesso" 
+          : "Verificacao removida",
+      });
+    } catch (error: any) {
+      console.error("[Admin Toggle Verification] Error:", error);
+      res.status(500).json({ error: "Failed to toggle verification", details: error?.message });
+    }
+  });
+
   // Vendor Products Routes
   app.get("/api/vendor/products", async (req, res) => {
     // CORREÇÃO 2: Pegar vendorId do query OU do token autenticado

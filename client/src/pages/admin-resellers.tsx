@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Loader2, Store, Lock, Trash2, Unlock } from "lucide-react";
+import { Loader2, Store, Lock, Trash2, Unlock, BadgeCheck, ShieldOff } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -71,11 +71,32 @@ export default function AdminResellers() {
       queryClient.invalidateQueries({ queryKey: ["/api/vendor/profile"] });
       // Force refetch immediately
       queryClient.refetchQueries({ queryKey: ["/api/admin/resellers"] });
-      toast({ title: "✅ Assinatura ativada por 30 dias!" });
+      toast({ title: "Assinatura ativada por 30 dias!" });
     },
     onError: (error: any) => {
       toast({ 
         title: "Erro ao ativar assinatura", 
+        description: error.message,
+        variant: "destructive"
+      });
+    },
+  });
+
+  const toggleVerificationMutation = useMutation({
+    mutationFn: async ({ resellerId, action }: { resellerId: number; action: 'approve' | 'revoke' }) => {
+      return apiRequest("POST", `/api/admin/resellers/${resellerId}/toggle-verification`, { action });
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/resellers"] });
+      toast({ 
+        title: variables.action === 'approve' 
+          ? "Revenda verificada com sucesso!" 
+          : "Verificacao removida"
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Erro ao alterar verificacao", 
         description: error.message,
         variant: "destructive"
       });
@@ -181,13 +202,8 @@ export default function AdminResellers() {
                       <td className="py-4 text-white font-medium">
                         <div className="flex items-center gap-2">
                           {reseller.storeName || "Sem nome"}
-                          {reseller.verificationStatus === "verified" && (
-                            <Badge
-                              className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                              data-testid={`badge-verified-${reseller.id}`}
-                            >
-                              Verificado
-                            </Badge>
+                          {reseller.verificationStatus === "approved" && (
+                            <BadgeCheck className="w-5 h-5 text-emerald-400" data-testid={`icon-verified-${reseller.id}`} />
                           )}
                         </div>
                       </td>
@@ -211,7 +227,35 @@ export default function AdminResellers() {
                           {reseller.active ? "Ativo" : "Bloqueado"}
                         </Badge>
                       </td>
-                      <td className="py-4 text-center flex gap-2 justify-center">
+                      <td className="py-4 text-center flex flex-wrap gap-2 justify-center">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const isVerified = reseller.verificationStatus === "approved";
+                            toggleVerificationMutation.mutate({
+                              resellerId: reseller.id,
+                              action: isVerified ? 'revoke' : 'approve'
+                            });
+                          }}
+                          disabled={toggleVerificationMutation.isPending}
+                          className={reseller.verificationStatus === "approved" ? "text-emerald-400 hover:bg-emerald-500/10" : "text-gray-400 hover:bg-gray-500/10"}
+                          data-testid={`button-toggle-verification-${reseller.id}`}
+                        >
+                          {toggleVerificationMutation.isPending ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : reseller.verificationStatus === "approved" ? (
+                            <>
+                              <BadgeCheck className="w-3 h-3 mr-1" />
+                              Verificado
+                            </>
+                          ) : (
+                            <>
+                              <ShieldOff className="w-3 h-3 mr-1" />
+                              Verificar
+                            </>
+                          )}
+                        </Button>
                         <Button
                           size="sm"
                           variant="outline"

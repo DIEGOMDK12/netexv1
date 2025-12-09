@@ -60,7 +60,7 @@ interface VendorStoreManagementProps {
 }
 
 export function VendorStoreManagement({ vendorId, verificationStatus }: VendorStoreManagementProps) {
-  const isVerified = verificationStatus === "verified";
+  const isVerified = verificationStatus === "approved";
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
