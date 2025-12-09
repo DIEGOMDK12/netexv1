@@ -3211,6 +3211,8 @@ export async function registerRoutes(
         pagseguroEmail: vendor.pagseguroEmail || null,
         pagseguroSandbox: false,
         preferredPaymentMethod: vendor.preferredPaymentMethod || "pagseguro",
+        verificationStatus: vendor.verificationStatus || null,
+        verifiedAt: vendor.verifiedAt || null,
       });
     } catch (error) {
       console.error("[Vendor Profile] Error:", error);
