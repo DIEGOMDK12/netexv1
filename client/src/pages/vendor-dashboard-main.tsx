@@ -194,12 +194,10 @@ export function DashboardMain({ vendorId, isAdmin }: DashboardMainProps) {
       });
       return;
     }
-    const totalToDebit = amount + TAXA_DE_SAQUE_FIXA;
-    if (totalToDebit > availableBalance) {
-      const maxWithdrawal = Math.max(0, availableBalance - TAXA_DE_SAQUE_FIXA);
+    if (amount > availableBalance) {
       toast({
         title: "Saldo insuficiente",
-        description: `O valor + taxa (R$ ${totalToDebit.toFixed(2)}) e maior que seu saldo (R$ ${availableBalance.toFixed(2)}). Maximo que pode sacar: R$ ${maxWithdrawal.toFixed(2)}`,
+        description: `O valor do saque (R$ ${amount.toFixed(2)}) e maior que seu saldo (R$ ${availableBalance.toFixed(2)}).`,
         variant: "destructive",
       });
       return;
@@ -573,29 +571,28 @@ export function DashboardMain({ vendorId, isAdmin }: DashboardMainProps) {
               <p className="text-sm font-medium text-yellow-400">Como funciona</p>
               <div className="text-xs text-gray-400 space-y-1">
                 <p>Voce recebe <span className="text-emerald-400 font-medium">100% do valor</span> de cada venda!</p>
-                <p>Taxa fixa de saque: <span className="text-white font-medium">R$ {TAXA_DE_SAQUE_FIXA.toFixed(2)}</span> (cobrada apenas na retirada)</p>
+                <p>Taxa fixa de saque: <span className="text-white font-medium">R$ {TAXA_DE_SAQUE_FIXA.toFixed(2)}</span> (descontada do valor sacado)</p>
                 <p>Valor minimo para saque: <span className="text-white font-medium">R$ {MIN_WITHDRAWAL.toFixed(2)}</span></p>
-                <p className="text-gray-500">Saldo minimo necessario: R$ {(MIN_WITHDRAWAL + TAXA_DE_SAQUE_FIXA).toFixed(2)} (saque + taxa)</p>
               </div>
             </div>
             
-            {availableBalance < (MIN_WITHDRAWAL + TAXA_DE_SAQUE_FIXA) && (
+            {availableBalance < MIN_WITHDRAWAL && (
               <div className="p-3 rounded-lg" style={{ background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)" }}>
                 <p className="text-sm text-red-400 font-medium">Saldo insuficiente para saque</p>
                 <p className="text-xs text-gray-400 mt-1">
-                  Voce precisa de pelo menos <span className="text-white">R$ {(MIN_WITHDRAWAL + TAXA_DE_SAQUE_FIXA).toFixed(2)}</span> para sacar o minimo de R$ {MIN_WITHDRAWAL.toFixed(2)}.
+                  Voce precisa de pelo menos <span className="text-white">R$ {MIN_WITHDRAWAL.toFixed(2)}</span> de saldo para solicitar um saque.
                 </p>
               </div>
             )}
             
             <div className="space-y-2">
-              <Label htmlFor="amount" className="text-gray-300">Valor que deseja receber via PIX (minimo R$ {MIN_WITHDRAWAL.toFixed(2)})</Label>
+              <Label htmlFor="amount" className="text-gray-300">Valor do saque (minimo R$ {MIN_WITHDRAWAL.toFixed(2)})</Label>
               <Input
                 id="amount"
                 type="number"
                 step="0.01"
                 min={MIN_WITHDRAWAL}
-                max={Math.max(0, availableBalance - TAXA_DE_SAQUE_FIXA)}
+                max={availableBalance}
                 placeholder={MIN_WITHDRAWAL.toFixed(2)}
                 value={withdrawalAmount}
                 onChange={(e) => setWithdrawalAmount(e.target.value)}
@@ -604,20 +601,19 @@ export function DashboardMain({ vendorId, isAdmin }: DashboardMainProps) {
               />
               {withdrawalAmount && parseFloat(withdrawalAmount) >= MIN_WITHDRAWAL && (() => {
                 const amount = parseFloat(withdrawalAmount);
-                const total = amount + TAXA_DE_SAQUE_FIXA;
-                const exceedsBalance = total > availableBalance;
-                const maxPossible = Math.max(0, availableBalance - TAXA_DE_SAQUE_FIXA);
+                const pixReceived = Math.max(0, amount - TAXA_DE_SAQUE_FIXA);
+                const exceedsBalance = amount > availableBalance;
                 return (
                   <div className="text-xs text-gray-400 mt-1 p-2 rounded" style={{ 
                     background: exceedsBalance ? "rgba(239, 68, 68, 0.1)" : "rgba(16, 185, 129, 0.1)",
                     border: exceedsBalance ? "1px solid rgba(239, 68, 68, 0.3)" : "none"
                   }}>
-                    <p>Voce recebera via PIX: <span className="text-emerald-400 font-bold text-sm">R$ {amount.toFixed(2)}</span></p>
-                    <p>Taxa de saque (descontada do saldo): <span className="text-yellow-400">R$ {TAXA_DE_SAQUE_FIXA.toFixed(2)}</span></p>
-                    <p className="mt-1 text-white">Total a debitar do seu saldo: <span className={exceedsBalance ? "text-red-400 font-bold" : "font-medium"}>R$ {total.toFixed(2)}</span></p>
+                    <p>Valor do saque: <span className="text-white font-medium">R$ {amount.toFixed(2)}</span></p>
+                    <p>Taxa de saque: <span className="text-yellow-400">- R$ {TAXA_DE_SAQUE_FIXA.toFixed(2)}</span></p>
+                    <p className="mt-1">Voce recebera via PIX: <span className="text-emerald-400 font-bold text-sm">R$ {pixReceived.toFixed(2)}</span></p>
                     {exceedsBalance && (
                       <p className="mt-2 text-red-400 font-medium">
-                        Saldo insuficiente! Maximo que pode sacar: R$ {maxPossible.toFixed(2)}
+                        Saldo insuficiente! Seu saldo e R$ {availableBalance.toFixed(2)}
                       </p>
                     )}
                   </div>
