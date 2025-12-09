@@ -1,14 +1,21 @@
 import { useState, useEffect } from "react";
 import { useRoute } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ShoppingCart, Zap, Shield, Headphones, Clock, Check, Star, MessageCircle, ThumbsUp } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Zap, Shield, Headphones, Clock, Check, Star, MessageCircle, ThumbsUp, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CheckoutModal } from "@/components/checkout-modal";
 import { useStore } from "@/lib/store-context";
 import { useToast } from "@/hooks/use-toast";
 import { SiPix } from "react-icons/si";
-import type { Product, Reseller } from "@shared/schema";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { Product, Reseller, ProductVariant } from "@shared/schema";
 
 export default function ResellerProductDetails() {
   const [, params] = useRoute("/loja/:slug/produto/:productId");
@@ -18,6 +25,7 @@ export default function ResellerProductDetails() {
   const { toast } = useToast();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
 
   const { data: reseller, isLoading: resellerLoading } = useQuery<Reseller>({
     queryKey: ["/api/reseller", slug],
@@ -36,6 +44,27 @@ export default function ResellerProductDetails() {
     queryKey: ["/api/reviews/product", productId],
     enabled: !!productId,
   });
+
+  const isDynamicMode = (product as any)?.dynamicMode === true;
+
+  const { data: variants = [] } = useQuery<ProductVariant[]>({
+    queryKey: ["/api/products", productId, "variants"],
+    queryFn: async () => {
+      const response = await fetch(`/api/products/${productId}/variants`);
+      if (!response.ok) throw new Error("Failed to fetch variants");
+      return response.json();
+    },
+    enabled: !!productId && isDynamicMode,
+  });
+
+  const activeVariants = variants.filter((v) => v.active !== false);
+  const selectedVariant = activeVariants.find((v) => v.id.toString() === selectedVariantId);
+
+  useEffect(() => {
+    if (activeVariants.length > 0 && !selectedVariantId) {
+      setSelectedVariantId(activeVariants[0].id.toString());
+    }
+  }, [activeVariants, selectedVariantId]);
 
   useEffect(() => {
     if (reseller) {
@@ -67,26 +96,72 @@ export default function ResellerProductDetails() {
   }
 
   const themeColor = reseller.themeColor || "#3B82F6";
-  const stockLines = product.stock?.split("\n").filter((line) => line.trim()) || [];
-  const hasStock = stockLines.length > 0;
+  
+  const getStockInfo = () => {
+    if (isDynamicMode && selectedVariant) {
+      const lines = selectedVariant.stock?.split("\n").filter((line) => line.trim()) || [];
+      return { stockLines: lines, hasStock: lines.length > 0 };
+    }
+    const lines = product.stock?.split("\n").filter((line) => line.trim()) || [];
+    return { stockLines: lines, hasStock: lines.length > 0 };
+  };
+  
+  const { stockLines, hasStock } = getStockInfo();
+  
+  const displayPrice = isDynamicMode && selectedVariant 
+    ? parseFloat(selectedVariant.price as any) 
+    : parseFloat(product.currentPrice as any);
+  const displayOriginalPrice = parseFloat(product.originalPrice as any);
 
   const handleAddToCart = () => {
+    if (isDynamicMode && !selectedVariant) {
+      toast({
+        title: "Selecione uma opção",
+        description: "Por favor, selecione uma opção antes de adicionar ao carrinho",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     if (hasStock) {
       const productWithSeller = { ...product, resellerId: reseller.id };
-      addToCart(productWithSeller);
+      const variantInfo = isDynamicMode && selectedVariant ? {
+        id: selectedVariant.id,
+        name: selectedVariant.name,
+        price: selectedVariant.price as string,
+      } : undefined;
+      
+      addToCart(productWithSeller, variantInfo);
       setAddedToCart(true);
       toast({
         title: "Adicionado ao carrinho!",
-        description: product.name,
+        description: isDynamicMode && selectedVariant 
+          ? `${product.name} - ${selectedVariant.name}` 
+          : product.name,
       });
       setTimeout(() => setAddedToCart(false), 2000);
     }
   };
 
   const handleBuyNow = () => {
+    if (isDynamicMode && !selectedVariant) {
+      toast({
+        title: "Selecione uma opção",
+        description: "Por favor, selecione uma opção antes de comprar",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     if (hasStock) {
       const productWithSeller = { ...product, resellerId: reseller.id };
-      addToCart(productWithSeller);
+      const variantInfo = isDynamicMode && selectedVariant ? {
+        id: selectedVariant.id,
+        name: selectedVariant.name,
+        price: selectedVariant.price as string,
+      } : undefined;
+      
+      addToCart(productWithSeller, variantInfo);
       setTimeout(() => {
         setIsCheckoutOpen(true);
       }, 50);
@@ -160,12 +235,55 @@ export default function ResellerProductDetails() {
               {/* Preço */}
               <div className="flex items-center gap-3">
                 <p className="text-3xl font-bold" style={{ color: themeColor }} data-testid="text-price">
-                  R$ {parseFloat(product.currentPrice as any).toFixed(2)}
+                  R$ {displayPrice.toFixed(2)}
                 </p>
-                <p className="text-lg text-gray-500 line-through">
-                  R$ {parseFloat(product.originalPrice as any).toFixed(2)}
-                </p>
+                {!isDynamicMode && (
+                  <p className="text-lg text-gray-500 line-through">
+                    R$ {displayOriginalPrice.toFixed(2)}
+                  </p>
+                )}
               </div>
+
+              {/* Seletor de Variantes */}
+              {isDynamicMode && activeVariants.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-white text-sm font-medium">Escolha uma opção:</label>
+                  <Select
+                    value={selectedVariantId || ""}
+                    onValueChange={setSelectedVariantId}
+                  >
+                    <SelectTrigger 
+                      className="w-full bg-gray-800 border-gray-600 text-white"
+                      data-testid="select-variant"
+                    >
+                      <SelectValue placeholder="Selecione uma opção" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-800 border-gray-600">
+                      {activeVariants.map((variant) => {
+                        const variantStockLines = variant.stock?.split("\n").filter((line) => line.trim()) || [];
+                        const variantHasStock = variantStockLines.length > 0;
+                        return (
+                          <SelectItem 
+                            key={variant.id} 
+                            value={variant.id.toString()}
+                            className="text-white focus:bg-gray-700 focus:text-white"
+                            disabled={!variantHasStock}
+                            data-testid={`select-variant-option-${variant.id}`}
+                          >
+                            <div className="flex items-center justify-between gap-4 w-full">
+                              <span>{variant.name}</span>
+                              <span className="text-sm">
+                                R$ {parseFloat(variant.price as any).toFixed(2)}
+                                {!variantHasStock && " (Esgotado)"}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {/* Badges */}
               <div className="flex flex-wrap gap-2">

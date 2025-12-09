@@ -1,17 +1,22 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
-import type { Product, Settings, Reseller } from "@shared/schema";
+import type { Product, Settings, Reseller, ProductVariant } from "@shared/schema";
 
 interface CartItem {
-  product: Product & { resellerId?: number };
+  product: Product & { resellerId?: number | null };
   quantity: number;
+  variant?: {
+    id: number;
+    name: string;
+    price: string;
+  };
 }
 
 interface StoreContextType {
   settings: Settings | null;
   cart: CartItem[];
-  addToCart: (product: Product) => void;
-  removeFromCart: (productId: number) => void;
-  updateQuantity: (productId: number, quantity: number) => void;
+  addToCart: (product: Product, variant?: { id: number; name: string; price: string }) => void;
+  removeFromCart: (productId: number, variantId?: number) => void;
+  updateQuantity: (productId: number, quantity: number, variantId?: number) => void;
   clearCart: () => void;
   cartTotal: number;
   cartCount: number;
@@ -52,32 +57,42 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("cart", JSON.stringify(cart));
   }, [cart]);
 
-  const addToCart = (product: Product) => {
+  const addToCart = (product: Product, variant?: { id: number; name: string; price: string }) => {
     setCart((prev) => {
-      const existing = prev.find((item) => item.product.id === product.id);
+      const existing = prev.find((item) => 
+        item.product.id === product.id && 
+        (variant ? item.variant?.id === variant.id : !item.variant)
+      );
       if (existing) {
         return prev.map((item) =>
-          item.product.id === product.id
+          item.product.id === product.id && 
+          (variant ? item.variant?.id === variant.id : !item.variant)
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
-      return [...prev, { product, quantity: 1 }];
+      return [...prev, { product, quantity: 1, variant }];
     });
   };
 
-  const removeFromCart = (productId: number) => {
-    setCart((prev) => prev.filter((item) => item.product.id !== productId));
+  const removeFromCart = (productId: number, variantId?: number) => {
+    setCart((prev) => prev.filter((item) => 
+      !(item.product.id === productId && 
+        (variantId ? item.variant?.id === variantId : !item.variant))
+    ));
   };
 
-  const updateQuantity = (productId: number, quantity: number) => {
+  const updateQuantity = (productId: number, quantity: number, variantId?: number) => {
     if (quantity <= 0) {
-      removeFromCart(productId);
+      removeFromCart(productId, variantId);
       return;
     }
     setCart((prev) =>
       prev.map((item) =>
-        item.product.id === productId ? { ...item, quantity } : item
+        item.product.id === productId && 
+        (variantId ? item.variant?.id === variantId : !item.variant)
+          ? { ...item, quantity } 
+          : item
       )
     );
   };
@@ -88,7 +103,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const cartTotal = cart.reduce(
-    (sum, item) => sum + Number(item.product.currentPrice) * item.quantity,
+    (sum, item) => {
+      const price = item.variant ? Number(item.variant.price) : Number(item.product.currentPrice);
+      return sum + price * item.quantity;
+    },
     0
   );
 

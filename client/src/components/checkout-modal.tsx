@@ -392,85 +392,92 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
           {!order ? (
             <>
               <div className="space-y-3">
-                {cart.map((item) => (
-                  <div
-                    key={item.product.id}
-                    className="flex gap-3 p-3 rounded-lg"
-                    style={{ backgroundColor: "#242424" }}
-                    data-testid={`cart-item-${item.product.id}`}
-                  >
-                    <div className="w-14 h-14 rounded-md overflow-hidden flex-shrink-0">
-                      {item.product.imageUrl ? (
-                        <img
-                          src={item.product.imageUrl}
-                          alt={item.product.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-purple-900/30 to-pink-900/30 flex items-center justify-center">
-                          <Package className="w-6 h-6 text-purple-400/50" />
+                {cart.map((item) => {
+                  const itemPrice = item.variant ? Number(item.variant.price) : Number(item.product.currentPrice);
+                  const itemKey = item.variant ? `${item.product.id}-${item.variant.id}` : `${item.product.id}`;
+                  return (
+                    <div
+                      key={itemKey}
+                      className="flex gap-3 p-3 rounded-lg"
+                      style={{ backgroundColor: "#242424" }}
+                      data-testid={`cart-item-${itemKey}`}
+                    >
+                      <div className="w-14 h-14 rounded-md overflow-hidden flex-shrink-0">
+                        {item.product.imageUrl ? (
+                          <img
+                            src={item.product.imageUrl}
+                            alt={item.product.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-purple-900/30 to-pink-900/30 flex items-center justify-center">
+                            <Package className="w-6 h-6 text-purple-400/50" />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <h4
+                          className="font-medium text-sm truncate"
+                          style={{ color: textColor || "#FFFFFF" }}
+                        >
+                          {item.product.name}
+                          {item.variant && (
+                            <span className="text-gray-400 ml-1">- {item.variant.name}</span>
+                          )}
+                        </h4>
+                        <p
+                          className="text-sm font-semibold mt-1"
+                          style={{ color: themeColor || "#a855f7" }}
+                        >
+                          R$ {itemPrice.toFixed(2)}
+                        </p>
+
+                        <div className="flex items-center gap-2 mt-2">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 border border-purple-500/30"
+                            onClick={() => updateQuantity(item.product.id, item.quantity - 1, item.variant?.id)}
+                            data-testid={`button-decrease-${itemKey}`}
+                          >
+                            <Minus className="w-3.5 h-3.5 text-purple-400" />
+                          </Button>
+                          <span
+                            className="w-8 text-center text-sm font-medium"
+                            style={{ color: textColor || "#FFFFFF" }}
+                          >
+                            {item.quantity}
+                          </span>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 border border-purple-500/30"
+                            onClick={() => updateQuantity(item.product.id, item.quantity + 1, item.variant?.id)}
+                            data-testid={`button-increase-${itemKey}`}
+                          >
+                            <Plus className="w-3.5 h-3.5 text-purple-400" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 ml-auto text-red-500"
+                            onClick={() => removeFromCart(item.product.id, item.variant?.id)}
+                            data-testid={`button-remove-${itemKey}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                          <span
+                            className="text-sm font-medium"
+                            style={{ color: textColor || "#FFFFFF" }}
+                          >
+                            R$ {(itemPrice * item.quantity).toFixed(2)}
+                          </span>
                         </div>
-                      )}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <h4
-                        className="font-medium text-sm truncate"
-                        style={{ color: textColor || "#FFFFFF" }}
-                      >
-                        {item.product.name}
-                      </h4>
-                      <p
-                        className="text-sm font-semibold mt-1"
-                        style={{ color: themeColor || "#a855f7" }}
-                      >
-                        R$ {Number(item.product.currentPrice).toFixed(2)}
-                      </p>
-
-                      <div className="flex items-center gap-2 mt-2">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 border border-purple-500/30"
-                          onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
-                          data-testid={`button-decrease-${item.product.id}`}
-                        >
-                          <Minus className="w-3.5 h-3.5 text-purple-400" />
-                        </Button>
-                        <span
-                          className="w-8 text-center text-sm font-medium"
-                          style={{ color: textColor || "#FFFFFF" }}
-                        >
-                          {item.quantity}
-                        </span>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 border border-purple-500/30"
-                          onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
-                          data-testid={`button-increase-${item.product.id}`}
-                        >
-                          <Plus className="w-3.5 h-3.5 text-purple-400" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 ml-auto text-red-500"
-                          onClick={() => removeFromCart(item.product.id)}
-                          data-testid={`button-remove-${item.product.id}`}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                        <span
-                          className="text-sm font-medium"
-                          style={{ color: textColor || "#FFFFFF" }}
-                        >
-                          R$ {(Number(item.product.currentPrice) * item.quantity).toFixed(2)}
-                        </span>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="flex gap-2">
