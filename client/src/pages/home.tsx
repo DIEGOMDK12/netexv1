@@ -62,6 +62,8 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -113,6 +115,16 @@ export default function Home() {
   const availableSubcategories = selectedCategoryData?.subcategories || [];
   
   const filteredProducts = activeProducts.filter(p => {
+    // Filtro de busca
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      const matchesSearch = 
+        p.name?.toLowerCase().includes(query) ||
+        p.description?.toLowerCase().includes(query) ||
+        p.category?.toLowerCase().includes(query);
+      if (!matchesSearch) return false;
+    }
+    
     if (!selectedCategory) return true;
     if (p.category !== selectedCategory) return false;
     if (selectedSubcategory && p.subcategory !== selectedSubcategory) return false;
@@ -180,14 +192,17 @@ export default function Home() {
           </div>
           
           <div className="flex items-center gap-2">
-            <Button size="icon" variant="ghost" className="text-gray-400" data-testid="button-search">
+            <Button 
+              size="icon" 
+              variant="ghost" 
+              className="text-gray-400"
+              onClick={() => setIsSearchOpen(!isSearchOpen)}
+              data-testid="button-search"
+            >
               <Search className="w-5 h-5" />
             </Button>
             <Button size="icon" variant="ghost" className="text-gray-400" data-testid="button-notifications">
               <Bell className="w-5 h-5" />
-            </Button>
-            <Button size="icon" variant="ghost" className="text-gray-400" data-testid="button-cart">
-              <ShoppingCart className="w-5 h-5" />
             </Button>
             <Button 
               size="icon" 
@@ -200,6 +215,23 @@ export default function Home() {
             </Button>
           </div>
         </div>
+        
+        {isSearchOpen && (
+          <div className="border-t border-white/5 px-4 py-2 bg-[#0f172a]">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar produtos..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-[#1e293b] border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
+                autoFocus
+                data-testid="input-search"
+              />
+            </div>
+          </div>
+        )}
       </header>
 
       {isMenuOpen && (
