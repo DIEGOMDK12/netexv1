@@ -493,22 +493,38 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
             <CardTitle className="text-white">{editingProductId ? "Editar Produto" : "Novo Produto"}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-white">Nome do Produto *</Label>
-                <Input
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Ex: Netflix Premium"
-                  style={{
-                    background: "rgba(30, 30, 40, 0.4)",
-                    backdropFilter: "blur(10px)",
-                    borderColor: "rgba(255,255,255,0.1)",
-                    color: "#FFFFFF",
-                  }}
-                  data-testid="input-product-name"
-                />
+            {/* Dynamic Mode Toggle - First */}
+            <div className="flex items-center justify-between p-4 rounded-lg" style={{ background: "linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(59, 130, 246, 0.2))", border: "1px solid rgba(139, 92, 246, 0.3)" }}>
+              <div className="space-y-1">
+                <Label className="text-white font-semibold">Modo Dinâmico (Revenda)</Label>
+                <p className="text-xs text-gray-300">Ative para vender múltiplos itens com preços individuais nas variantes</p>
               </div>
+              <Switch
+                checked={dynamicMode}
+                onCheckedChange={(checked) => {
+                  setDynamicMode(checked);
+                }}
+                data-testid="switch-dynamic-mode"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-white">Nome do Produto *</Label>
+              <Input
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Ex: Netflix Premium"
+                style={{
+                  background: "rgba(30, 30, 40, 0.4)",
+                  backdropFilter: "blur(10px)",
+                  borderColor: "rgba(255,255,255,0.1)",
+                  color: "#FFFFFF",
+                }}
+                data-testid="input-product-name"
+              />
+            </div>
+
+            {!dynamicMode && (
               <div className="space-y-2">
                 <Label className="text-white">Preço Final (R$) *</Label>
                 <Input
@@ -526,7 +542,7 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
                   data-testid="input-product-price"
                 />
               </div>
-            </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -592,23 +608,25 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-white">Preço Original (R$) *</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={formData.originalPrice}
-                onChange={(e) => setFormData({ ...formData, originalPrice: e.target.value })}
-                placeholder="199.90"
-                style={{
-                  background: "rgba(30, 30, 40, 0.4)",
-                  backdropFilter: "blur(10px)",
-                  borderColor: "rgba(255,255,255,0.1)",
-                  color: "#FFFFFF",
-                }}
-                data-testid="input-product-original-price"
-              />
-            </div>
+            {!dynamicMode && (
+              <div className="space-y-2">
+                <Label className="text-white">Preço Original (R$) *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formData.originalPrice}
+                  onChange={(e) => setFormData({ ...formData, originalPrice: e.target.value })}
+                  placeholder="199.90"
+                  style={{
+                    background: "rgba(30, 30, 40, 0.4)",
+                    backdropFilter: "blur(10px)",
+                    borderColor: "rgba(255,255,255,0.1)",
+                    color: "#FFFFFF",
+                  }}
+                  data-testid="input-product-original-price"
+                />
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label className="text-white">Descrição</Label>
@@ -686,21 +704,6 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
                   </div>
                 )}
               </div>
-            </div>
-
-            {/* Dynamic Mode Toggle */}
-            <div className="flex items-center justify-between p-4 rounded-lg" style={{ background: "rgba(30, 30, 40, 0.4)", border: "1px solid rgba(255,255,255,0.1)" }}>
-              <div className="space-y-1">
-                <Label className="text-white font-semibold">Modo Dinâmico</Label>
-                <p className="text-xs text-gray-400">Ative para vender múltiplos itens/variantes com preços e estoques individuais</p>
-              </div>
-              <Switch
-                checked={dynamicMode}
-                onCheckedChange={(checked) => {
-                  setDynamicMode(checked);
-                }}
-                data-testid="switch-dynamic-mode"
-              />
             </div>
 
             {/* Conditional: Dynamic Mode Variants OR Normal Stock */}
