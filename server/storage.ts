@@ -399,7 +399,9 @@ export class DatabaseStorage implements IStorage {
         
         return {
           id: reseller.id,
+          name: reseller.name,
           storeName: reseller.storeName,
+          slug: reseller.slug,
           email: reseller.email,
           createdAt: reseller.createdAt,
           active: reseller.active,
@@ -407,6 +409,9 @@ export class DatabaseStorage implements IStorage {
           productCount: productList.length,
           subscriptionStatus: reseller.subscriptionStatus,
           subscriptionExpiresAt: reseller.subscriptionExpiresAt,
+          documentFrontUrl: reseller.documentFrontUrl,
+          documentBackUrl: reseller.documentBackUrl,
+          verificationStatus: reseller.verificationStatus,
         };
       })
     );
