@@ -403,7 +403,7 @@ export default function ProductDetails() {
 
             {/* Recent Reviews Section */}
             {reviews && reviews.length > 0 && (
-              <div className="bg-[#1e293b] rounded-xl p-4 hidden md:block" data-testid="card-recent-reviews">
+              <div className="bg-[#1e293b] rounded-xl p-4" data-testid="card-recent-reviews">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-white font-semibold text-sm">Avaliacoes Recentes</h3>
                   <span className="text-gray-500 text-xs">({reviews.length})</span>
