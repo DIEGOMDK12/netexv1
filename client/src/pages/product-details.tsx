@@ -358,20 +358,6 @@ export default function ProductDetails() {
         )}
       </div>
 
-      {/* Sticky Button - Fixed at Bottom on Mobile */}
-      <div
-        className="fixed lg:hidden bottom-0 left-0 right-0 p-4 z-50 bg-[#0f172a] border-t border-white/10"
-      >
-        <Button
-          onClick={handleBuyNow}
-          disabled={!hasStock}
-          className="w-full py-2 text-sm text-white font-bold rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600"
-          data-testid="button-buy-now-mobile"
-        >
-          COMPRAR
-        </Button>
-      </div>
-
       {/* Checkout Modal */}
       <CheckoutModal
         open={isCheckoutOpen}
