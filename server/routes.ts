@@ -5566,6 +5566,56 @@ export async function registerRoutes(
   // CHAT ROUTES - Buyer/Seller Communication
   // ==============================================
 
+  // IMPORTANT: Static routes must come BEFORE dynamic :orderId routes
+  
+  // Get total unread chat messages count for a buyer (by email)
+  app.get("/api/chat/unread-total", async (req, res) => {
+    const email = req.query.email as string;
+    
+    if (!email) {
+      return res.status(400).json({ error: "Email é obrigatório" });
+    }
+    
+    try {
+      const orders = await storage.getOrdersByBuyerEmail(email);
+      
+      let totalUnread = 0;
+      for (const order of orders) {
+        const count = await storage.getUnreadMessageCount(order.id, "buyer");
+        totalUnread += count;
+      }
+      
+      res.json({ count: totalUnread });
+    } catch (error: any) {
+      console.error("[Chat] Error getting total unread count:", error);
+      res.status(500).json({ error: "Erro ao contar mensagens não lidas" });
+    }
+  });
+
+  // Get total unread chat messages count for a seller/reseller (by resellerId)
+  app.get("/api/chat/seller-unread-total", async (req, res) => {
+    const resellerId = parseInt(req.query.resellerId as string);
+    
+    if (isNaN(resellerId)) {
+      return res.status(400).json({ error: "ID do revendedor inválido" });
+    }
+    
+    try {
+      const orders = await storage.getResellerOrders(resellerId);
+      
+      let totalUnread = 0;
+      for (const order of orders) {
+        const count = await storage.getUnreadMessageCount(order.id, "seller");
+        totalUnread += count;
+      }
+      
+      res.json({ count: totalUnread });
+    } catch (error: any) {
+      console.error("[Chat] Error getting seller total unread count:", error);
+      res.status(500).json({ error: "Erro ao contar mensagens não lidas" });
+    }
+  });
+
   // Get chat messages for an order
   app.get("/api/chat/:orderId", async (req, res) => {
     const orderId = parseInt(req.params.orderId);
@@ -5715,60 +5765,6 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("[Chat] Error marking messages as read:", error);
       res.status(500).json({ error: "Erro ao marcar mensagens como lidas" });
-    }
-  });
-
-  // Get total unread chat messages count for a buyer (by email)
-  // IMPORTANT: This route must come BEFORE /api/chat/:orderId/unread to avoid matching "unread-total" as orderId
-  app.get("/api/chat/unread-total", async (req, res) => {
-    const email = req.query.email as string;
-    
-    if (!email) {
-      return res.status(400).json({ error: "Email é obrigatório" });
-    }
-    
-    try {
-      // Get all orders for this buyer
-      const orders = await storage.getOrdersByBuyerEmail(email);
-      
-      // Count unread messages from sellers for each order
-      let totalUnread = 0;
-      for (const order of orders) {
-        const count = await storage.getUnreadMessageCount(order.id, "buyer");
-        totalUnread += count;
-      }
-      
-      res.json({ count: totalUnread });
-    } catch (error: any) {
-      console.error("[Chat] Error getting total unread count:", error);
-      res.status(500).json({ error: "Erro ao contar mensagens não lidas" });
-    }
-  });
-
-  // Get total unread chat messages count for a seller/reseller (by resellerId)
-  // IMPORTANT: This route must come BEFORE /api/chat/:orderId/unread to avoid matching "seller-unread-total" as orderId
-  app.get("/api/chat/seller-unread-total", async (req, res) => {
-    const resellerId = parseInt(req.query.resellerId as string);
-    
-    if (isNaN(resellerId)) {
-      return res.status(400).json({ error: "ID do revendedor inválido" });
-    }
-    
-    try {
-      // Get all orders for this seller
-      const orders = await storage.getResellerOrders(resellerId);
-      
-      // Count unread messages from buyers for each order
-      let totalUnread = 0;
-      for (const order of orders) {
-        const count = await storage.getUnreadMessageCount(order.id, "seller");
-        totalUnread += count;
-      }
-      
-      res.json({ count: totalUnread });
-    } catch (error: any) {
-      console.error("[Chat] Error getting seller total unread count:", error);
-      res.status(500).json({ error: "Erro ao contar mensagens não lidas" });
     }
   });
 
