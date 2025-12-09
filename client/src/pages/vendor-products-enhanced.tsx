@@ -31,6 +31,145 @@ function getAuthHeaders(): HeadersInit {
   return {};
 }
 
+function ProductCardWithVariants({ 
+  product, 
+  onEdit, 
+  onDelete, 
+  isDeleting 
+}: { 
+  product: Product; 
+  onEdit: (product: Product) => void; 
+  onDelete: (id: number) => void; 
+  isDeleting: boolean;
+}) {
+  const isDynamicMode = product.dynamicMode === true;
+  
+  const { data: variants = [] } = useQuery<ProductVariant[]>({
+    queryKey: ["/api/products", product.id, "variants"],
+    queryFn: async () => {
+      const response = await fetch(`/api/products/${product.id}/variants`, {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: isDynamicMode,
+  });
+
+  const activeVariants = variants.filter((v) => v.active !== false);
+  
+  const getStockInfo = () => {
+    if (isDynamicMode) {
+      let totalStock = 0;
+      activeVariants.forEach((v) => {
+        const lines = v.stock?.split("\n").filter((line) => line.trim()) || [];
+        totalStock += lines.length;
+      });
+      return { stockCount: totalStock, variantCount: activeVariants.length };
+    }
+    const stockLines = product.stock?.split('\n').filter(line => line.trim()) || [];
+    return { stockCount: stockLines.length, variantCount: 0 };
+  };
+
+  const { stockCount, variantCount } = getStockInfo();
+
+  const getPriceRange = () => {
+    if (isDynamicMode && activeVariants.length > 0) {
+      const prices = activeVariants.map(v => parseFloat(v.price as any));
+      const minPrice = Math.min(...prices);
+      const maxPrice = Math.max(...prices);
+      if (minPrice === maxPrice) {
+        return `R$ ${minPrice.toFixed(2)}`;
+      }
+      return `R$ ${minPrice.toFixed(2)} - R$ ${maxPrice.toFixed(2)}`;
+    }
+    return `R$ ${parseFloat(product.currentPrice as any).toFixed(2)}`;
+  };
+
+  return (
+    <Card
+      className="overflow-hidden"
+      style={{
+        background: "rgba(30, 30, 30, 0.4)",
+        backdropFilter: "blur(12px)",
+        border: "1px solid rgba(255, 255, 255, 0.1)",
+      }}
+      data-testid={`card-product-${product.id}`}
+    >
+      {product.imageUrl && (
+        <div className="aspect-square overflow-hidden relative">
+          <img 
+            src={product.imageUrl} 
+            alt={product.name}
+            className="w-full h-full object-contain bg-gray-900"
+          />
+          {isDynamicMode && (
+            <div className="absolute top-2 right-2 bg-purple-600 text-white text-xs px-2 py-1 rounded">
+              Variantes
+            </div>
+          )}
+        </div>
+      )}
+      
+      <div className="p-3">
+        <h3 className="text-white text-sm font-semibold line-clamp-1 mb-1">{product.name}</h3>
+        
+        <div className="flex items-baseline gap-2 mb-2 flex-wrap">
+          <span className="text-green-400 font-bold text-sm">
+            {getPriceRange()}
+          </span>
+          {!isDynamicMode && (
+            <span className="text-gray-500 text-xs line-through">
+              R$ {parseFloat(product.originalPrice as any).toFixed(2)}
+            </span>
+          )}
+        </div>
+        
+        <div className="mb-3 flex flex-wrap gap-1">
+          {isDynamicMode ? (
+            <>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400">
+                {variantCount} variante{variantCount !== 1 ? 's' : ''}
+              </span>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${stockCount > 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                {stockCount > 0 ? `${stockCount} em estoque` : 'Sem estoque'}
+              </span>
+            </>
+          ) : (
+            <span className={`text-xs px-2 py-0.5 rounded-full ${stockCount > 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+              {stockCount > 0 ? `${stockCount} em estoque` : 'Sem estoque'}
+            </span>
+          )}
+        </div>
+        
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1 text-xs h-8"
+            onClick={() => onEdit(product)}
+            data-testid={`button-edit-product-${product.id}`}
+          >
+            <Edit2 className="w-3 h-3 mr-1" />
+            Editar
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1 text-xs h-8 text-red-400 border-red-400/30 hover:bg-red-400/10"
+            onClick={() => onDelete(product.id)}
+            disabled={isDeleting}
+            data-testid={`button-delete-product-${product.id}`}
+          >
+            <Trash2 className="w-3 h-3 mr-1" />
+            Deletar
+          </Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
   const { toast } = useToast();
   const [isAddingProduct, setIsAddingProduct] = useState(false);
@@ -897,81 +1036,15 @@ Chave123456"
         </Card>
       ) : (
         <div className="grid grid-cols-2 gap-3">
-          {products.map((product) => {
-            const stockLines = product.stock?.split('\n').filter(line => line.trim()) || [];
-            const stockCount = stockLines.length;
-            
-            return (
-              <Card
-                key={product.id}
-                className="overflow-hidden"
-                style={{
-                  background: "rgba(30, 30, 30, 0.4)",
-                  backdropFilter: "blur(12px)",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                }}
-                data-testid={`card-product-${product.id}`}
-              >
-                {/* Product Image */}
-                {product.imageUrl && (
-                  <div className="aspect-square overflow-hidden">
-                    <img 
-                      src={product.imageUrl} 
-                      alt={product.name}
-                      className="w-full h-full object-contain bg-gray-900"
-                    />
-                  </div>
-                )}
-                
-                <div className="p-3">
-                  {/* Name */}
-                  <h3 className="text-white text-sm font-semibold line-clamp-1 mb-1">{product.name}</h3>
-                  
-                  {/* Prices */}
-                  <div className="flex items-baseline gap-2 mb-2">
-                    <span className="text-green-400 font-bold text-sm">
-                      R$ {parseFloat(product.currentPrice as any).toFixed(2)}
-                    </span>
-                    <span className="text-gray-500 text-xs line-through">
-                      R$ {parseFloat(product.originalPrice as any).toFixed(2)}
-                    </span>
-                  </div>
-                  
-                  {/* Stock Badge */}
-                  <div className="mb-3">
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${stockCount > 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                      {stockCount > 0 ? `${stockCount} em estoque` : 'Sem estoque'}
-                    </span>
-                  </div>
-                  
-                  {/* Action Buttons */}
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 text-xs h-8"
-                      onClick={() => handleEditProduct(product)}
-                      data-testid={`button-edit-product-${product.id}`}
-                    >
-                      <Edit2 className="w-3 h-3 mr-1" />
-                      Editar
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 text-xs h-8 text-red-400 border-red-400/30 hover:bg-red-400/10"
-                      onClick={() => setShowDeleteConfirm(product.id)}
-                      disabled={deleteMutation.isPending}
-                      data-testid={`button-delete-product-${product.id}`}
-                    >
-                      <Trash2 className="w-3 h-3 mr-1" />
-                      Deletar
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
+          {products.map((product) => (
+            <ProductCardWithVariants 
+              key={product.id} 
+              product={product} 
+              onEdit={handleEditProduct}
+              onDelete={(id) => setShowDeleteConfirm(id)}
+              isDeleting={deleteMutation.isPending}
+            />
+          ))}
         </div>
       )}
     </div>
