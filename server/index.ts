@@ -85,6 +85,27 @@ async function runStartupMigrations() {
     `);
     console.log("[Migration] Added product columns to reviews table");
     
+    // Create product_variants table if it doesn't exist
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS product_variants (
+        id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        product_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        price DECIMAL(10, 2) NOT NULL,
+        stock TEXT NOT NULL DEFAULT '',
+        active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+    console.log("[Migration] Created product_variants table");
+    
+    // Add active column to product_variants if table already exists but column doesn't
+    await client.query(`
+      ALTER TABLE product_variants 
+      ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT TRUE
+    `);
+    console.log("[Migration] Added active column to product_variants table");
+    
     client.release();
     console.log("[Migration] Startup migrations completed successfully");
   } catch (error: any) {
