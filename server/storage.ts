@@ -107,6 +107,7 @@ export interface IStorage {
   createReview(review: InsertReview): Promise<Review>;
   getReviewByOrderId(orderId: number): Promise<Review | undefined>;
   getResellerReviews(resellerId: number): Promise<Review[]>;
+  getProductReviews(productId: number): Promise<Review[]>;
   getResellerStats(resellerId: number): Promise<{ averageRating: number; totalReviews: number; positivePercent: number; totalSales: number }>;
   getBatchSellerStats(resellerIds: number[]): Promise<Record<number, { averageRating: number; totalReviews: number }>>;
 }
@@ -671,6 +672,10 @@ export class DatabaseStorage implements IStorage {
 
   async getResellerReviews(resellerId: number): Promise<Review[]> {
     return db.select().from(reviews).where(eq(reviews.resellerId, resellerId)).orderBy(desc(reviews.createdAt));
+  }
+
+  async getProductReviews(productId: number): Promise<Review[]> {
+    return db.select().from(reviews).where(eq(reviews.productId, productId)).orderBy(desc(reviews.createdAt));
   }
 
   async getResellerStats(resellerId: number): Promise<{ averageRating: number; totalReviews: number; positivePercent: number; totalSales: number }> {

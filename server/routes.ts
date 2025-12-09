@@ -5811,7 +5811,7 @@ export async function registerRoutes(
 
   // Create a review for an order
   app.post("/api/reviews", async (req, res) => {
-    const { orderId, rating, comment, customerEmail, customerName } = req.body;
+    const { orderId, rating, comment, customerEmail, customerName, productId, productName } = req.body;
     
     if (!orderId || !rating || !customerEmail) {
       return res.status(400).json({ error: "Dados incompletos" });
@@ -5846,6 +5846,8 @@ export async function registerRoutes(
       const review = await storage.createReview({
         orderId,
         resellerId: order.resellerId!,
+        productId: productId || null,
+        productName: productName || null,
         rating,
         comment: comment || null,
         customerEmail,
@@ -5890,6 +5892,23 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("[Reviews] Error fetching seller reviews:", error);
       res.status(500).json({ error: "Erro ao buscar avaliacoes" });
+    }
+  });
+
+  // Get all reviews for a product
+  app.get("/api/reviews/product/:productId", async (req, res) => {
+    const productId = parseInt(req.params.productId);
+    
+    if (isNaN(productId)) {
+      return res.status(400).json({ error: "ID do produto invalido" });
+    }
+    
+    try {
+      const reviews = await storage.getProductReviews(productId);
+      res.json(reviews);
+    } catch (error: any) {
+      console.error("[Reviews] Error fetching product reviews:", error);
+      res.status(500).json({ error: "Erro ao buscar avaliacoes do produto" });
     }
   });
 

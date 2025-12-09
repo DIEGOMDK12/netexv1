@@ -32,6 +32,8 @@ export default function MyOrders() {
   const [resendingOrderId, setResendingOrderId] = useState<number | null>(null);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [reviewOrderId, setReviewOrderId] = useState<number | null>(null);
+  const [reviewProductId, setReviewProductId] = useState<number | null>(null);
+  const [reviewProductName, setReviewProductName] = useState<string>("");
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
   const [reviewedOrders, setReviewedOrders] = useState<Set<number>>(new Set());
@@ -60,11 +62,13 @@ export default function MyOrders() {
   });
 
   const reviewMutation = useMutation({
-    mutationFn: async ({ orderId, rating, comment }: { orderId: number; rating: number; comment: string }) => {
+    mutationFn: async ({ orderId, rating, comment, productId, productName }: { orderId: number; rating: number; comment: string; productId: number | null; productName: string }) => {
       const response = await apiRequest("POST", "/api/reviews", {
         orderId,
         rating,
         comment,
+        productId,
+        productName,
         customerEmail: email,
         customerName: null,
       });
@@ -95,8 +99,10 @@ export default function MyOrders() {
     resendEmailMutation.mutate(orderId);
   };
 
-  const openReviewDialog = (orderId: number) => {
+  const openReviewDialog = (orderId: number, productId: number | null, productName: string) => {
     setReviewOrderId(orderId);
+    setReviewProductId(productId);
+    setReviewProductName(productName);
     setReviewRating(5);
     setReviewComment("");
     setReviewDialogOpen(true);
@@ -104,7 +110,13 @@ export default function MyOrders() {
 
   const submitReview = () => {
     if (reviewOrderId) {
-      reviewMutation.mutate({ orderId: reviewOrderId, rating: reviewRating, comment: reviewComment });
+      reviewMutation.mutate({ 
+        orderId: reviewOrderId, 
+        rating: reviewRating, 
+        comment: reviewComment,
+        productId: reviewProductId,
+        productName: reviewProductName
+      });
     }
   };
 
@@ -346,7 +358,11 @@ export default function MyOrders() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => openReviewDialog(order.id)}
+                              onClick={() => openReviewDialog(
+                                order.id, 
+                                order.items?.[0]?.productId || null, 
+                                order.items?.[0]?.productName || ""
+                              )}
                               className="w-full border-yellow-500/50 text-yellow-400"
                               data-testid={`button-review-${order.id}`}
                             >

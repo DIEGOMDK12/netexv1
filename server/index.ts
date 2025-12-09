@@ -60,6 +60,14 @@ async function runStartupMigrations() {
     `);
     console.log("[Migration] Created chat_messages table");
     
+    // Add product_id and product_name columns to reviews table for product-specific reviews
+    await client.query(`
+      ALTER TABLE reviews 
+      ADD COLUMN IF NOT EXISTS product_id INTEGER,
+      ADD COLUMN IF NOT EXISTS product_name TEXT
+    `);
+    console.log("[Migration] Added product columns to reviews table");
+    
     client.release();
     console.log("[Migration] Startup migrations completed successfully");
   } catch (error: any) {
