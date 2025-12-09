@@ -313,22 +313,11 @@ export default function ProductDetails() {
               <Button
                 onClick={handleBuyNow}
                 disabled={!hasStock}
-                className="w-full py-6 text-lg font-bold rounded-xl transition-all bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600"
+                className="w-full py-3 text-base font-bold rounded-xl transition-all bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600"
                 data-testid="button-buy-now-desktop"
               >
-                <ShoppingCart className="w-5 h-5 mr-2" />
                 COMPRAR
               </Button>
-
-              {/* Add to Cart Link */}
-              <button
-                onClick={handleAddToCart}
-                disabled={!hasStock}
-                className="w-full mt-3 text-center text-sm text-blue-400 hover:text-blue-300 disabled:text-gray-500"
-                data-testid="button-add-to-cart-primary"
-              >
-                Adicionar ao carrinho
-              </button>
             </div>
 
             {/* Trust Badges */}
@@ -369,27 +358,14 @@ export default function ProductDetails() {
         )}
       </div>
 
-      {/* Sticky Buttons - Fixed at Bottom on Mobile */}
+      {/* Sticky Button - Fixed at Bottom on Mobile */}
       <div
-        className="fixed lg:hidden bottom-0 left-0 right-0 p-4 flex flex-row gap-3 z-50 bg-[#0f172a] border-t border-white/10"
+        className="fixed lg:hidden bottom-0 left-0 right-0 p-4 z-50 bg-[#0f172a] border-t border-white/10"
       >
-        {/* Cart Icon Button */}
-        <Button
-          onClick={handleAddToCart}
-          disabled={!hasStock}
-          variant="outline"
-          size="icon"
-          className="w-14 h-12 rounded-xl flex-shrink-0 border-blue-500 text-blue-500 disabled:border-gray-600 disabled:text-gray-600"
-          data-testid="button-add-to-cart-mobile"
-        >
-          <ShoppingCart className="w-5 h-5" />
-        </Button>
-
-        {/* Buy Now Button */}
         <Button
           onClick={handleBuyNow}
           disabled={!hasStock}
-          className="flex-1 py-3 text-white font-bold rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600"
+          className="w-full py-3 text-white font-bold rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600"
           data-testid="button-buy-now-mobile"
         >
           COMPRAR
