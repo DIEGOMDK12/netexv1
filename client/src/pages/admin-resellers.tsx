@@ -17,6 +17,7 @@ interface ResellerData {
   productCount: number;
   subscriptionStatus?: string;
   subscriptionExpiresAt?: string;
+  verificationStatus?: string;
 }
 
 export default function AdminResellers() {
@@ -178,7 +179,17 @@ export default function AdminResellers() {
                       data-testid={`row-reseller-${reseller.id}`}
                     >
                       <td className="py-4 text-white font-medium">
-                        {reseller.storeName || "Sem nome"}
+                        <div className="flex items-center gap-2">
+                          {reseller.storeName || "Sem nome"}
+                          {reseller.verificationStatus === "verified" && (
+                            <Badge
+                              className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                              data-testid={`badge-verified-${reseller.id}`}
+                            >
+                              Verificado
+                            </Badge>
+                          )}
+                        </div>
                       </td>
                       <td className="py-4 text-gray-300">{reseller.email}</td>
                       <td className="py-4 text-center">

@@ -1,6 +1,7 @@
 import { CheckCircle } from "lucide-react";
 import { VendorBottomNav } from "./vendor-bottom-nav";
 import { VendorNavbarDesktop } from "./vendor-navbar-desktop";
+import { Badge } from "@/components/ui/badge";
 
 interface VendorLayoutProps {
   currentPage: string;
@@ -8,6 +9,7 @@ interface VendorLayoutProps {
   storeName?: string;
   logoUrl?: string;
   vendorEmail?: string;
+  verificationStatus?: string | null;
   children: React.ReactNode;
 }
 
@@ -17,8 +19,10 @@ export function VendorLayout({
   storeName,
   logoUrl,
   vendorEmail,
+  verificationStatus,
   children,
 }: VendorLayoutProps) {
+  const isVerified = verificationStatus === "verified";
   return (
     <div className="flex flex-col h-screen" style={{ backgroundColor: "#121212" }}>
       {/* Desktop Navbar - Hidden on mobile */}
@@ -34,7 +38,15 @@ export function VendorLayout({
             ) : (
               <h1 className="text-2xl font-bold text-white">{storeName || "Minha Loja"}</h1>
             )}
-            <CheckCircle className="w-6 h-6 text-blue-500 flex-shrink-0" />
+            {isVerified && (
+              <Badge 
+                className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                data-testid="badge-vendor-verified"
+              >
+                <CheckCircle className="w-3 h-3 mr-1" />
+                Verificado
+              </Badge>
+            )}
           </div>
           
           {children}

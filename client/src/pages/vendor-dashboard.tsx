@@ -71,9 +71,10 @@ export default function VendorDashboard() {
         storeName={vendor?.storeName || undefined}
         logoUrl={vendor?.logoUrl || undefined}
         vendorEmail={vendor?.email || undefined}
+        verificationStatus={vendor?.verificationStatus}
       >
         {currentPage === "dashboard" && <DashboardMain vendorId={parseInt(vendorId)} />}
-        {currentPage === "products" && vendor && <VendorStoreManagement vendorId={parseInt(vendorId)} />}
+        {currentPage === "products" && vendor && <VendorStoreManagement vendorId={parseInt(vendorId)} verificationStatus={vendor.verificationStatus} />}
         {currentPage === "orders" && vendor && <VendorOrdersEnhanced vendorId={parseInt(vendorId)} />}
         {currentPage === "my-purchases" && vendor && <VendorMyPurchases vendorEmail={vendor.email} />}
         {currentPage === "settings" && vendor && <VendorSettingsEnhanced vendorId={parseInt(vendorId)} vendorData={vendor} />}

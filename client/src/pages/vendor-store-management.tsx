@@ -52,12 +52,15 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface VendorStoreManagementProps {
   vendorId: number;
+  verificationStatus?: string | null;
 }
 
-export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) {
+export function VendorStoreManagement({ vendorId, verificationStatus }: VendorStoreManagementProps) {
+  const isVerified = verificationStatus === "verified";
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -316,6 +319,14 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
   };
 
   const openNewProduct = (categoryId?: number) => {
+    if (!isVerified) {
+      toast({
+        title: "Verificação necessária",
+        description: "Sua conta precisa ser verificada para adicionar produtos",
+        variant: "destructive",
+      });
+      return;
+    }
     setEditingProduct(null);
     resetProductForm();
     if (categoryId) {
@@ -405,18 +416,37 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
     <div className="space-y-4 pb-20">
       {(categories.length > 0 || products.length > 0) && (
         <div className="flex flex-col sm:flex-row sm:justify-end gap-2 my-4">
-          <Button
-            size="sm"
-            onClick={() => openNewProduct()}
-            className="whitespace-nowrap w-full sm:w-auto"
-            style={{
-              background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)",
-            }}
-            data-testid="button-new-product"
-          >
-            <Plus className="w-4 h-4 mr-1 flex-shrink-0" />
-            <span>Novo Produto</span>
-          </Button>
+          {!isVerified && (
+            <p className="text-amber-400 text-sm mr-2 self-center">
+              Sua conta precisa ser verificada para adicionar produtos
+            </p>
+          )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <Button
+                  size="sm"
+                  onClick={() => openNewProduct()}
+                  className="whitespace-nowrap w-full sm:w-auto"
+                  style={{
+                    background: isVerified 
+                      ? "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)"
+                      : "#4b5563",
+                  }}
+                  disabled={!isVerified}
+                  data-testid="button-new-product"
+                >
+                  <Plus className="w-4 h-4 mr-1 flex-shrink-0" />
+                  <span>Novo Produto</span>
+                </Button>
+              </span>
+            </TooltipTrigger>
+            {!isVerified && (
+              <TooltipContent>
+                <p>Você precisa ser verificado para adicionar produtos</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
         </div>
       )}
 
@@ -444,6 +474,7 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
                   onAddProduct={() => openNewProduct(category.id)}
                   onEditProduct={openEditProduct}
                   onDeleteProduct={(id) => setShowDeleteProductConfirm(id)}
+                  isVerified={isVerified}
                 />
               );
             })}
@@ -503,19 +534,36 @@ export function VendorStoreManagement({ vendorId }: VendorStoreManagementProps) 
               Comece a organizar sua loja
             </h3>
             <p className="text-sm mb-6">
-              Adicione produtos para organizar sua vitrine
+              {isVerified 
+                ? "Adicione produtos para organizar sua vitrine"
+                : "Sua conta precisa ser verificada para adicionar produtos"
+              }
             </p>
             <div className="flex justify-center gap-3">
-              <Button
-                onClick={() => openNewProduct()}
-                style={{
-                  background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)",
-                }}
-                data-testid="button-first-product"
-              >
-                <Plus className="w-4 h-4 mr-1" />
-                Criar Produto
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      onClick={() => openNewProduct()}
+                      style={{
+                        background: isVerified 
+                          ? "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)"
+                          : "#4b5563",
+                      }}
+                      disabled={!isVerified}
+                      data-testid="button-first-product"
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      Criar Produto
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {!isVerified && (
+                  <TooltipContent>
+                    <p>Você precisa ser verificado para adicionar produtos</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
             </div>
           </div>
         )}
@@ -853,6 +901,7 @@ interface SortableCategoryItemProps {
   onAddProduct: () => void;
   onEditProduct: (product: Product) => void;
   onDeleteProduct: (id: number) => void;
+  isVerified: boolean;
 }
 
 function SortableCategoryItem({
@@ -863,6 +912,7 @@ function SortableCategoryItem({
   onAddProduct,
   onEditProduct,
   onDeleteProduct,
+  isVerified,
 }: SortableCategoryItemProps) {
   const {
     attributes,
@@ -928,17 +978,29 @@ function SortableCategoryItem({
           {categoryProducts.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
-              <p>Nenhum produto nesta categoria</p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-3 border-gray-600 text-gray-300"
-                onClick={onAddProduct}
-                data-testid={`button-add-product-to-category-${category.id}`}
-              >
-                <Plus className="w-4 h-4 mr-1" />
-                Adicionar Produto
-              </Button>
+              <p>{isVerified ? "Nenhum produto nesta categoria" : "Sua conta precisa ser verificada para adicionar produtos"}</p>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 border-gray-600 text-gray-300"
+                      onClick={onAddProduct}
+                      disabled={!isVerified}
+                      data-testid={`button-add-product-to-category-${category.id}`}
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      Adicionar Produto
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {!isVerified && (
+                  <TooltipContent>
+                    <p>Você precisa ser verificado para adicionar produtos</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
             </div>
           ) : (
             categoryProducts.map((product) => (
