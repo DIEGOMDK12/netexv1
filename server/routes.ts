@@ -3376,23 +3376,30 @@ export async function registerRoutes(
     
     try {
       const { action, notes } = req.body;
+      console.log("[Admin Verify Vendor] Request body:", { action, notes });
+      console.log("[Admin Verify Vendor] Vendor ID:", vendorId);
       
       if (action !== "approve" && action !== "reject") {
         return res.status(400).json({ error: "Action must be 'approve' or 'reject'" });
       }
       
       const vendor = await storage.getReseller(vendorId);
+      console.log("[Admin Verify Vendor] Found vendor:", vendor ? vendor.id : "NOT FOUND");
+      
       if (!vendor) {
         return res.status(404).json({ error: "Vendor not found" });
       }
       
-      const updateData: any = {
+      const updateData = {
         verificationStatus: action === "approve" ? "approved" : "rejected",
         verificationNotes: notes || null,
-        verifiedAt: new Date().toISOString(),
+        verifiedAt: new Date(),
       };
       
-      await storage.updateReseller(vendorId, updateData);
+      console.log("[Admin Verify Vendor] Update data:", updateData);
+      
+      const updated = await storage.updateReseller(vendorId, updateData);
+      console.log("[Admin Verify Vendor] Update result:", updated ? "success" : "failed");
       
       console.log("[Admin Verify Vendor] Vendor", vendorId, "verification:", action);
       
@@ -3404,9 +3411,11 @@ export async function registerRoutes(
           ? "Vendedor verificado com sucesso" 
           : "Verificacao rejeitada",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("[Admin Verify Vendor] Error:", error);
-      res.status(500).json({ error: "Failed to verify vendor" });
+      console.error("[Admin Verify Vendor] Error message:", error?.message);
+      console.error("[Admin Verify Vendor] Error stack:", error?.stack);
+      res.status(500).json({ error: "Failed to verify vendor", details: error?.message });
     }
   });
 
