@@ -5976,6 +5976,119 @@ export async function registerRoutes(
     }
   });
 
+  // ============== PRODUCT VARIANTS API (Dynamic Mode) ==============
+  
+  // Get all variants for a product
+  app.get("/api/products/:productId/variants", async (req, res) => {
+    const productId = parseInt(req.params.productId);
+    
+    if (isNaN(productId)) {
+      return res.status(400).json({ error: "ID do produto inválido" });
+    }
+    
+    try {
+      const variants = await storage.getProductVariants(productId);
+      res.json(variants);
+    } catch (error: any) {
+      console.error("[Variants] Error fetching variants:", error);
+      res.status(500).json({ error: "Erro ao buscar variantes" });
+    }
+  });
+
+  // Create a new variant for a product
+  app.post("/api/products/:productId/variants", async (req, res) => {
+    const productId = parseInt(req.params.productId);
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    
+    if (!isVendorAuthenticated(token)) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    
+    if (isNaN(productId)) {
+      return res.status(400).json({ error: "ID do produto inválido" });
+    }
+    
+    try {
+      const { name, price, stock, active } = req.body;
+      
+      if (!name || price === undefined) {
+        return res.status(400).json({ error: "Nome e preço são obrigatórios" });
+      }
+      
+      const variant = await storage.createProductVariant({
+        productId,
+        name,
+        price: price.toString(),
+        stock: stock || "",
+        active: active !== false,
+      });
+      
+      res.json(variant);
+    } catch (error: any) {
+      console.error("[Variants] Error creating variant:", error);
+      res.status(500).json({ error: "Erro ao criar variante" });
+    }
+  });
+
+  // Update a variant
+  app.put("/api/products/:productId/variants/:variantId", async (req, res) => {
+    const productId = parseInt(req.params.productId);
+    const variantId = parseInt(req.params.variantId);
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    
+    if (!isVendorAuthenticated(token)) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    
+    if (isNaN(productId) || isNaN(variantId)) {
+      return res.status(400).json({ error: "IDs inválidos" });
+    }
+    
+    try {
+      const { name, price, stock, active } = req.body;
+      
+      const updateData: any = {};
+      if (name !== undefined) updateData.name = name;
+      if (price !== undefined) updateData.price = price.toString();
+      if (stock !== undefined) updateData.stock = stock;
+      if (active !== undefined) updateData.active = active;
+      
+      const variant = await storage.updateProductVariant(variantId, updateData);
+      
+      if (!variant) {
+        return res.status(404).json({ error: "Variante não encontrada" });
+      }
+      
+      res.json(variant);
+    } catch (error: any) {
+      console.error("[Variants] Error updating variant:", error);
+      res.status(500).json({ error: "Erro ao atualizar variante" });
+    }
+  });
+
+  // Delete a variant
+  app.delete("/api/products/:productId/variants/:variantId", async (req, res) => {
+    const productId = parseInt(req.params.productId);
+    const variantId = parseInt(req.params.variantId);
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    
+    if (!isVendorAuthenticated(token)) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+    
+    if (isNaN(productId) || isNaN(variantId)) {
+      return res.status(400).json({ error: "IDs inválidos" });
+    }
+    
+    try {
+      await storage.deleteProductVariant(variantId);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[Variants] Error deleting variant:", error);
+      res.status(500).json({ error: "Erro ao excluir variante" });
+    }
+  });
+
   // Get seller profile by slug with products and stats
   app.get("/api/seller/:slug/profile", async (req, res) => {
     const slug = req.params.slug;
