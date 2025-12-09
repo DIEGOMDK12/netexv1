@@ -348,6 +348,7 @@ export async function registerRoutes(
         for (const item of orderItems) {
           const product = await storage.getProduct(item.productId);
           const quantity = item.quantity || 1;
+          let itemDeliveredContent = "";
 
           if (product && product.stock) {
             const stockLines = product.stock.split("\n").filter((line: string) => line.trim());
@@ -356,11 +357,18 @@ export async function registerRoutes(
               // FIFO: Retirar keys do estoque
               for (let i = 0; i < quantity; i++) {
                 deliveredContent += stockLines[i] + "\n";
+                itemDeliveredContent += stockLines[i] + "\n";
               }
               const remainingStock = stockLines.slice(quantity).join("\n");
               await storage.updateProduct(item.productId, { stock: remainingStock });
               console.log("[/webhook] ✓ Entregue:", quantity, "item(s) de", product.name);
               console.log("[/webhook] ✓ Estoque restante:", stockLines.length - quantity, "linhas");
+              
+              // Atualizar item com conteúdo entregue
+              if (itemDeliveredContent.trim()) {
+                await storage.updateOrderItem(item.id, { deliveredContent: itemDeliveredContent.trim() });
+                console.log("[/webhook] ✓ Item", item.id, "atualizado com conteúdo entregue");
+              }
             } else {
               console.warn("[/webhook] ⚠️ Estoque insuficiente para", product.name);
             }
@@ -875,6 +883,7 @@ export async function registerRoutes(
       for (const item of orderItems) {
         const product = await storage.getProduct(item.productId);
         console.log(`[POST /api/admin/orders/:id/approve] Processing item: ${product?.name}`);
+        let itemDeliveredContent = "";
         
         if (product && product.stock) {
           const stockLines = product.stock.split("\n").filter(line => line.trim());
@@ -889,12 +898,19 @@ export async function registerRoutes(
           
           // CRITICAL: Always take ONLY 1 item from stock (digital product rule)
           deliveredContent += stockLines[0] + "\n";
+          itemDeliveredContent = stockLines[0];
           console.log(`[POST /api/admin/orders/:id/approve] ✓ Delivered: ${stockLines[0]}`);
 
           // Remove the first line from stock and update
           const remainingStock = stockLines.slice(1).join("\n");
           await storage.updateProduct(item.productId, { stock: remainingStock });
           console.log(`[POST /api/admin/orders/:id/approve] ✓ Stock updated. Remaining lines: ${stockLines.length - 1}`);
+          
+          // Update item with delivered content
+          if (itemDeliveredContent.trim()) {
+            await storage.updateOrderItem(item.id, { deliveredContent: itemDeliveredContent });
+            console.log(`[POST /api/admin/orders/:id/approve] ✓ Item ${item.id} updated with delivered content`);
+          }
         } else {
           console.log(`[POST /api/admin/orders/:id/approve] ⚠️ Product ${item.productId} has no stock field`);
         }
@@ -1482,15 +1498,22 @@ export async function registerRoutes(
 
               for (const item of orderItems) {
                 const product = await storage.getProduct(item.productId);
+                let itemDeliveredContent = "";
                 if (product && product.stock) {
                   const stockLines = product.stock.split("\n").filter(line => line.trim());
                   
                   for (let i = 0; i < item.quantity && i < stockLines.length; i++) {
                     deliveredContent += stockLines[i] + "\n";
+                    itemDeliveredContent += stockLines[i] + "\n";
                   }
 
                   const remainingStock = stockLines.slice(item.quantity).join("\n");
                   await storage.updateProduct(item.productId, { stock: remainingStock });
+                  
+                  // Update item with delivered content
+                  if (itemDeliveredContent.trim()) {
+                    await storage.updateOrderItem(item.id, { deliveredContent: itemDeliveredContent.trim() });
+                  }
                 }
               }
 
