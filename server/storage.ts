@@ -217,7 +217,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getOrdersByBuyerEmail(email: string): Promise<Order[]> {
-    return db.select().from(orders).where(eq(orders.buyerEmail, email)).orderBy(desc(orders.createdAt));
+    return db.select().from(orders).where(eq(orders.email, email)).orderBy(desc(orders.createdAt));
   }
 
   async createOrder(order: InsertOrder): Promise<Order> {
