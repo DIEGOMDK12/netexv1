@@ -3976,13 +3976,14 @@ export async function registerRoutes(
 
   app.patch("/api/vendor/products/:id", async (req, res) => {
     const productId = parseInt(req.params.id);
-    const { name, description, imageUrl, currentPrice, originalPrice, stock, category, subcategory, deliveryContent, active, slug, categoryId: reqCategoryId, limitPerUser } = req.body;
+    const { name, description, imageUrl, currentPrice, originalPrice, stock, category, subcategory, deliveryContent, active, slug, categoryId: reqCategoryId, limitPerUser, dynamicMode } = req.body;
 
     console.log("[Update Product] Updating product", productId, "with:", { 
       name, 
       active,
       slug,
       categoryId: reqCategoryId,
+      dynamicMode,
       deliveryContent: deliveryContent ? deliveryContent.substring(0, 50) : "MISSING" 
     });
 
@@ -4019,6 +4020,7 @@ export async function registerRoutes(
       if (categoryId !== undefined) updateData.categoryId = categoryId;
       if (active !== undefined) updateData.active = active;
       if (limitPerUser !== undefined) updateData.limitPerUser = limitPerUser;
+      if (dynamicMode !== undefined) updateData.dynamicMode = dynamicMode;
 
       const product = await storage.updateProduct(productId, updateData);
 
