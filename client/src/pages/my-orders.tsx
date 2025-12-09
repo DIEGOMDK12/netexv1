@@ -1,12 +1,13 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLocation } from "wouter";
-import { Loader2, Copy, CheckCircle, Gift, Mail, MailCheck } from "lucide-react";
+import { Loader2, Copy, CheckCircle, Gift, Mail, Star, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,11 @@ export default function MyOrders() {
   const [redeemDialogOpen, setRedeemDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<RedeemItem | null>(null);
   const [resendingOrderId, setResendingOrderId] = useState<number | null>(null);
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewOrderId, setReviewOrderId] = useState<number | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewedOrders, setReviewedOrders] = useState<Set<number>>(new Set());
   const { toast } = useToast();
 
   const resendEmailMutation = useMutation({
@@ -53,9 +59,53 @@ export default function MyOrders() {
     },
   });
 
+  const reviewMutation = useMutation({
+    mutationFn: async ({ orderId, rating, comment }: { orderId: number; rating: number; comment: string }) => {
+      const response = await apiRequest("POST", "/api/reviews", {
+        orderId,
+        rating,
+        comment,
+        customerEmail: email,
+        customerName: null,
+      });
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      toast({
+        title: "Avaliacao enviada!",
+        description: "Obrigado por avaliar sua compra",
+      });
+      setReviewedOrders(prev => new Set(prev).add(variables.orderId));
+      setReviewDialogOpen(false);
+      setReviewOrderId(null);
+      setReviewRating(5);
+      setReviewComment("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao enviar avaliacao",
+        description: error.message || "Tente novamente mais tarde",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleResendEmail = (orderId: number) => {
     setResendingOrderId(orderId);
     resendEmailMutation.mutate(orderId);
+  };
+
+  const openReviewDialog = (orderId: number) => {
+    setReviewOrderId(orderId);
+    setReviewRating(5);
+    setReviewComment("");
+    setReviewDialogOpen(true);
+  };
+
+  const submitReview = () => {
+    if (reviewOrderId) {
+      reviewMutation.mutate({ orderId: reviewOrderId, rating: reviewRating, comment: reviewComment });
+    }
   };
 
   const { data: orders, isLoading } = useQuery({
@@ -267,7 +317,7 @@ export default function MyOrders() {
                       )}
 
                       {order.status === "paid" && order.items?.some((item: any) => item.secretContent) && (
-                        <div className="border-t border-gray-700 pt-3 mt-3">
+                        <div className="border-t border-gray-700 pt-3 mt-3 space-y-3">
                           <Button
                             variant="outline"
                             size="sm"
@@ -288,9 +338,28 @@ export default function MyOrders() {
                               </>
                             )}
                           </Button>
-                          <p className="text-xs text-gray-500 text-center mt-2">
+                          <p className="text-xs text-gray-500 text-center">
                             Nao recebeu o e-mail? Clique para reenviar
                           </p>
+                          
+                          {!reviewedOrders.has(order.id) && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openReviewDialog(order.id)}
+                              className="w-full border-yellow-500/50 text-yellow-400"
+                              data-testid={`button-review-${order.id}`}
+                            >
+                              <Star className="w-4 h-4 mr-2" />
+                              Avaliar Compra
+                            </Button>
+                          )}
+                          {reviewedOrders.has(order.id) && (
+                            <div className="flex items-center justify-center gap-2 text-green-400 text-sm">
+                              <CheckCircle className="w-4 h-4" />
+                              Avaliacao enviada
+                            </div>
+                          )}
                         </div>
                       )}
                     </CardContent>
@@ -346,6 +415,81 @@ export default function MyOrders() {
               </Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+        <DialogContent style={{ backgroundColor: "#1E1E1E", borderColor: "rgba(255,255,255,0.2)" }}>
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Star className="w-5 h-5 text-yellow-400" />
+              Avaliar Compra
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Como foi sua experiencia com esta compra?
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 mt-4">
+            <div>
+              <p className="text-sm text-gray-300 mb-2">Sua avaliacao:</p>
+              <div className="flex gap-1" data-testid="rating-stars">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setReviewRating(star)}
+                    className="p-1 transition-colors"
+                    data-testid={`button-star-${star}`}
+                  >
+                    <Star
+                      className={`w-8 h-8 ${
+                        star <= reviewRating
+                          ? "text-yellow-400 fill-yellow-400"
+                          : "text-gray-600"
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div>
+              <p className="text-sm text-gray-300 mb-2">Comentario (opcional):</p>
+              <Textarea
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value)}
+                placeholder="Conte como foi sua experiencia..."
+                style={{
+                  backgroundColor: "#242424",
+                  borderColor: "rgba(255,255,255,0.1)",
+                  color: "#FFFFFF",
+                }}
+                rows={3}
+                data-testid="input-review-comment"
+              />
+            </div>
+            
+            <Button
+              className="w-full"
+              onClick={submitReview}
+              disabled={reviewMutation.isPending}
+              style={{ backgroundColor: "#3B82F6", color: "#FFFFFF" }}
+              data-testid="button-submit-review"
+            >
+              {reviewMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Enviar Avaliacao
+                </>
+              )}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
