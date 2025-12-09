@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRoute } from "wouter";
-import { Loader2, Store, ShoppingCart, Search, Headphones, Package, Zap, Gift, Sparkles } from "lucide-react";
+import { Loader2, Store, ShoppingCart, Search, Headphones, Package, Zap, Gift, Sparkles, Star, ThumbsUp, ShoppingBag } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useState, useMemo, useEffect } from "react";
@@ -9,6 +9,13 @@ import { CheckoutModal } from "@/components/checkout-modal";
 import { useStore } from "@/lib/store-context";
 import { useAuth } from "@/hooks/useAuth";
 import { AnnouncementBar } from "@/components/announcement-bar";
+
+interface SellerStats {
+  averageRating: number;
+  totalReviews: number;
+  positivePercent: number;
+  totalSales: number;
+}
 
 export default function ResellerStore() {
   const [match, params] = useRoute("/loja/:slug");
@@ -27,6 +34,17 @@ export default function ResellerStore() {
   const { data: products = [], isLoading: productsLoading } = useQuery<Product[]>({
     queryKey: ["/api/reseller/products", slug],
     enabled: !!slug,
+  });
+
+  const { data: sellerStats } = useQuery<SellerStats>({
+    queryKey: ["/api/seller", reseller?.id, "stats"],
+    queryFn: async () => {
+      if (!reseller?.id) return null;
+      const response = await fetch(`/api/seller/${reseller.id}/stats`);
+      if (!response.ok) throw new Error("Failed to fetch stats");
+      return response.json();
+    },
+    enabled: !!reseller?.id,
   });
 
   const isLoading = resellerLoading || productsLoading;
@@ -215,19 +233,44 @@ export default function ResellerStore() {
                     <Store className="w-5 h-5 text-white" />
                   </div>
                 )}
-                <div className="flex items-center gap-1.5">
-                  <span className="font-bold text-base sm:text-lg" style={{ color: textColor }} data-testid="text-store-name">
-                    {reseller.storeName || "Loja"}
-                  </span>
-                  <svg 
-                    className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" 
-                    viewBox="0 0 24 24" 
-                    fill="none"
-                    data-testid="icon-verified"
-                  >
-                    <circle cx="12" cy="12" r="10" fill="#1DA1F2"/>
-                    <path d="M9 12l2 2 4-4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-base sm:text-lg" style={{ color: textColor }} data-testid="text-store-name">
+                      {reseller.storeName || "Loja"}
+                    </span>
+                    <svg 
+                      className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" 
+                      viewBox="0 0 24 24" 
+                      fill="none"
+                      data-testid="icon-verified"
+                    >
+                      <circle cx="12" cy="12" r="10" fill="#1DA1F2"/>
+                      <path d="M9 12l2 2 4-4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  {sellerStats && (sellerStats.totalReviews > 0 || sellerStats.totalSales > 0) && (
+                    <div className="flex items-center gap-3 text-xs text-gray-400" data-testid="seller-stats">
+                      {sellerStats.totalReviews > 0 && (
+                        <div className="flex items-center gap-1">
+                          <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                          <span>{sellerStats.averageRating}</span>
+                          <span className="text-gray-500">({sellerStats.totalReviews})</span>
+                        </div>
+                      )}
+                      {sellerStats.positivePercent > 0 && (
+                        <div className="flex items-center gap-1">
+                          <ThumbsUp className="w-3 h-3 text-green-400" />
+                          <span>{sellerStats.positivePercent}%</span>
+                        </div>
+                      )}
+                      {sellerStats.totalSales > 0 && (
+                        <div className="flex items-center gap-1">
+                          <ShoppingBag className="w-3 h-3" />
+                          <span>{sellerStats.totalSales} vendas</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
