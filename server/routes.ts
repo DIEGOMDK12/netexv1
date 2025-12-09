@@ -5457,11 +5457,19 @@ export async function registerRoutes(
       
       console.log(`[Withdrawal] Created request for vendor ${vendorId}: Sacou R$ ${valorBrutoSaque.toFixed(2)} do saldo, taxa R$ ${TAXA_DE_SAQUE_FIXA.toFixed(2)}, líquido via PIX: R$ ${netAmount.toFixed(2)}`);
       
+      // Fetch updated vendor data to return with the response
+      const updatedVendor = await storage.getReseller(vendorId);
+      
       res.json({
         ...withdrawal,
         valorSacadoDoSaldo: valorBrutoSaque.toFixed(2),
         taxaSaque: TAXA_DE_SAQUE_FIXA.toFixed(2),
         valorLiquidoPix: netAmount.toFixed(2),
+        updatedVendor: updatedVendor ? {
+          id: updatedVendor.id,
+          walletBalance: updatedVendor.walletBalance,
+          storeName: updatedVendor.storeName,
+        } : null,
       });
     } catch (error: any) {
       console.error("[Withdrawal] Error creating request:", error);
