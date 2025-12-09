@@ -5725,8 +5725,7 @@ export async function registerRoutes(
         if (objStorage) {
           try {
             await objStorage.uploadFromBytes(fileName, fileBuffer);
-            const { url } = await objStorage.downloadAsBytes(fileName);
-            attachmentUrl = url || `/api/uploads/${fileName}`;
+            attachmentUrl = `/uploads/${fileName}`;
           } catch (uploadError: any) {
             console.log("[Chat] Object storage upload failed, using local fallback");
             const localPath = path.join(uploadDir, fileName);
