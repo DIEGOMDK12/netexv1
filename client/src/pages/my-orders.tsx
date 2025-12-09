@@ -353,7 +353,11 @@ export default function MyOrders() {
                           <p className="text-xs text-gray-500 text-center">
                             Nao recebeu o e-mail? Clique para reenviar
                           </p>
-                          
+                        </div>
+                      )}
+
+                      {order.status === "paid" && (
+                        <div className="border-t border-gray-700 pt-3 mt-3 space-y-3">
                           {!reviewedOrders.has(order.id) && (
                             <Button
                               variant="outline"
