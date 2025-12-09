@@ -3826,7 +3826,10 @@ export async function registerRoutes(
 
   app.post("/api/vendor/products", async (req, res) => {
     try {
-      const { name, description, imageUrl, originalPrice, currentPrice, stock, category, subcategory, resellerId: bodyResellerId, deliveryContent, active, slug, categoryId: reqCategoryId, limitPerUser } = req.body;
+      const { name, description, imageUrl, originalPrice, currentPrice, stock, category, subcategory, resellerId: bodyResellerId, deliveryContent, active, slug, categoryId: reqCategoryId, limitPerUser, dynamicMode: rawDynamicMode } = req.body;
+      
+      // Coerce dynamicMode to proper boolean (handles string "true"/"false" from JSON)
+      const dynamicMode = rawDynamicMode === true || rawDynamicMode === "true";
 
       // CORREÇÃO 1: Obter resellerId do token autenticado OU do body
       const token = req.headers.authorization?.replace("Bearer ", "");
@@ -3852,6 +3855,8 @@ export async function registerRoutes(
         active,
         slug,
         categoryId: reqCategoryId,
+        dynamicMode,
+        rawDynamicMode,
         imageUrl: imageUrl ? imageUrl.substring(0, 50) : "EMPTY",
         deliveryContent: deliveryContent ? deliveryContent.substring(0, 50) : "MISSING"
       });
@@ -3944,6 +3949,7 @@ export async function registerRoutes(
         categoryId,
         active: isActive,
         limitPerUser: limitPerUser || false,
+        dynamicMode: dynamicMode, // CORREÇÃO: Salva o modo dinâmico
         resellerId: finalResellerId, // CORREÇÃO: Usa o resellerId do token ou body
       });
 
@@ -3976,7 +3982,10 @@ export async function registerRoutes(
 
   app.patch("/api/vendor/products/:id", async (req, res) => {
     const productId = parseInt(req.params.id);
-    const { name, description, imageUrl, currentPrice, originalPrice, stock, category, subcategory, deliveryContent, active, slug, categoryId: reqCategoryId, limitPerUser, dynamicMode } = req.body;
+    const { name, description, imageUrl, currentPrice, originalPrice, stock, category, subcategory, deliveryContent, active, slug, categoryId: reqCategoryId, limitPerUser, dynamicMode: rawDynamicMode } = req.body;
+
+    // Coerce dynamicMode to proper boolean (handles string "true"/"false" from JSON)
+    const dynamicMode = rawDynamicMode === true || rawDynamicMode === "true";
 
     console.log("[Update Product] Updating product", productId, "with:", { 
       name, 
@@ -3984,6 +3993,7 @@ export async function registerRoutes(
       slug,
       categoryId: reqCategoryId,
       dynamicMode,
+      rawDynamicMode,
       deliveryContent: deliveryContent ? deliveryContent.substring(0, 50) : "MISSING" 
     });
 
@@ -4020,7 +4030,7 @@ export async function registerRoutes(
       if (categoryId !== undefined) updateData.categoryId = categoryId;
       if (active !== undefined) updateData.active = active;
       if (limitPerUser !== undefined) updateData.limitPerUser = limitPerUser;
-      if (dynamicMode !== undefined) updateData.dynamicMode = dynamicMode;
+      if (rawDynamicMode !== undefined) updateData.dynamicMode = dynamicMode;
 
       const product = await storage.updateProduct(productId, updateData);
 
