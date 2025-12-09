@@ -313,7 +313,7 @@ export default function ProductDetails() {
               <Button
                 onClick={handleBuyNow}
                 disabled={!hasStock}
-                className="w-full py-3 text-base font-bold rounded-xl transition-all bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600"
+                className="w-full py-2 text-sm font-bold rounded-lg transition-all bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600"
                 data-testid="button-buy-now-desktop"
               >
                 COMPRAR
@@ -365,7 +365,7 @@ export default function ProductDetails() {
         <Button
           onClick={handleBuyNow}
           disabled={!hasStock}
-          className="w-full py-3 text-white font-bold rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600"
+          className="w-full py-2 text-sm text-white font-bold rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600"
           data-testid="button-buy-now-mobile"
         >
           COMPRAR

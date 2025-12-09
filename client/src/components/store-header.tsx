@@ -1,7 +1,4 @@
-import { ShoppingCart, Store } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { useStore } from "@/lib/store-context";
+import { Store } from "lucide-react";
 
 interface StoreHeaderProps {
   themeColor?: string;
@@ -11,7 +8,6 @@ interface StoreHeaderProps {
 }
 
 export function StoreHeader({ themeColor, textColor, storeName, logoUrl }: StoreHeaderProps) {
-  const { cartCount, setIsCartOpen } = useStore();
 
   return (
     <header
@@ -47,26 +43,6 @@ export function StoreHeader({ themeColor, textColor, storeName, logoUrl }: Store
         </div>
       </div>
 
-      <div className="flex items-center ml-auto">
-        <Button
-          size="icon"
-          variant="ghost"
-          className="relative"
-          onClick={() => setIsCartOpen(true)}
-          data-testid="button-cart"
-        >
-          <ShoppingCart className="w-6 h-6" style={{ color: textColor || "#FFFFFF" }} />
-          {cartCount > 0 && (
-            <Badge
-              className="absolute -top-1 -right-1 h-5 min-w-[1.25rem] px-1 text-xs flex items-center justify-center"
-              style={{ backgroundColor: themeColor || "#3B82F6", color: "#FFFFFF" }}
-              data-testid="badge-cart-count"
-            >
-              {cartCount}
-            </Badge>
-          )}
-        </Button>
-      </div>
     </header>
   );
 }
