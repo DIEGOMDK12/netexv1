@@ -5369,20 +5369,21 @@ export async function registerRoutes(
     
     const vendorId = tokenToVendor.get(token)!;
     
-    // Taxa fixa de saque - cobrada uma vez por retirada para cobrir custos bancários
-    const TAXA_DE_SAQUE_FIXA = 1.60;
-    const MIN_WITHDRAWAL = 5.00;
+    // Taxa fixa de saque - R$ 3,00 descontada do valor sacado
+    const TAXA_DE_SAQUE_FIXA = 3.00;
+    const MIN_WITHDRAWAL = 5.00; // Mínimo para sacar (valor bruto do saldo)
     
     try {
       const { amount, pixKey, pixKeyType, pixHolderName } = req.body;
       
-      const numericAmount = parseFloat(amount);
+      // amount = valor que será descontado do saldo (não o valor líquido)
+      const valorBrutoSaque = parseFloat(amount);
       
-      if (!amount || numericAmount <= 0) {
+      if (!amount || valorBrutoSaque <= 0) {
         return res.status(400).json({ error: "Valor inválido" });
       }
       
-      if (numericAmount < MIN_WITHDRAWAL) {
+      if (valorBrutoSaque < MIN_WITHDRAWAL) {
         return res.status(400).json({ error: `O valor mínimo para retirada é R$ ${MIN_WITHDRAWAL.toFixed(2)}` });
       }
       
@@ -5394,7 +5395,7 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Chave PIX é obrigatória" });
       }
       
-      // Get vendor's available balance (usando walletBalance que acumula 100% das vendas)
+      // Get vendor's available balance
       const vendor = await storage.getReseller(vendorId);
       if (!vendor) {
         return res.status(404).json({ error: "Revendedor não encontrado" });
@@ -5402,46 +5403,49 @@ export async function registerRoutes(
       
       const availableBalance = parseFloat(vendor.walletBalance as string || "0");
       
-      // NOVA LÓGICA: Verificar se saldo >= (valor solicitado + taxa de saque)
-      const totalRequired = numericAmount + TAXA_DE_SAQUE_FIXA;
-      
-      if (totalRequired > availableBalance) {
+      // Verificar se saldo >= valor solicitado (a taxa é descontada do valor, não adicionada)
+      if (valorBrutoSaque > availableBalance) {
         return res.status(400).json({ 
-          error: `Saldo insuficiente. Disponível: R$ ${availableBalance.toFixed(2)}. Necessário: R$ ${totalRequired.toFixed(2)} (R$ ${numericAmount.toFixed(2)} + R$ ${TAXA_DE_SAQUE_FIXA.toFixed(2)} de taxa)` 
+          error: `Saldo insuficiente. Disponível: R$ ${availableBalance.toFixed(2)}` 
         });
       }
       
-      // O valor líquido que o revendedor receberá via PIX é o valor solicitado
-      // A taxa é descontada do saldo, mas não do valor transferido
-      const netAmount = numericAmount; // Valor que será transferido via PIX
+      // Taxa é descontada do valor sacado - o líquido é o que sobra
+      // Ex: Saca R$ 7,00 do saldo -> Recebe R$ 4,00 via PIX (7 - 3 de taxa)
+      const netAmount = valorBrutoSaque - TAXA_DE_SAQUE_FIXA;
+      
+      if (netAmount <= 0) {
+        return res.status(400).json({ 
+          error: `Valor muito baixo. Após a taxa de R$ ${TAXA_DE_SAQUE_FIXA.toFixed(2)}, você receberia R$ ${netAmount.toFixed(2)}. Saque no mínimo R$ ${(TAXA_DE_SAQUE_FIXA + 1).toFixed(2)}` 
+        });
+      }
       
       // DEDUZIR SALDO IMEDIATAMENTE ao criar a solicitação de saque
-      const newBalance = availableBalance - totalRequired;
+      const newBalance = availableBalance - valorBrutoSaque;
       await storage.updateReseller(vendorId, {
         walletBalance: newBalance.toFixed(2),
       });
       
-      console.log(`[Withdrawal] Balance deducted immediately: Vendor ${vendorId} walletBalance: R$ ${availableBalance.toFixed(2)} -> R$ ${newBalance.toFixed(2)} (deducted R$ ${totalRequired.toFixed(2)})`);
+      console.log(`[Withdrawal] Balance deducted immediately: Vendor ${vendorId} walletBalance: R$ ${availableBalance.toFixed(2)} -> R$ ${newBalance.toFixed(2)} (deducted R$ ${valorBrutoSaque.toFixed(2)})`);
       
       // Create withdrawal request
       const withdrawal = await storage.createWithdrawalRequest({
         resellerId: vendorId,
-        amount: totalRequired.toFixed(2), // Total descontado do saldo (valor + taxa)
+        amount: valorBrutoSaque.toFixed(2), // Valor descontado do saldo
         pixKey,
         pixKeyType: pixKeyType || "cpf",
         pixHolderName: pixHolderName.trim(),
         withdrawalFee: TAXA_DE_SAQUE_FIXA.toFixed(2),
-        netAmount: netAmount.toFixed(2), // Valor que será transferido via PIX
+        netAmount: netAmount.toFixed(2), // Valor líquido via PIX (bruto - taxa)
         status: "pending",
       });
       
-      console.log(`[Withdrawal] Created request for vendor ${vendorId}: Saque R$ ${numericAmount.toFixed(2)} + Taxa R$ ${TAXA_DE_SAQUE_FIXA.toFixed(2)} = Total R$ ${totalRequired.toFixed(2)} (líquido via PIX: R$ ${netAmount.toFixed(2)})`);
+      console.log(`[Withdrawal] Created request for vendor ${vendorId}: Sacou R$ ${valorBrutoSaque.toFixed(2)} do saldo, taxa R$ ${TAXA_DE_SAQUE_FIXA.toFixed(2)}, líquido via PIX: R$ ${netAmount.toFixed(2)}`);
       
       res.json({
         ...withdrawal,
-        valorSolicitado: numericAmount.toFixed(2),
+        valorSacadoDoSaldo: valorBrutoSaque.toFixed(2),
         taxaSaque: TAXA_DE_SAQUE_FIXA.toFixed(2),
-        totalDescontado: totalRequired.toFixed(2),
         valorLiquidoPix: netAmount.toFixed(2),
       });
     } catch (error: any) {
