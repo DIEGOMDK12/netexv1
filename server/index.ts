@@ -325,7 +325,7 @@ async function verifyPendingPayments() {
 
           let deliveredContent = "";
           
-          // Process each item
+          // Process each item and update deliveredContent on each orderItem
           for (const item of items) {
             const product = await storage.getProduct(item.productId);
             
@@ -334,10 +334,17 @@ async function verifyPendingPayments() {
               
               if (stockLines.length > 0) {
                 // Take first line and remove from stock
-                deliveredContent += stockLines[0] + "\n";
+                const itemContent = stockLines[0];
+                deliveredContent += itemContent + "\n";
                 const remainingStock = stockLines.slice(1).join("\n");
                 await storage.updateProduct(item.productId, { stock: remainingStock });
-                console.log(`[Payment Verify Cron] ✓ Delivered stock for product ${item.productId}`);
+                
+                // Update the order item with the delivered content
+                await db.update(orderItems)
+                  .set({ deliveredContent: itemContent })
+                  .where(eq(orderItems.id, item.id));
+                
+                console.log(`[Payment Verify Cron] ✓ Delivered stock for product ${item.productId}, item ${item.id}`);
               }
             }
           }
