@@ -574,9 +574,19 @@ export function DashboardMain({ vendorId, isAdmin }: DashboardMainProps) {
               <div className="text-xs text-gray-400 space-y-1">
                 <p>Voce recebe <span className="text-emerald-400 font-medium">100% do valor</span> de cada venda!</p>
                 <p>Taxa fixa de saque: <span className="text-white font-medium">R$ {TAXA_DE_SAQUE_FIXA.toFixed(2)}</span> (cobrada apenas na retirada)</p>
-                <p>Valor minimo para retirada: <span className="text-white">R$ {MIN_WITHDRAWAL.toFixed(2)}</span></p>
+                <p>Valor minimo para saque: <span className="text-white font-medium">R$ {MIN_WITHDRAWAL.toFixed(2)}</span></p>
+                <p className="text-gray-500">Saldo minimo necessario: R$ {(MIN_WITHDRAWAL + TAXA_DE_SAQUE_FIXA).toFixed(2)} (saque + taxa)</p>
               </div>
             </div>
+            
+            {availableBalance < (MIN_WITHDRAWAL + TAXA_DE_SAQUE_FIXA) && (
+              <div className="p-3 rounded-lg" style={{ background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)" }}>
+                <p className="text-sm text-red-400 font-medium">Saldo insuficiente para saque</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Voce precisa de pelo menos <span className="text-white">R$ {(MIN_WITHDRAWAL + TAXA_DE_SAQUE_FIXA).toFixed(2)}</span> para sacar o minimo de R$ {MIN_WITHDRAWAL.toFixed(2)}.
+                </p>
+              </div>
+            )}
             
             <div className="space-y-2">
               <Label htmlFor="amount" className="text-gray-300">Valor que deseja receber via PIX (minimo R$ {MIN_WITHDRAWAL.toFixed(2)})</Label>
