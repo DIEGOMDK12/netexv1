@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, TrendingUp, ShoppingBag, DollarSign, Copy, Check, CheckCircle, Clock, Wallet, XCircle, ArrowUpRight } from "lucide-react";
+import { Loader2, TrendingUp, ShoppingBag, DollarSign, Copy, Check, CheckCircle, Clock, Wallet, XCircle, ArrowUpRight, Home, Store } from "lucide-react";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -273,6 +274,30 @@ export function DashboardMain({ vendorId, isAdmin }: DashboardMainProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h1 className="text-3xl font-bold text-white">Dashboard</h1>
+        <div className="flex items-center gap-2">
+          <Link href="/">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-zinc-700 text-gray-300 hover:text-white"
+              data-testid="button-go-home"
+            >
+              <Home className="w-4 h-4 mr-2" />
+              Inicio
+            </Button>
+          </Link>
+          <Link href={`/loja/${vendorId}`}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-zinc-700 text-gray-300 hover:text-white"
+              data-testid="button-go-store"
+            >
+              <Store className="w-4 h-4 mr-2" />
+              Minha Loja
+            </Button>
+          </Link>
+        </div>
       </div>
 
 
