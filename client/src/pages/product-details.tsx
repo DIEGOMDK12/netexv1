@@ -9,7 +9,7 @@ import { CheckoutModal } from "@/components/checkout-modal";
 import { ProductCard } from "@/components/product-card";
 import { useStore } from "@/lib/store-context";
 import { SiPix } from "react-icons/si";
-import type { Product, Settings, Reseller } from "@shared/schema";
+import type { Product, Settings, Reseller, Review } from "@shared/schema";
 
 export default function ProductDetails() {
   const [, setLocation] = useLocation();
@@ -39,6 +39,12 @@ export default function ProductDetails() {
   const { data: reseller } = useQuery<Reseller>({
     queryKey: ["/api/resellers", product?.resellerId],
     enabled: !!product?.resellerId,
+  });
+
+  // Fetch product reviews
+  const { data: reviews } = useQuery<Review[]>({
+    queryKey: ["/api/reviews/product", productId],
+    enabled: !!productId,
   });
 
   const themeColor = "#2563eb"; // NEX STORE blue
@@ -174,6 +180,13 @@ export default function ProductDetails() {
                 >
                   Termos
                 </TabsTrigger>
+                <TabsTrigger
+                  value="reviews"
+                  className="data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=inactive]:text-gray-400 rounded-md px-4 py-2"
+                  data-testid="tab-reviews"
+                >
+                  Avaliacoes ({reviews?.length || 0})
+                </TabsTrigger>
               </TabsList>
 
               {/* Description Tab */}
@@ -221,6 +234,58 @@ export default function ProductDetails() {
                     <p className="text-gray-500 italic text-sm">
                       Garantia de suporte e reembolso total caso o produto nao funcione.
                     </p>
+                  )}
+                </div>
+              </TabsContent>
+
+              {/* Reviews Tab */}
+              <TabsContent value="reviews" className="mt-4">
+                <div className="space-y-4" data-testid="content-reviews">
+                  {!reviews || reviews.length === 0 ? (
+                    <div className="p-4 rounded-lg bg-[#1e293b] text-gray-400 text-center text-sm">
+                      Nenhuma avaliacao ainda. Seja o primeiro a avaliar este produto!
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {reviews.map((review) => (
+                        <div
+                          key={review.id}
+                          className="p-4 rounded-lg bg-[#1e293b] border border-gray-700"
+                          data-testid={`review-card-${review.id}`}
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <p className="font-semibold text-white text-sm" data-testid={`review-customer-${review.id}`}>
+                                {review.customerName || review.customerEmail?.split("@")[0] || "Cliente"}
+                              </p>
+                              <div className="flex items-center gap-1 mt-1" data-testid={`review-stars-${review.id}`}>
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <Star
+                                    key={star}
+                                    className={`w-3 h-3 ${
+                                      star <= review.rating
+                                        ? "text-yellow-400 fill-yellow-400"
+                                        : "text-gray-600"
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            <p className="text-xs text-gray-500">
+                              {new Date(review.createdAt).toLocaleDateString("pt-BR")}
+                            </p>
+                          </div>
+                          {review.comment && (
+                            <p
+                              className="text-sm text-gray-300 mt-2 leading-relaxed"
+                              data-testid={`review-comment-${review.id}`}
+                            >
+                              {review.comment}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               </TabsContent>
