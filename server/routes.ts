@@ -3313,23 +3313,31 @@ export async function registerRoutes(
     }
     
     try {
-      const resellers = await storage.getResellers();
+      const resellers = await storage.getAllResellers();
       
       // Debug: Log all resellers with documents
       const withDocs = resellers.filter((r: any) => r.documentFrontUrl || r.documentBackUrl);
       console.log("[Admin Pending Verifications] Total resellers:", resellers.length);
       console.log("[Admin Pending Verifications] Resellers with any doc:", withDocs.length);
       withDocs.forEach((r: any) => {
-        console.log(`  - ID ${r.id}: status=${r.verificationStatus}, front=${r.documentFrontUrl ? 'yes' : 'no'}, back=${r.documentBackUrl ? 'yes' : 'no'}`);
+        console.log(`  - ID ${r.id} (${r.storeName || r.name}): status="${r.verificationStatus}", front=${r.documentFrontUrl ? 'YES' : 'no'}, back=${r.documentBackUrl ? 'YES' : 'no'}`);
       });
       
-      // Filter vendors with documents uploaded and pending/null status (null defaults to pending)
+      // Filter vendors with documents uploaded - include pending, null, undefined, or empty string status
+      // This ensures we catch all vendors who have uploaded documents but may not have status set correctly
       const pendingVerifications = resellers
-        .filter((r: any) => 
-          (r.verificationStatus === "pending" || r.verificationStatus === null || r.verificationStatus === undefined) && 
-          r.documentFrontUrl && 
-          r.documentBackUrl
-        )
+        .filter((r: any) => {
+          const hasDocs = r.documentFrontUrl && r.documentBackUrl;
+          const isPending = r.verificationStatus === "pending" || 
+                           r.verificationStatus === null || 
+                           r.verificationStatus === undefined ||
+                           r.verificationStatus === "" ||
+                           !r.verificationStatus;
+          const isNotApprovedOrRejected = r.verificationStatus !== "approved" && r.verificationStatus !== "rejected";
+          
+          // Include if has both docs AND is not explicitly approved/rejected
+          return hasDocs && isNotApprovedOrRejected;
+        })
         .map((r: any) => ({
           id: r.id,
           name: r.name,
@@ -3338,11 +3346,14 @@ export async function registerRoutes(
           slug: r.slug,
           documentFrontUrl: r.documentFrontUrl,
           documentBackUrl: r.documentBackUrl,
-          verificationStatus: r.verificationStatus,
+          verificationStatus: r.verificationStatus || "pending",
           createdAt: r.createdAt,
         }));
       
       console.log("[Admin Pending Verifications] Found", pendingVerifications.length, "pending verifications");
+      if (pendingVerifications.length > 0) {
+        console.log("[Admin Pending Verifications] Returning vendors:", pendingVerifications.map((v: { id: number; storeName: string | null }) => `${v.id} (${v.storeName})`).join(", "));
+      }
       res.json(pendingVerifications);
     } catch (error) {
       console.error("[Admin Pending Verifications] Error:", error);
