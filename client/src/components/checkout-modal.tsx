@@ -523,13 +523,14 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 w-full">
                 <Label style={{ color: textColor || "#FFFFFF" }}>E-mail para entrega</Label>
                 <Input
                   type="email"
                   placeholder="seu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  className="w-full"
                   style={{
                     backgroundColor: "#242424",
                     borderColor: "rgba(255,255,255,0.1)",
@@ -539,13 +540,14 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 w-full">
                 <Label style={{ color: textColor || "#FFFFFF" }}>Seu WhatsApp</Label>
                 <Input
                   type="tel"
                   placeholder="11999999999"
                   value={whatsapp}
                   onChange={(e) => setWhatsapp(e.target.value)}
+                  className="w-full"
                   style={{
                     backgroundColor: "#242424",
                     borderColor: "rgba(255,255,255,0.1)",
@@ -555,13 +557,14 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 w-full">
                 <Label style={{ color: textColor || "#FFFFFF" }}>Nome completo</Label>
                 <Input
                   type="text"
                   placeholder="Seu nome"
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
+                  className="w-full"
                   style={{
                     backgroundColor: "#242424",
                     borderColor: "rgba(255,255,255,0.1)",
