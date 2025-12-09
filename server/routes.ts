@@ -5790,6 +5790,145 @@ export async function registerRoutes(
     }
   });
 
+  // ==============================================
+  // REVIEWS ROUTES - Seller Reviews
+  // ==============================================
+
+  // Create a review for an order
+  app.post("/api/reviews", async (req, res) => {
+    const { orderId, rating, comment, customerEmail, customerName } = req.body;
+    
+    if (!orderId || !rating || !customerEmail) {
+      return res.status(400).json({ error: "Dados incompletos" });
+    }
+    
+    if (rating < 1 || rating > 5) {
+      return res.status(400).json({ error: "Avaliacao deve ser de 1 a 5" });
+    }
+    
+    try {
+      // Check if order exists and is paid
+      const order = await storage.getOrder(orderId);
+      
+      if (!order) {
+        return res.status(404).json({ error: "Pedido nao encontrado" });
+      }
+      
+      if (order.status !== "paid") {
+        return res.status(400).json({ error: "Apenas pedidos pagos podem ser avaliados" });
+      }
+      
+      if (order.email !== customerEmail) {
+        return res.status(403).json({ error: "Voce nao pode avaliar este pedido" });
+      }
+      
+      // Check if already reviewed
+      const existingReview = await storage.getReviewByOrderId(orderId);
+      if (existingReview) {
+        return res.status(400).json({ error: "Este pedido ja foi avaliado" });
+      }
+      
+      const review = await storage.createReview({
+        orderId,
+        resellerId: order.resellerId!,
+        rating,
+        comment: comment || null,
+        customerEmail,
+        customerName: customerName || null,
+      });
+      
+      res.json(review);
+    } catch (error: any) {
+      console.error("[Reviews] Error creating review:", error);
+      res.status(500).json({ error: "Erro ao criar avaliacao" });
+    }
+  });
+
+  // Check if an order has been reviewed
+  app.get("/api/reviews/order/:orderId", async (req, res) => {
+    const orderId = parseInt(req.params.orderId);
+    
+    if (isNaN(orderId)) {
+      return res.status(400).json({ error: "ID do pedido invalido" });
+    }
+    
+    try {
+      const review = await storage.getReviewByOrderId(orderId);
+      res.json(review || null);
+    } catch (error: any) {
+      console.error("[Reviews] Error checking review:", error);
+      res.status(500).json({ error: "Erro ao verificar avaliacao" });
+    }
+  });
+
+  // Get all reviews for a seller
+  app.get("/api/reviews/seller/:resellerId", async (req, res) => {
+    const resellerId = parseInt(req.params.resellerId);
+    
+    if (isNaN(resellerId)) {
+      return res.status(400).json({ error: "ID do vendedor invalido" });
+    }
+    
+    try {
+      const reviews = await storage.getResellerReviews(resellerId);
+      res.json(reviews);
+    } catch (error: any) {
+      console.error("[Reviews] Error fetching seller reviews:", error);
+      res.status(500).json({ error: "Erro ao buscar avaliacoes" });
+    }
+  });
+
+  // Get seller stats (rating, sales count, positive percentage)
+  app.get("/api/seller/:resellerId/stats", async (req, res) => {
+    const resellerId = parseInt(req.params.resellerId);
+    
+    if (isNaN(resellerId)) {
+      return res.status(400).json({ error: "ID do vendedor invalido" });
+    }
+    
+    try {
+      const stats = await storage.getResellerStats(resellerId);
+      res.json(stats);
+    } catch (error: any) {
+      console.error("[Reviews] Error fetching seller stats:", error);
+      res.status(500).json({ error: "Erro ao buscar estatisticas" });
+    }
+  });
+
+  // Get seller profile by slug with products and stats
+  app.get("/api/seller/:slug/profile", async (req, res) => {
+    const slug = req.params.slug;
+    
+    try {
+      const reseller = await storage.getResellerBySlug(slug);
+      
+      if (!reseller) {
+        return res.status(404).json({ error: "Vendedor nao encontrado" });
+      }
+      
+      const products = await storage.getResellerProducts(reseller.id);
+      const activeProducts = products.filter(p => p.active);
+      const stats = await storage.getResellerStats(reseller.id);
+      const reviews = await storage.getResellerReviews(reseller.id);
+      
+      res.json({
+        id: reseller.id,
+        name: reseller.name,
+        storeName: reseller.storeName,
+        slug: reseller.slug,
+        logoUrl: reseller.logoUrl,
+        storeDescription: reseller.storeDescription,
+        whatsappContact: reseller.whatsappContact,
+        stats,
+        products: activeProducts,
+        reviews: reviews.slice(0, 10),
+      });
+    } catch (error: any) {
+      console.error("[Reviews] Error fetching seller profile:", error);
+      res.status(500).json({ error: "Erro ao buscar perfil do vendedor" });
+    }
+  });
+
   return httpServer;
 }
 

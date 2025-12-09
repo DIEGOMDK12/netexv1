@@ -1,5 +1,5 @@
 import { 
-  products, orders, orderItems, coupons, settings, resellers, categories, customerUsers, withdrawalRequests, announcementSettings, webhooks, chatMessages,
+  products, orders, orderItems, coupons, settings, resellers, categories, customerUsers, withdrawalRequests, announcementSettings, webhooks, chatMessages, reviews,
   type Product, type InsertProduct,
   type Order, type InsertOrder,
   type OrderItem, type InsertOrderItem,
@@ -11,7 +11,8 @@ import {
   type WithdrawalRequest, type InsertWithdrawalRequest,
   type AnnouncementSetting, type InsertAnnouncementSetting,
   type Webhook, type InsertWebhook,
-  type ChatMessage, type InsertChatMessage
+  type ChatMessage, type InsertChatMessage,
+  type Review, type InsertReview
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, isNotNull, inArray, and, sql } from "drizzle-orm";
@@ -101,6 +102,12 @@ export interface IStorage {
   createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
   markMessagesAsRead(orderId: number, senderType: string): Promise<void>;
   getUnreadMessageCount(orderId: number, forSenderType: string): Promise<number>;
+
+  // Reviews
+  createReview(review: InsertReview): Promise<Review>;
+  getReviewByOrderId(orderId: number): Promise<Review | undefined>;
+  getResellerReviews(resellerId: number): Promise<Review[]>;
+  getResellerStats(resellerId: number): Promise<{ averageRating: number; totalReviews: number; positivePercent: number; totalSales: number }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -648,6 +655,43 @@ export class DatabaseStorage implements IStorage {
         eq(chatMessages.read, false)
       ));
     return Number(result[0]?.count || 0);
+  }
+
+  // Review methods
+  async createReview(review: InsertReview): Promise<Review> {
+    const [created] = await db.insert(reviews).values(review).returning();
+    return created;
+  }
+
+  async getReviewByOrderId(orderId: number): Promise<Review | undefined> {
+    const [review] = await db.select().from(reviews).where(eq(reviews.orderId, orderId));
+    return review || undefined;
+  }
+
+  async getResellerReviews(resellerId: number): Promise<Review[]> {
+    return db.select().from(reviews).where(eq(reviews.resellerId, resellerId)).orderBy(desc(reviews.createdAt));
+  }
+
+  async getResellerStats(resellerId: number): Promise<{ averageRating: number; totalReviews: number; positivePercent: number; totalSales: number }> {
+    const resellerReviews = await this.getResellerReviews(resellerId);
+    const totalReviews = resellerReviews.length;
+    
+    // Calculate average rating
+    const averageRating = totalReviews > 0 
+      ? resellerReviews.reduce((acc, r) => acc + r.rating, 0) / totalReviews 
+      : 0;
+    
+    // Calculate positive percent (4 or 5 stars)
+    const positiveCount = resellerReviews.filter(r => r.rating >= 4).length;
+    const positivePercent = totalReviews > 0 ? Math.round((positiveCount / totalReviews) * 100) : 0;
+    
+    // Get total sales (paid orders)
+    const paidOrders = await db.select({ count: sql<number>`count(*)` })
+      .from(orders)
+      .where(and(eq(orders.resellerId, resellerId), eq(orders.status, "paid")));
+    const totalSales = Number(paidOrders[0]?.count || 0);
+    
+    return { averageRating: Math.round(averageRating * 10) / 10, totalReviews, positivePercent, totalSales };
   }
 }
 
