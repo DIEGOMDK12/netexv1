@@ -43,6 +43,23 @@ async function runStartupMigrations() {
     `);
     console.log("[Migration] Added verification columns to resellers table");
     
+    // Create chat_messages table if it doesn't exist
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        order_id INTEGER NOT NULL,
+        sender_id TEXT NOT NULL,
+        sender_type TEXT NOT NULL,
+        sender_name TEXT,
+        message TEXT,
+        attachment_url TEXT,
+        attachment_type TEXT,
+        read BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+    console.log("[Migration] Created chat_messages table");
+    
     client.release();
     console.log("[Migration] Startup migrations completed successfully");
   } catch (error: any) {
