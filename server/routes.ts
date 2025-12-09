@@ -3974,6 +3974,19 @@ export async function registerRoutes(
             }
           }
         }
+        
+        // Calculate min price from variants and update product
+        const prices = variants
+          .filter((v: any) => v.price)
+          .map((v: any) => parseFloat(v.price));
+        if (prices.length > 0) {
+          const minPrice = Math.min(...prices).toFixed(2);
+          await storage.updateProduct(product.id, { 
+            currentPrice: minPrice,
+            originalPrice: minPrice 
+          });
+          console.log("[Create Product] ✓ Updated product price to min variant price:", minPrice);
+        }
       }
 
       res.json(product);
@@ -4085,6 +4098,24 @@ export async function registerRoutes(
             } catch (variantError: any) {
               console.error("[Update Product] Error saving variant:", variantError.message);
             }
+          }
+        }
+      }
+
+      // Recalculate min price from variants for dynamic mode products
+      if (dynamicMode) {
+        const allVariants = await storage.getProductVariants(productId);
+        if (allVariants.length > 0) {
+          const prices = allVariants
+            .filter((v) => v.active && v.price)
+            .map((v) => parseFloat(v.price));
+          if (prices.length > 0) {
+            const minPrice = Math.min(...prices).toFixed(2);
+            await storage.updateProduct(productId, { 
+              currentPrice: minPrice,
+              originalPrice: minPrice 
+            });
+            console.log("[Update Product] ✓ Updated product price to min variant price:", minPrice);
           }
         }
       }
