@@ -7,9 +7,17 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Product, Category } from "@shared/schema";
+import type { Product, Category, ProductVariant } from "@shared/schema";
+
+interface VariantFormData {
+  id?: number;
+  name: string;
+  price: string;
+  stock: string;
+}
 
 function getAuthHeaders(): HeadersInit {
   const vendorToken = localStorage.getItem("vendor_token");
@@ -31,6 +39,8 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [dynamicMode, setDynamicMode] = useState(false);
+  const [variants, setVariants] = useState<VariantFormData[]>([]);
   const [formData, setFormData] = useState({
     name: "",
     price: "",
@@ -90,7 +100,20 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest("POST", "/api/vendor/products", data);
+      const result = await apiRequest("POST", "/api/vendor/products", data);
+      const productData = await result.json();
+      
+      // If dynamic mode, create variants
+      if (data.dynamicMode && data.variants && data.variants.length > 0 && productData.id) {
+        for (const variant of data.variants) {
+          await apiRequest("POST", `/api/products/${productData.id}/variants`, {
+            name: variant.name,
+            price: variant.price,
+            stock: variant.stock,
+          });
+        }
+      }
+      return productData;
     },
     onSuccess: async () => {
       console.log("[createMutation] Produto criado, invalidando cache e refetching...");
@@ -106,6 +129,8 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
       // Limpar formulário
       setIsAddingProduct(false);
       setSelectedCategoryId(null);
+      setDynamicMode(false);
+      setVariants([]);
       setFormData({ name: "", price: "", originalPrice: "", description: "", imageUrl: "", stock: "", category: "", subcategory: "", deliveryContent: "" });
       
       toast({
@@ -138,12 +163,41 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
 
   const updateMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest("PATCH", `/api/vendor/products/${editingProductId}`, data);
+      const result = await apiRequest("PATCH", `/api/vendor/products/${editingProductId}`, data);
+      
+      // If dynamic mode, update variants
+      if (editingProductId && data.dynamicMode !== undefined) {
+        // Delete existing variants first if switching to non-dynamic mode
+        // Or update them if still in dynamic mode
+        if (data.dynamicMode && data.variants && data.variants.length > 0) {
+          // For each variant, create or update
+          for (const variant of data.variants) {
+            if (variant.id) {
+              // Update existing variant
+              await apiRequest("PUT", `/api/products/${editingProductId}/variants/${variant.id}`, {
+                name: variant.name,
+                price: variant.price,
+                stock: variant.stock,
+              });
+            } else {
+              // Create new variant
+              await apiRequest("POST", `/api/products/${editingProductId}/variants`, {
+                name: variant.name,
+                price: variant.price,
+                stock: variant.stock,
+              });
+            }
+          }
+        }
+      }
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/vendor/products", vendorId] });
       setEditingProductId(null);
       setSelectedCategoryId(null);
+      setDynamicMode(false);
+      setVariants([]);
       setFormData({ name: "", price: "", originalPrice: "", description: "", imageUrl: "", stock: "", category: "", subcategory: "", deliveryContent: "" });
       toast({
         title: "✓ Produto atualizado com sucesso",
@@ -159,13 +213,46 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
   });
 
   const handleAddProduct = () => {
-    if (!formData.name || !formData.price || !formData.originalPrice || !formData.stock) {
+    // Validate based on mode
+    if (!formData.name || !formData.price || !formData.originalPrice) {
       toast({
         title: "Campos obrigatórios",
-        description: "Nome, preço, preço original e lista de estoque são necessários",
+        description: "Nome, preço e preço original são necessários",
         variant: "destructive",
       });
       return;
+    }
+
+    // For dynamic mode, validate variants; for normal mode, validate stock
+    if (dynamicMode) {
+      if (variants.length === 0) {
+        toast({
+          title: "Adicione pelo menos um item",
+          description: "No modo dinâmico, você precisa adicionar pelo menos um item/variante",
+          variant: "destructive",
+        });
+        return;
+      }
+      // Validate all variants have name and price
+      for (const v of variants) {
+        if (!v.name || !v.price) {
+          toast({
+            title: "Preencha todos os campos dos itens",
+            description: "Cada item precisa de nome e preço",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+    } else {
+      if (!formData.stock) {
+        toast({
+          title: "Estoque obrigatório",
+          description: "Lista de estoque é necessária",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     createMutation.mutate({
@@ -174,19 +261,22 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
       imageUrl: formData.imageUrl || "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400",
       currentPrice: formData.price,
       originalPrice: formData.originalPrice,
-      stock: formData.stock,
+      stock: dynamicMode ? "" : formData.stock,
       deliveryContent: formData.deliveryContent,
       category: formData.category || "Outros",
       subcategory: formData.subcategory || null,
       resellerId: vendorId,
+      dynamicMode: dynamicMode,
+      variants: dynamicMode ? variants : [],
     });
   };
 
-  const handleEditProduct = (product: Product) => {
+  const handleEditProduct = async (product: Product) => {
     setEditingProductId(product.id);
     // Find the category ID by name to set selectedCategoryId
     const matchingCat = allCategories.find((c) => c.name === product.category);
     setSelectedCategoryId(matchingCat?.id || null);
+    setDynamicMode(product.dynamicMode || false);
     setFormData({
       name: product.name,
       price: product.currentPrice.toString(),
@@ -198,16 +288,59 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
       subcategory: product.subcategory || "",
       deliveryContent: product.deliveryContent || "",
     });
+    
+    // Load variants if dynamic mode
+    if (product.dynamicMode) {
+      try {
+        const response = await fetch(`/api/products/${product.id}/variants`, {
+          headers: getAuthHeaders(),
+        });
+        if (response.ok) {
+          const variantsData: ProductVariant[] = await response.json();
+          setVariants(variantsData.map(v => ({
+            id: v.id,
+            name: v.name,
+            price: v.price.toString(),
+            stock: v.stock || "",
+          })));
+        }
+      } catch (error) {
+        console.error("Error loading variants:", error);
+      }
+    } else {
+      setVariants([]);
+    }
   };
 
   const handleSaveEdit = () => {
-    if (!formData.name || !formData.price || !formData.originalPrice || !formData.stock) {
+    if (!formData.name || !formData.price || !formData.originalPrice) {
       toast({
         title: "Campos obrigatórios",
-        description: "Nome, preço, preço original e lista de estoque são necessários",
+        description: "Nome, preço e preço original são necessários",
         variant: "destructive",
       });
       return;
+    }
+
+    // Validate based on mode
+    if (dynamicMode) {
+      if (variants.length === 0) {
+        toast({
+          title: "Adicione pelo menos um item",
+          description: "No modo dinâmico, você precisa adicionar pelo menos um item/variante",
+          variant: "destructive",
+        });
+        return;
+      }
+    } else {
+      if (!formData.stock) {
+        toast({
+          title: "Estoque obrigatório",
+          description: "Lista de estoque é necessária",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     updateMutation.mutate({
@@ -216,11 +349,37 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
       imageUrl: formData.imageUrl,
       currentPrice: formData.price,
       originalPrice: formData.originalPrice,
-      stock: formData.stock,
+      stock: dynamicMode ? "" : formData.stock,
       deliveryContent: formData.deliveryContent,
       category: formData.category || "Outros",
       subcategory: formData.subcategory || null,
+      dynamicMode: dynamicMode,
+      variants: dynamicMode ? variants : [],
     });
+  };
+
+  // Variant management functions
+  const addVariant = () => {
+    setVariants([...variants, { name: "", price: "", stock: "" }]);
+  };
+
+  const updateVariant = (index: number, field: keyof VariantFormData, value: string) => {
+    const newVariants = [...variants];
+    newVariants[index] = { ...newVariants[index], [field]: value };
+    setVariants(newVariants);
+  };
+
+  const removeVariant = async (index: number) => {
+    const variant = variants[index];
+    // If variant has ID, delete from server
+    if (variant.id && editingProductId) {
+      try {
+        await apiRequest("DELETE", `/api/products/${editingProductId}/variants/${variant.id}`, null);
+      } catch (error) {
+        console.error("Error deleting variant:", error);
+      }
+    }
+    setVariants(variants.filter((_, i) => i !== index));
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -521,30 +680,143 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-white">📦 Lista de Estoque (Cole um item por linha) *</Label>
-              <textarea
-                value={formData.stock}
-                onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                placeholder="user1@gmail.com
+            {/* Dynamic Mode Toggle */}
+            <div className="flex items-center justify-between p-4 rounded-lg" style={{ background: "rgba(30, 30, 40, 0.4)", border: "1px solid rgba(255,255,255,0.1)" }}>
+              <div className="space-y-1">
+                <Label className="text-white font-semibold">Modo Dinâmico</Label>
+                <p className="text-xs text-gray-400">Ative para vender múltiplos itens/variantes com preços e estoques individuais</p>
+              </div>
+              <Switch
+                checked={dynamicMode}
+                onCheckedChange={(checked) => {
+                  setDynamicMode(checked);
+                  if (checked && variants.length === 0) {
+                    setVariants([{ name: "", price: "", stock: "" }]);
+                  }
+                }}
+                data-testid="switch-dynamic-mode"
+              />
+            </div>
+
+            {/* Conditional: Dynamic Mode Variants OR Normal Stock */}
+            {dynamicMode ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-white font-semibold">Itens/Variantes</Label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={addVariant}
+                    className="flex items-center gap-1"
+                    data-testid="button-add-variant"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Adicionar Item
+                  </Button>
+                </div>
+                
+                {variants.map((variant, index) => (
+                  <div
+                    key={index}
+                    className="p-4 rounded-lg space-y-3"
+                    style={{ background: "rgba(20, 20, 30, 0.6)", border: "1px solid rgba(255,255,255,0.1)" }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-400">Item #{index + 1}</span>
+                      {variants.length > 1 && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => removeVariant(index)}
+                          className="text-red-400 h-6 px-2"
+                          data-testid={`button-remove-variant-${index}`}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      )}
+                    </div>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-gray-400">Nome do Item *</Label>
+                        <Input
+                          value={variant.name}
+                          onChange={(e) => updateVariant(index, "name", e.target.value)}
+                          placeholder="Ex: 30 dias"
+                          style={{
+                            background: "rgba(30, 30, 40, 0.4)",
+                            borderColor: "rgba(255,255,255,0.1)",
+                            color: "#FFFFFF",
+                          }}
+                          data-testid={`input-variant-name-${index}`}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-gray-400">Preço (R$) *</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={variant.price}
+                          onChange={(e) => updateVariant(index, "price", e.target.value)}
+                          placeholder="19.90"
+                          style={{
+                            background: "rgba(30, 30, 40, 0.4)",
+                            borderColor: "rgba(255,255,255,0.1)",
+                            color: "#FFFFFF",
+                          }}
+                          data-testid={`input-variant-price-${index}`}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-gray-400">Estoque</Label>
+                        <Input
+                          value={variant.stock}
+                          onChange={(e) => updateVariant(index, "stock", e.target.value)}
+                          placeholder="Quantidade ou código"
+                          style={{
+                            background: "rgba(30, 30, 40, 0.4)",
+                            borderColor: "rgba(255,255,255,0.1)",
+                            color: "#FFFFFF",
+                          }}
+                          data-testid={`input-variant-stock-${index}`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                <p className="text-xs text-gray-400">
+                  Cada item aparecerá como opção no dropdown "Escolha um item" para o cliente
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label className="text-white">Lista de Estoque (Cole um item por linha) *</Label>
+                <textarea
+                  value={formData.stock}
+                  onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                  placeholder="user1@gmail.com
 password123
 https://link-acesso.com
 Chave123456"
-                className="w-full p-3 rounded-lg text-white resize-none font-mono text-sm"
-                rows={6}
-                style={{
-                  background: "rgba(30, 30, 40, 0.4)",
-                  backdropFilter: "blur(10px)",
-                  borderColor: "rgba(255,255,255,0.1)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                }}
-                data-testid="textarea-product-stock"
-              />
-              <div className="text-xs text-gray-400 space-y-1">
-                <p>• Quantidade de estoque: <span className="text-green-400 font-bold">{formData.stock.trim() ? formData.stock.split('\n').filter(line => line.trim()).length : 0} unidade(s)</span></p>
-                <p>• Cada linha será entregue a um cliente diferente (Sistema FIFO)</p>
+                  className="w-full p-3 rounded-lg text-white resize-none font-mono text-sm"
+                  rows={6}
+                  style={{
+                    background: "rgba(30, 30, 40, 0.4)",
+                    backdropFilter: "blur(10px)",
+                    borderColor: "rgba(255,255,255,0.1)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                  }}
+                  data-testid="textarea-product-stock"
+                />
+                <div className="text-xs text-gray-400 space-y-1">
+                  <p>Quantidade de estoque: <span className="text-green-400 font-bold">{formData.stock.trim() ? formData.stock.split('\n').filter(line => line.trim()).length : 0} unidade(s)</span></p>
+                  <p>Cada linha será entregue a um cliente diferente (Sistema FIFO)</p>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="space-y-2">
               <Label className="text-white">Conteúdo de Entrega (Link/Dados) *</Label>
