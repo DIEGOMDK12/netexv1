@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ShoppingCart, Package } from "lucide-react";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { Product } from "@shared/schema";
@@ -15,7 +15,6 @@ interface ProductCardProps {
 
 export function ProductCard({ product, seller, themeColor, textColor }: ProductCardProps) {
   const { addToCart, setIsCartOpen } = useStore();
-  const [, setLocation] = useLocation();
   const [imgError, setImgError] = useState(false);
 
   const hasDiscount = Number(product.originalPrice) > Number(product.currentPrice);
@@ -29,31 +28,20 @@ export function ProductCard({ product, seller, themeColor, textColor }: ProductC
 
   const stockLines = product.stock?.split("\n").filter((line) => line.trim()) || [];
   const hasStock = stockLines.length > 0;
-  
-  // Check if product is in dynamic mode (has variants)
-  const isDynamicMode = !!(product as any).dynamicMode;
 
   const handleBuy = () => {
-    console.log("[ProductCard.handleBuy] Started for product:", { id: product.id, name: product.name, resellerId: product.resellerId, seller, dynamicMode: isDynamicMode });
-    
-    // For dynamic mode products, redirect to product details for variant selection
-    if (isDynamicMode) {
-      console.log("[ProductCard] Dynamic mode product - redirecting to details page for variant selection");
-      setLocation(`/product/${product.id}`);
-      return;
-    }
+    console.log("[ProductCard.handleBuy] Started for product:", { id: product.id, name: product.name, resellerId: product.resellerId, seller });
     
     if (!hasStock) {
-      console.error("[ProductCard] ❌ No stock available for", product.name, "Stock:", product.stock);
+      console.error("[ProductCard] No stock available for", product.name, "Stock:", product.stock);
       return;
     }
 
-    // Check both explicit seller prop and product.resellerId
     const sellerId = seller || product.resellerId;
     console.log("[ProductCard.handleBuy] Seller check:", { seller, productResellerId: product.resellerId, finalSellerId: sellerId });
     
     if (!sellerId) {
-      console.error("[ProductCard] ❌ ERROR: Product missing resellerId!", { 
+      console.error("[ProductCard] ERROR: Product missing resellerId!", { 
         productId: product.id, 
         productName: product.name,
         seller,
@@ -64,7 +52,7 @@ export function ProductCard({ product, seller, themeColor, textColor }: ProductC
       return;
     }
 
-    console.log(`[ProductCard] ✅ Buying product: ${product.name} (ID: ${product.id}) from reseller: ${sellerId}`);
+    console.log(`[ProductCard] Buying product: ${product.name} (ID: ${product.id}) from reseller: ${sellerId}`);
     addToCart(product);
     setIsCartOpen(true);
   };
@@ -74,7 +62,6 @@ export function ProductCard({ product, seller, themeColor, textColor }: ProductC
       className="product-card overflow-hidden flex flex-col"
       data-testid={`card-product-${product.id}`}
     >
-      {/* Clickable Image and Title - Link to Product Details */}
       <Link href={`/product/${product.id}`}>
         <div
           className="relative aspect-square overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
@@ -120,7 +107,6 @@ export function ProductCard({ product, seller, themeColor, textColor }: ProductC
       </Link>
 
       <div className="p-3 flex flex-col flex-1 gap-2">
-        {/* Clickable Title - Link to Product Details */}
         <Link href={`/product/${product.id}`}>
           <h3
             className="font-semibold text-sm line-clamp-2 min-h-[2.5rem] cursor-pointer hover:opacity-80 transition-opacity"
@@ -132,7 +118,7 @@ export function ProductCard({ product, seller, themeColor, textColor }: ProductC
         </Link>
 
         <div className="flex flex-col gap-0.5">
-          {hasDiscount && !isDynamicMode && (
+          {hasDiscount && (
             <span
               className="text-xs line-through opacity-60"
               style={{ color: textColor || "#FFFFFF" }}
@@ -146,22 +132,20 @@ export function ProductCard({ product, seller, themeColor, textColor }: ProductC
             style={{ color: themeColor || "#3B82F6" }}
             data-testid={`text-current-price-${product.id}`}
           >
-            {isDynamicMode && <span className="text-xs font-normal opacity-70">A partir de </span>}
             R$ {Number(product.currentPrice).toFixed(2)}
           </span>
         </div>
 
-        {/* Buy Button - Primary when has stock, Disabled Gray when empty */}
         <button
           onClick={handleBuy}
-          disabled={!hasStock && !isDynamicMode}
+          disabled={!hasStock}
           className={`mt-auto text-sm font-medium transition flex items-center justify-center gap-1.5 py-2 px-3 rounded ${
-            hasStock || isDynamicMode
+            hasStock
               ? "btn-comprar" 
               : "cursor-not-allowed opacity-60"
           }`}
           style={
-            hasStock || isDynamicMode
+            hasStock
               ? { backgroundColor: themeColor || "#3B82F6", color: "#FFFFFF" }
               : {
                   backgroundColor: "#6b7280",
@@ -172,7 +156,7 @@ export function ProductCard({ product, seller, themeColor, textColor }: ProductC
           data-testid={`button-buy-${product.id}`}
         >
           <ShoppingCart className="w-4 h-4" />
-          {isDynamicMode ? "Ver opcoes" : hasStock ? "Comprar" : "Esgotado"}
+          {hasStock ? "Comprar" : "Esgotado"}
         </button>
       </div>
     </Card>

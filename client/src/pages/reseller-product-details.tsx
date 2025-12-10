@@ -1,21 +1,14 @@
 import { useState, useEffect } from "react";
 import { useRoute } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ShoppingCart, Zap, Shield, Headphones, Clock, Check, Star, MessageCircle, ThumbsUp, ChevronDown } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Zap, Shield, Headphones, Star, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CheckoutModal } from "@/components/checkout-modal";
 import { useStore } from "@/lib/store-context";
 import { useToast } from "@/hooks/use-toast";
 import { SiPix } from "react-icons/si";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import type { Product, Reseller, ProductVariant } from "@shared/schema";
+import type { Product, Reseller } from "@shared/schema";
 
 export default function ResellerProductDetails() {
   const [, params] = useRoute("/loja/:slug/produto/:productId");
@@ -25,7 +18,6 @@ export default function ResellerProductDetails() {
   const { toast } = useToast();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
-  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
 
   const { data: reseller, isLoading: resellerLoading } = useQuery<Reseller>({
     queryKey: ["/api/reseller", slug],
@@ -44,23 +36,6 @@ export default function ResellerProductDetails() {
     queryKey: ["/api/reviews/product", productId],
     enabled: !!productId,
   });
-
-  const isDynamicMode = (product as any)?.dynamicMode === true;
-
-  const { data: variants = [] } = useQuery<ProductVariant[]>({
-    queryKey: ["/api/products", productId, "variants"],
-    queryFn: async () => {
-      const response = await fetch(`/api/products/${productId}/variants`);
-      if (!response.ok) throw new Error("Failed to fetch variants");
-      return response.json();
-    },
-    enabled: !!productId && isDynamicMode,
-  });
-
-  const activeVariants = variants.filter((v) => v.active !== false);
-  const selectedVariant = activeVariants.find((v) => v.id.toString() === selectedVariantId);
-
-  // Removed auto-selection of first variant so user sees "A partir de" price and must choose manually
 
   useEffect(() => {
     if (reseller) {
@@ -93,80 +68,29 @@ export default function ResellerProductDetails() {
 
   const themeColor = reseller.themeColor || "#3B82F6";
   
-  const getStockInfo = () => {
-    if (isDynamicMode) {
-      if (selectedVariant) {
-        const lines = selectedVariant.stock?.split("\n").filter((line) => line.trim()) || [];
-        return { stockLines: lines, hasStock: lines.length > 0 };
-      }
-      // No variant selected - count total stock from all active variants
-      let totalStock = 0;
-      activeVariants.forEach((v) => {
-        const lines = v.stock?.split("\n").filter((line: string) => line.trim()) || [];
-        totalStock += lines.length;
-      });
-      return { stockLines: new Array(totalStock), hasStock: totalStock > 0 };
-    }
-    const lines = product.stock?.split("\n").filter((line) => line.trim()) || [];
-    return { stockLines: lines, hasStock: lines.length > 0 };
-  };
+  const stockLines = product.stock?.split("\n").filter((line: string) => line.trim()) || [];
+  const hasStock = stockLines.length > 0;
   
-  const { stockLines, hasStock } = getStockInfo();
-  
-  const displayPrice = isDynamicMode && selectedVariant 
-    ? parseFloat(selectedVariant.price as any) 
-    : parseFloat(product.currentPrice as any);
+  const displayPrice = parseFloat(product.currentPrice as any);
   const displayOriginalPrice = parseFloat(product.originalPrice as any);
 
   const handleAddToCart = () => {
-    if (isDynamicMode && !selectedVariant) {
-      toast({
-        title: "Selecione uma opção",
-        description: "Por favor, selecione uma opção antes de adicionar ao carrinho",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     if (hasStock) {
       const productWithSeller = { ...product, resellerId: reseller.id };
-      const variantInfo = isDynamicMode && selectedVariant ? {
-        id: selectedVariant.id,
-        name: selectedVariant.name,
-        price: selectedVariant.price as string,
-      } : undefined;
-      
-      addToCart(productWithSeller, variantInfo);
+      addToCart(productWithSeller);
       setAddedToCart(true);
       toast({
         title: "Adicionado ao carrinho!",
-        description: isDynamicMode && selectedVariant 
-          ? `${product.name} - ${selectedVariant.name}` 
-          : product.name,
+        description: product.name,
       });
       setTimeout(() => setAddedToCart(false), 2000);
     }
   };
 
   const handleBuyNow = () => {
-    if (isDynamicMode && !selectedVariant) {
-      toast({
-        title: "Selecione uma opção",
-        description: "Por favor, selecione uma opção antes de comprar",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     if (hasStock) {
       const productWithSeller = { ...product, resellerId: reseller.id };
-      const variantInfo = isDynamicMode && selectedVariant ? {
-        id: selectedVariant.id,
-        name: selectedVariant.name,
-        price: selectedVariant.price as string,
-      } : undefined;
-      
-      addToCart(productWithSeller, variantInfo);
+      addToCart(productWithSeller);
       setTimeout(() => {
         setIsCheckoutOpen(true);
       }, 50);
@@ -184,7 +108,6 @@ export default function ResellerProductDetails() {
 
       <div className="min-h-screen pb-32 md:pb-8" style={{ backgroundColor: "#121212" }}>
         <div className="max-w-4xl mx-auto px-4 py-6">
-          {/* Header with back button and cart */}
           <div className="flex items-center justify-between mb-6">
             <Button
               variant="ghost"
@@ -215,7 +138,6 @@ export default function ResellerProductDetails() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Imagem do Produto */}
             <div>
               {product.imageUrl ? (
                 <img
@@ -231,90 +153,41 @@ export default function ResellerProductDetails() {
               )}
             </div>
 
-            {/* Informações do Produto */}
             <div className="space-y-4">
               <h1 className="text-2xl md:text-3xl font-bold text-white" data-testid="text-product-name">
                 {product.name}
               </h1>
 
-              {/* Preço */}
               <div className="flex items-center gap-3">
                 <p className="text-3xl font-bold" style={{ color: themeColor }} data-testid="text-price">
-                  {isDynamicMode && !selectedVariant && <span className="text-sm font-normal opacity-70">A partir de </span>}
                   R$ {displayPrice.toFixed(2)}
                 </p>
-                {!isDynamicMode && (
-                  <p className="text-lg text-gray-500 line-through">
-                    R$ {displayOriginalPrice.toFixed(2)}
-                  </p>
-                )}
+                <p className="text-lg text-gray-500 line-through">
+                  R$ {displayOriginalPrice.toFixed(2)}
+                </p>
               </div>
 
-              {/* Seletor de Variantes */}
-              {isDynamicMode && activeVariants.length > 0 && (
-                <div className="space-y-2">
-                  <label className="text-white text-sm font-medium">Escolha uma opção:</label>
-                  <Select
-                    value={selectedVariantId || ""}
-                    onValueChange={setSelectedVariantId}
-                  >
-                    <SelectTrigger 
-                      className="w-full bg-gray-800 border-gray-600 text-white"
-                      data-testid="select-variant"
-                    >
-                      <SelectValue placeholder="Selecione uma opção" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-800 border-gray-600">
-                      {activeVariants.map((variant) => {
-                        const variantStockLines = variant.stock?.split("\n").filter((line) => line.trim()) || [];
-                        const variantHasStock = variantStockLines.length > 0;
-                        return (
-                          <SelectItem 
-                            key={variant.id} 
-                            value={variant.id.toString()}
-                            className="text-white focus:bg-gray-700 focus:text-white"
-                            disabled={!variantHasStock}
-                            data-testid={`select-variant-option-${variant.id}`}
-                          >
-                            <div className="flex items-center justify-between gap-4 w-full">
-                              <span>{variant.name}</span>
-                              <span className="text-sm">
-                                R$ {parseFloat(variant.price as any).toFixed(2)}
-                                {!variantHasStock && " (Esgotado)"}
-                              </span>
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {/* Badges */}
               <div className="flex flex-wrap gap-2">
                 <span className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-full bg-green-500/20 text-green-400 border border-green-500/30">
                   <Zap className="w-3 h-3" />
-                  Entrega Automática
+                  Entrega Automatica
                 </span>
                 <span className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
                   <Headphones className="w-3 h-3" />
                   Suporte Incluso
                 </span>
                 <span className={`inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-full ${hasStock ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'} border`}>
-                  {hasStock ? `${stockLines.length} disponível` : 'Esgotado'}
+                  {hasStock ? `${stockLines.length} disponivel` : 'Esgotado'}
                 </span>
               </div>
 
-              {/* Descrição */}
               <Card className="p-4" style={{ backgroundColor: "#1E1E1E", border: "1px solid rgba(255,255,255,0.1)" }}>
-                <h3 className="text-white font-semibold mb-2">Descrição</h3>
+                <h3 className="text-white font-semibold mb-2">Descricao</h3>
                 <p className="text-gray-400 text-sm whitespace-pre-wrap">
-                  {product.description || "Sem descrição disponível."}
+                  {product.description || "Sem descricao disponivel."}
                 </p>
               </Card>
 
-              {/* Suporte */}
               <Card className="p-4" style={{ backgroundColor: "#1E1E1E", border: "1px solid rgba(255,255,255,0.1)" }}>
                 <div className="flex items-center gap-2 mb-2">
                   <Headphones className="w-5 h-5" style={{ color: themeColor }} />
@@ -332,30 +205,27 @@ export default function ResellerProductDetails() {
                 </div>
               </Card>
 
-              {/* Como Resgatar */}
               <Card className="p-4" style={{ backgroundColor: "#1E1E1E", border: "1px solid rgba(255,255,255,0.1)" }}>
                 <h3 className="text-white font-semibold mb-2">Como Resgatar</h3>
                 <ol className="text-gray-400 text-sm space-y-1 list-decimal list-inside">
                   <li>Realize o pagamento via PIX</li>
-                  <li>Aguarde a confirmação automática (até 1 minuto)</li>
+                  <li>Aguarde a confirmacao automatica (ate 1 minuto)</li>
                   <li>Receba os dados de acesso na tela e por email</li>
-                  <li>Ative seu produto seguindo as instruções</li>
+                  <li>Ative seu produto seguindo as instrucoes</li>
                 </ol>
               </Card>
 
-              {/* Pagamento */}
               <div className="flex items-center gap-2 text-sm text-gray-400">
                 <SiPix className="w-5 h-5 text-green-500" />
-                <span>Pagamento instantâneo via PIX</span>
+                <span>Pagamento instantaneo via PIX</span>
               </div>
 
-              {/* Avaliações de Clientes */}
               {productReviews.length > 0 && (
                 <Card className="p-4" style={{ backgroundColor: "#1E1E1E", border: "1px solid rgba(255,255,255,0.1)" }}>
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                       <MessageCircle className="w-5 h-5" style={{ color: themeColor }} />
-                      <h3 className="text-white font-semibold">Avaliações de Clientes</h3>
+                      <h3 className="text-white font-semibold">Avaliacoes de Clientes</h3>
                     </div>
                     <div className="flex items-center gap-1">
                       <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
@@ -420,7 +290,6 @@ export default function ResellerProductDetails() {
                 </Card>
               )}
 
-              {/* Botões Desktop */}
               <div className="hidden md:flex gap-3">
                 <Button
                   onClick={handleAddToCart}
@@ -447,7 +316,6 @@ export default function ResellerProductDetails() {
           </div>
         </div>
 
-        {/* Botões Mobile Fixos */}
         <div
           className="fixed md:hidden bottom-0 left-0 right-0 p-4 flex gap-3 z-50"
           style={{ backgroundColor: "#1A1A1A", borderTop: "1px solid rgba(255,255,255,0.1)" }}
