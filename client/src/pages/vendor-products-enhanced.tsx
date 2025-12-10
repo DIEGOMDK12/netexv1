@@ -1,13 +1,12 @@
 import { useState, useMemo, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Plus, Trash2, Edit2, Loader2, Upload, Image, ChevronDown } from "lucide-react";
+import { Plus, Trash2, Edit2, Loader2, Upload, Image, ChevronDown, Layers, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Product, Category, ProductVariant } from "@shared/schema";
@@ -172,6 +171,7 @@ function ProductCardWithVariants({
 
 export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
   const { toast } = useToast();
+  const [showProductTypeSelector, setShowProductTypeSelector] = useState(false);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
@@ -611,7 +611,10 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
       <div className="flex items-center justify-between flex-col sm:flex-row gap-4">
         <h1 className="text-3xl font-bold text-white">Meus Produtos</h1>
         <Button
-          onClick={() => setIsAddingProduct(!isAddingProduct)}
+          onClick={() => {
+            setEditingProductId(null);
+            setShowProductTypeSelector(true);
+          }}
           className="w-full sm:w-auto flex items-center gap-2"
           style={{
             background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)",
@@ -624,6 +627,102 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
           Novo Produto
         </Button>
       </div>
+
+      {/* Product Type Selection Modal */}
+      {showProductTypeSelector && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setShowProductTypeSelector(false)}
+        >
+          <div 
+            className="w-full max-w-md mx-4 p-6 rounded-xl space-y-4"
+            style={{
+              background: "rgba(30, 30, 40, 0.95)",
+              backdropFilter: "blur(20px)",
+              border: "1px solid rgba(255, 255, 255, 0.15)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center mb-6">
+              <h2 className="text-xl font-bold text-white mb-2">Escolha o tipo de anúncio</h2>
+              <p className="text-sm text-gray-400">Selecione como você deseja vender este produto</p>
+            </div>
+
+            {/* Option 1 - Dynamic/Variants */}
+            <button
+              onClick={() => {
+                setShowProductTypeSelector(false);
+                setDynamicMode(true);
+                setVariants([{ name: "", price: "", stock: "" }]);
+                setFormData({ name: "", price: "", originalPrice: "", description: "", imageUrl: "", stock: "", category: "", subcategory: "", deliveryContent: "" });
+                setIsAddingProduct(true);
+              }}
+              className="w-full p-4 rounded-lg text-left transition-all duration-200 group"
+              style={{
+                background: "linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(59, 130, 246, 0.15))",
+                border: "1px solid rgba(139, 92, 246, 0.3)",
+              }}
+              data-testid="button-select-dynamic-product"
+            >
+              <div className="flex items-start gap-4">
+                <div 
+                  className="p-3 rounded-lg shrink-0"
+                  style={{ background: "linear-gradient(135deg, #8b5cf6, #3b82f6)" }}
+                >
+                  <Layers className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white mb-1">Produto com Variantes (Dinâmico)</h3>
+                  <p className="text-sm text-gray-400">
+                    Para produtos com múltiplas opções. Ex: Netflix (30 Dias / Vitalício), Jogos (Diamantes / Moedas).
+                  </p>
+                </div>
+              </div>
+            </button>
+
+            {/* Option 2 - Simple Product */}
+            <button
+              onClick={() => {
+                setShowProductTypeSelector(false);
+                setDynamicMode(false);
+                setVariants([]);
+                setFormData({ name: "", price: "", originalPrice: "", description: "", imageUrl: "", stock: "", category: "", subcategory: "", deliveryContent: "" });
+                setIsAddingProduct(true);
+              }}
+              className="w-full p-4 rounded-lg text-left transition-all duration-200 group"
+              style={{
+                background: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+              }}
+              data-testid="button-select-simple-product"
+            >
+              <div className="flex items-start gap-4">
+                <div 
+                  className="p-3 rounded-lg shrink-0"
+                  style={{ background: "rgba(34, 197, 94, 0.2)", border: "1px solid rgba(34, 197, 94, 0.3)" }}
+                >
+                  <Tag className="w-6 h-6 text-green-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white mb-1">Produto Simples</h3>
+                  <p className="text-sm text-gray-400">
+                    Para venda única. Ex: Uma conta específica, uma chave de ativação.
+                  </p>
+                </div>
+              </div>
+            </button>
+
+            <Button
+              variant="ghost"
+              onClick={() => setShowProductTypeSelector(false)}
+              className="w-full mt-4 text-gray-400"
+              data-testid="button-cancel-type-selection"
+            >
+              Cancelar
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteConfirm !== null} onOpenChange={() => setShowDeleteConfirm(null)}>
@@ -661,19 +760,35 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
             <CardTitle className="text-white">{editingProductId ? "Editar Produto" : "Novo Produto"}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Dynamic Mode Toggle - First */}
-            <div className="flex items-center justify-between p-4 rounded-lg" style={{ background: "linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(59, 130, 246, 0.2))", border: "1px solid rgba(139, 92, 246, 0.3)" }}>
-              <div className="space-y-1">
-                <Label className="text-white font-semibold">Modo Dinâmico (Revenda)</Label>
-                <p className="text-xs text-gray-300">Ative para vender múltiplos itens com preços individuais nas variantes</p>
-              </div>
-              <Switch
-                checked={dynamicMode}
-                onCheckedChange={(checked) => {
-                  setDynamicMode(checked);
-                }}
-                data-testid="switch-dynamic-mode"
-              />
+            {/* Product Type Indicator */}
+            <div 
+              className="flex items-center gap-3 p-3 rounded-lg"
+              style={{ 
+                background: dynamicMode 
+                  ? "linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(59, 130, 246, 0.15))"
+                  : "rgba(34, 197, 94, 0.1)",
+                border: dynamicMode 
+                  ? "1px solid rgba(139, 92, 246, 0.3)"
+                  : "1px solid rgba(34, 197, 94, 0.3)",
+              }}
+            >
+              {dynamicMode ? (
+                <>
+                  <Layers className="w-5 h-5 text-purple-400" />
+                  <div>
+                    <span className="text-white font-medium text-sm">Produto com Variantes</span>
+                    <p className="text-xs text-gray-400">Preço e estoque definidos por variante</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Tag className="w-5 h-5 text-green-400" />
+                  <div>
+                    <span className="text-white font-medium text-sm">Produto Simples</span>
+                    <p className="text-xs text-gray-400">Preço e estoque únicos</p>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -1055,7 +1170,10 @@ Chave123456"
           <CardContent className="text-center py-12">
             <p className="text-gray-400 mb-4">Nenhum produto cadastrado ainda</p>
             <Button
-              onClick={() => setIsAddingProduct(true)}
+              onClick={() => {
+                setEditingProductId(null);
+                setShowProductTypeSelector(true);
+              }}
               variant="outline"
               data-testid="button-add-first-product"
             >
