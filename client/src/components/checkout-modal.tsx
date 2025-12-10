@@ -248,6 +248,13 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
 
     setIsCreatingOrder(true);
     try {
+      // Save customer info for future purchases
+      localStorage.setItem("customer_email", email);
+      localStorage.setItem("customer_whatsapp", whatsapp);
+      if (customerName.trim()) {
+        localStorage.setItem("customer_name", customerName.trim());
+      }
+
       const response = await apiRequest("POST", "/api/orders", {
         email,
         whatsapp,
