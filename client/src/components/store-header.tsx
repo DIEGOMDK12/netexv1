@@ -34,7 +34,7 @@ export function StoreHeader({ themeColor, textColor, storeName, logoUrl }: Store
             style={{ color: textColor || "#FFFFFF" }}
             data-testid="text-store-name"
           >
-            {storeName || "NexStore"}
+            {storeName || "ELITEVAULT"}
           </h1>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M22.5 12.5C22.5 12.5 23 11 23 9.5C23 8 22 7 21 7C20 7 19 6 18.5 5.5C18 5 18 4 18 3C18 2 17 1 16 1C15 1 14 1.5 13 2C12 2.5 11 2.5 10 2C9 1.5 8 1 7 1C6 1 5 2 5 3C5 4 5 5 4.5 5.5C4 6 3 7 2 7C1 7 0 8 0 9.5C0 11 0.5 12.5 0.5 12.5C0.5 12.5 0 14 0 15.5C0 17 1 18 2 18C3 18 4 19 4.5 19.5C5 20 5 21 5 22C5 23 6 24 7 24C8 24 9 23.5 10 23C11 22.5 12 22.5 13 23C14 23.5 15 24 16 24C17 24 18 23 18 22C18 21 18 20 18.5 19.5C19 19 20 18 21 18C22 18 23 17 23 15.5C23 14 22.5 12.5 22.5 12.5Z" fill="#3B82F6"/>

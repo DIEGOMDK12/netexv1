@@ -65,7 +65,7 @@ export default function ResellerStore() {
       setCurrentReseller(reseller);
 
       // Update dynamic meta tags for this reseller
-      const title = reseller.storeName || "NexStore - Produtos Digitais Premium";
+      const title = reseller.storeName || "ELITEVAULT - Produtos Digitais Premium";
       const description = reseller.storeDescription || "Plataforma para vender produtos digitais. Crie sua loja online e venda streaming, games, contas premium com pagamento PIX, Stripe e PagSeguro. Entrega instantânea via email.";
       const ogImage = reseller.ogImageUrl || "/og-image.png";
       const favicon = reseller.faviconUrl || "/favicon.png";

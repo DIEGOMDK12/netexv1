@@ -5,7 +5,7 @@ import { useStore } from "@/lib/store-context";
 
 export default function RefundPolicy() {
   const { settings } = useStore();
-  const storeName = settings?.storeName || "NexStore";
+  const storeName = settings?.storeName || "ELITEVAULT";
 
   return (
     <div className="min-h-screen bg-[#0f172a]">

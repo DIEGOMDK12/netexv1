@@ -187,8 +187,8 @@ export default function Home() {
       <header className="sticky top-0 z-50 bg-[#0f172a]/95 backdrop-blur-md border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <img src={nexStoreLogo} alt="NEX STORE" className="w-8 h-8 rounded-lg" />
-            <span className="text-lg font-bold text-white">NEX STORE</span>
+            <img src={nexStoreLogo} alt="ELITEVAULT" className="w-8 h-8 rounded-lg" />
+            <span className="text-lg font-bold text-white">ELITEVAULT</span>
           </div>
           
           <div className="flex items-center gap-2">
@@ -587,11 +587,11 @@ export default function Home() {
       <footer className="border-t border-white/5 py-8 px-4">
         <div className="max-w-7xl mx-auto text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <img src={nexStoreLogo} alt="NEX STORE" className="w-6 h-6 rounded" />
-            <span className="font-bold text-white">NEX STORE</span>
+            <img src={nexStoreLogo} alt="ELITEVAULT" className="w-6 h-6 rounded" />
+            <span className="font-bold text-white">ELITEVAULT</span>
           </div>
           <p className="text-sm text-gray-500">
-            2024 NEX STORE. Todos os direitos reservados.
+            2024 ELITEVAULT. Todos os direitos reservados.
           </p>
         </div>
       </footer>
