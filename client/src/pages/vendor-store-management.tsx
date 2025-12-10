@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { 
   Plus, Trash2, Edit2, Loader2, Upload, ChevronDown, ChevronUp,
-  GripVertical, FolderOpen, Eye, EyeOff, Package, X, Image
+  GripVertical, FolderOpen, Eye, EyeOff, Package, X, Image, Star
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,6 +82,7 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
     subcategory: "",
     active: true,
     limitPerUser: false,
+    isPremium: false,
   });
 
   // Fetch vendor categories for organizing products
@@ -266,6 +267,7 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
       subcategory: "",
       active: true,
       limitPerUser: false,
+      isPremium: false,
     });
   };
 
@@ -314,6 +316,7 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
       subcategory: (product as any).subcategory || "",
       active: product.active ?? true,
       limitPerUser: product.limitPerUser ?? false,
+      isPremium: (product as any).isPremium ?? false,
     });
     setShowProductModal(true);
   };
@@ -362,6 +365,7 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
       subcategory: productForm.subcategory || null,
       active: productForm.active,
       limitPerUser: productForm.limitPerUser,
+      isPremium: productForm.isPremium,
       resellerId: vendorId,
     };
 
@@ -600,34 +604,32 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
               </div>
             </div>
 
-            {!productForm.dynamicMode && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-gray-300">Preço Atual (R$) *</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={productForm.currentPrice}
-                    onChange={(e) => setProductForm((prev) => ({ ...prev, currentPrice: e.target.value }))}
-                    placeholder="29.90"
-                    className="bg-gray-800 border-gray-600 text-white"
-                    data-testid="input-product-price"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-gray-300">Preço Original (R$) *</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={productForm.originalPrice}
-                    onChange={(e) => setProductForm((prev) => ({ ...prev, originalPrice: e.target.value }))}
-                    placeholder="49.90"
-                    className="bg-gray-800 border-gray-600 text-white"
-                    data-testid="input-product-original-price"
-                  />
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-gray-300">Preço Atual (R$) *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={productForm.currentPrice}
+                  onChange={(e) => setProductForm((prev) => ({ ...prev, currentPrice: e.target.value }))}
+                  placeholder="29.90"
+                  className="bg-gray-800 border-gray-600 text-white"
+                  data-testid="input-product-price"
+                />
               </div>
-            )}
+              <div className="space-y-2">
+                <Label className="text-gray-300">Preço Original (R$) *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={productForm.originalPrice}
+                  onChange={(e) => setProductForm((prev) => ({ ...prev, originalPrice: e.target.value }))}
+                  placeholder="49.90"
+                  className="bg-gray-800 border-gray-600 text-white"
+                  data-testid="input-product-original-price"
+                />
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -836,6 +838,28 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
                   </span>
                 </Label>
               </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <Switch
+                id="isPremium"
+                checked={productForm.isPremium}
+                onCheckedChange={(checked) => 
+                  setProductForm((prev) => ({ ...prev, isPremium: checked }))
+                }
+                data-testid="switch-product-premium"
+              />
+              <Label htmlFor="isPremium" className="text-gray-300 cursor-pointer">
+                <div className="flex items-center gap-2">
+                  <Star className="w-4 h-4 text-yellow-400" />
+                  Anúncio Premium
+                </div>
+                <span className="text-xs text-gray-500 block">
+                  {productForm.isPremium 
+                    ? "Taxa de 5% sobre vendas + destaque nas buscas e divulgações" 
+                    : "Taxa padrão sem destaque"}
+                </span>
+              </Label>
             </div>
           </div>
           <DialogFooter>

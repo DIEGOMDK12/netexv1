@@ -115,6 +115,13 @@ async function runStartupMigrations() {
     `);
     console.log("[Migration] Added variant_id and variant_name columns to order_items table");
     
+    // Add is_premium column to products table for premium listings
+    await client.query(`
+      ALTER TABLE products 
+      ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE
+    `);
+    console.log("[Migration] Added is_premium column to products table");
+    
     client.release();
     console.log("[Migration] Startup migrations completed successfully");
   } catch (error: any) {

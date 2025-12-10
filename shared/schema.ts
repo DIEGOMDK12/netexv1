@@ -124,6 +124,7 @@ export const products = pgTable("products", {
   active: boolean("active").notNull().default(true),
   limitPerUser: boolean("limit_per_user").default(false),
   dynamicMode: boolean("dynamic_mode").default(false),
+  isPremium: boolean("is_premium").default(false),
   resellerId: integer("reseller_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
