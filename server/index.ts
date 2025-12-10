@@ -424,13 +424,30 @@ async function verifyPendingPayments() {
               if (reseller) {
                 const valorVenda = parseFloat(order.totalAmount as string || "0");
                 const currentBalance = parseFloat(reseller.walletBalance as string || "0");
-                const newBalance = currentBalance + valorVenda;
+                
+                // Calcular taxa de 10% para produtos premium
+                let taxaPremium = 0;
+                for (const item of items) {
+                  const product = await storage.getProduct(item.productId);
+                  if (product && product.isPremium) {
+                    const itemValue = parseFloat(item.price as string || "0") * (item.quantity || 1);
+                    taxaPremium += itemValue * 0.10; // 10% de taxa
+                  }
+                }
+                
+                // Valor líquido = valor da venda - taxa premium
+                const valorLiquido = valorVenda - taxaPremium;
+                const newBalance = currentBalance + valorLiquido;
 
                 await storage.updateReseller(order.resellerId, {
                   walletBalance: newBalance.toFixed(2),
                   totalSales: (parseFloat(reseller.totalSales as string || "0") + valorVenda).toFixed(2),
-                  totalCommission: (parseFloat(reseller.totalCommission as string || "0") + valorVenda).toFixed(2),
+                  totalCommission: (parseFloat(reseller.totalCommission as string || "0") + taxaPremium).toFixed(2),
                 });
+                
+                if (taxaPremium > 0) {
+                  console.log(`[Payment Verify Cron] ✓ Taxa premium aplicada: R$ ${taxaPremium.toFixed(2)} (10%)`);
+                }
                 console.log(`[Payment Verify Cron] ✓ Saldo revendedor atualizado: R$ ${newBalance.toFixed(2)}`);
               }
             }

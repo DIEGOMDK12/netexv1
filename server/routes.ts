@@ -457,13 +457,33 @@ export async function registerRoutes(
           if (reseller) {
             const valorVenda = parseFloat(order.totalAmount as string || "0");
             const currentBalance = parseFloat(reseller.walletBalance as string || "0");
-            const newBalance = currentBalance + valorVenda;
+            
+            // Calcular taxa de 10% para produtos premium
+            const orderItemsForFee = await storage.getOrderItems(orderId);
+            let taxaPremium = 0;
+            
+            for (const item of orderItemsForFee) {
+              const product = await storage.getProduct(item.productId);
+              if (product && product.isPremium) {
+                const itemValue = parseFloat(item.price as string || "0") * (item.quantity || 1);
+                taxaPremium += itemValue * 0.10; // 10% de taxa
+              }
+            }
+            
+            // Valor líquido = valor da venda - taxa premium
+            const valorLiquido = valorVenda - taxaPremium;
+            const newBalance = currentBalance + valorLiquido;
 
             await storage.updateReseller(order.resellerId, {
               walletBalance: newBalance.toFixed(2),
               totalSales: (parseFloat(reseller.totalSales as string || "0") + valorVenda).toFixed(2),
-              totalCommission: (parseFloat(reseller.totalCommission as string || "0") + valorVenda).toFixed(2),
+              totalCommission: (parseFloat(reseller.totalCommission as string || "0") + taxaPremium).toFixed(2),
             });
+            
+            if (taxaPremium > 0) {
+              console.log(`[/webhook] ✓ Taxa premium aplicada: R$ ${taxaPremium.toFixed(2)} (10%)`);
+              console.log(`[/webhook] ✓ Valor líquido revendedor: R$ ${valorLiquido.toFixed(2)}`);
+            }
             console.log("[/webhook] ✓ Saldo revendedor atualizado:", newBalance.toFixed(2));
           }
         }
@@ -987,13 +1007,30 @@ export async function registerRoutes(
           if (reseller) {
             const valorVenda = parseFloat(order.totalAmount as string || "0");
             const currentBalance = parseFloat(reseller.walletBalance as string || "0");
-            const newBalance = currentBalance + valorVenda;
+            
+            // Calcular taxa de 10% para produtos premium
+            let taxaPremium = 0;
+            for (const item of orderItems) {
+              const product = await storage.getProduct(item.productId);
+              if (product && product.isPremium) {
+                const itemValue = parseFloat(item.price as string || "0") * (item.quantity || 1);
+                taxaPremium += itemValue * 0.10; // 10% de taxa
+              }
+            }
+            
+            // Valor líquido = valor da venda - taxa premium
+            const valorLiquido = valorVenda - taxaPremium;
+            const newBalance = currentBalance + valorLiquido;
 
             await storage.updateReseller(order.resellerId, {
               walletBalance: newBalance.toFixed(2),
               totalSales: (parseFloat(reseller.totalSales as string || "0") + valorVenda).toFixed(2),
-              totalCommission: (parseFloat(reseller.totalCommission as string || "0") + valorVenda).toFixed(2),
+              totalCommission: (parseFloat(reseller.totalCommission as string || "0") + taxaPremium).toFixed(2),
             });
+            
+            if (taxaPremium > 0) {
+              console.log(`[POST /api/admin/orders/:id/approve] ✓ Taxa premium aplicada: R$ ${taxaPremium.toFixed(2)} (10%)`);
+            }
             console.log(`[POST /api/admin/orders/:id/approve] ✓ Saldo revendedor atualizado: R$ ${newBalance.toFixed(2)}`);
           }
         }
@@ -1589,13 +1626,30 @@ export async function registerRoutes(
                   if (reseller) {
                     const valorVenda = parseFloat(order.totalAmount as string || "0");
                     const currentBalance = parseFloat(reseller.walletBalance as string || "0");
-                    const newBalance = currentBalance + valorVenda;
+                    
+                    // Calcular taxa de 10% para produtos premium
+                    let taxaPremium = 0;
+                    for (const item of orderItems) {
+                      const product = await storage.getProduct(item.productId);
+                      if (product && product.isPremium) {
+                        const itemValue = parseFloat(item.price as string || "0") * (item.quantity || 1);
+                        taxaPremium += itemValue * 0.10; // 10% de taxa
+                      }
+                    }
+                    
+                    // Valor líquido = valor da venda - taxa premium
+                    const valorLiquido = valorVenda - taxaPremium;
+                    const newBalance = currentBalance + valorLiquido;
 
                     await storage.updateReseller(order.resellerId, {
                       walletBalance: newBalance.toFixed(2),
                       totalSales: (parseFloat(reseller.totalSales as string || "0") + valorVenda).toFixed(2),
-                      totalCommission: (parseFloat(reseller.totalCommission as string || "0") + valorVenda).toFixed(2),
+                      totalCommission: (parseFloat(reseller.totalCommission as string || "0") + taxaPremium).toFixed(2),
                     });
+                    
+                    if (taxaPremium > 0) {
+                      console.log(`[GET /api/orders/:id/status] ✓ Taxa premium aplicada: R$ ${taxaPremium.toFixed(2)} (10%)`);
+                    }
                     console.log(`[GET /api/orders/:id/status] ✓ Saldo revendedor atualizado: R$ ${newBalance.toFixed(2)}`);
                   }
                 }
@@ -1759,13 +1813,30 @@ export async function registerRoutes(
           if (reseller) {
             const valorVenda = parseFloat(order.totalAmount as string || "0");
             const currentBalance = parseFloat(reseller.walletBalance as string || "0");
-            const newBalance = currentBalance + valorVenda;
+            
+            // Calcular taxa de 10% para produtos premium
+            let taxaPremium = 0;
+            for (const item of orderItems) {
+              const product = await storage.getProduct(item.productId);
+              if (product && product.isPremium) {
+                const itemValue = parseFloat(item.price as string || "0") * (item.quantity || 1);
+                taxaPremium += itemValue * 0.10; // 10% de taxa
+              }
+            }
+            
+            // Valor líquido = valor da venda - taxa premium
+            const valorLiquido = valorVenda - taxaPremium;
+            const newBalance = currentBalance + valorLiquido;
 
             await storage.updateReseller(order.resellerId, {
               walletBalance: newBalance.toFixed(2),
               totalSales: (parseFloat(reseller.totalSales as string || "0") + valorVenda).toFixed(2),
-              totalCommission: (parseFloat(reseller.totalCommission as string || "0") + valorVenda).toFixed(2),
+              totalCommission: (parseFloat(reseller.totalCommission as string || "0") + taxaPremium).toFixed(2),
             });
+            
+            if (taxaPremium > 0) {
+              console.log(`[Simulate Payment] ✓ Taxa premium aplicada: R$ ${taxaPremium.toFixed(2)} (10%)`);
+            }
             console.log(`[Simulate Payment] ✓ Saldo revendedor atualizado: R$ ${newBalance.toFixed(2)}`);
           }
         }
@@ -2345,13 +2416,32 @@ export async function registerRoutes(
           if (reseller) {
             const valorVenda = parseFloat(order.totalAmount as string || "0");
             const currentBalance = parseFloat(reseller.walletBalance as string || "0");
-            const newBalance = currentBalance + valorVenda;
+            
+            // Calcular taxa de 10% para produtos premium
+            const orderItemsForFee = await storage.getOrderItems(orderId);
+            let taxaPremium = 0;
+            
+            for (const item of orderItemsForFee) {
+              const product = await storage.getProduct(item.productId);
+              if (product && product.isPremium) {
+                const itemValue = parseFloat(item.price as string || "0") * (item.quantity || 1);
+                taxaPremium += itemValue * 0.10; // 10% de taxa
+              }
+            }
+            
+            // Valor líquido = valor da venda - taxa premium
+            const valorLiquido = valorVenda - taxaPremium;
+            const newBalance = currentBalance + valorLiquido;
 
             await storage.updateReseller(order.resellerId, {
               walletBalance: newBalance.toFixed(2),
               totalSales: (parseFloat(reseller.totalSales as string || "0") + valorVenda).toFixed(2),
-              totalCommission: (parseFloat(reseller.totalCommission as string || "0") + valorVenda).toFixed(2),
+              totalCommission: (parseFloat(reseller.totalCommission as string || "0") + taxaPremium).toFixed(2),
             });
+            
+            if (taxaPremium > 0) {
+              console.log(`[Webhook] ✓ Taxa premium aplicada: R$ ${taxaPremium.toFixed(2)} (10%)`);
+            }
             console.log("[Webhook] Saldo revendedor atualizado:", newBalance.toFixed(2));
           }
         }
@@ -2802,13 +2892,30 @@ export async function registerRoutes(
             if (reseller) {
               const valorVenda = parseFloat(order.totalAmount as string || "0");
               const currentBalance = parseFloat(reseller.walletBalance as string || "0");
-              const newBalance = currentBalance + valorVenda;
+              
+              // Calcular taxa de 10% para produtos premium
+              let taxaPremium = 0;
+              for (const item of orderItems) {
+                const product = await storage.getProduct(item.productId);
+                if (product && product.isPremium) {
+                  const itemValue = parseFloat(item.price as string || "0") * (item.quantity || 1);
+                  taxaPremium += itemValue * 0.10; // 10% de taxa
+                }
+              }
+              
+              // Valor líquido = valor da venda - taxa premium
+              const valorLiquido = valorVenda - taxaPremium;
+              const newBalance = currentBalance + valorLiquido;
 
               await storage.updateReseller(order.resellerId, {
                 walletBalance: newBalance.toFixed(2),
                 totalSales: (parseFloat(reseller.totalSales as string || "0") + valorVenda).toFixed(2),
-                totalCommission: (parseFloat(reseller.totalCommission as string || "0") + valorVenda).toFixed(2),
+                totalCommission: (parseFloat(reseller.totalCommission as string || "0") + taxaPremium).toFixed(2),
               });
+              
+              if (taxaPremium > 0) {
+                console.log(`[PagSeguro Webhook] ✓ Taxa premium aplicada: R$ ${taxaPremium.toFixed(2)} (10%)`);
+              }
               console.log(`[PagSeguro Webhook] ✓ Saldo revendedor atualizado: R$ ${newBalance.toFixed(2)}`);
             }
           }
@@ -4902,13 +5009,30 @@ export async function registerRoutes(
           if (reseller) {
             const valorVenda = parseFloat(order.totalAmount as string || "0");
             const currentBalance = parseFloat(reseller.walletBalance as string || "0");
-            const newBalance = currentBalance + valorVenda;
+            
+            // Calcular taxa de 10% para produtos premium
+            let taxaPremium = 0;
+            for (const item of orderItems) {
+              const product = await storage.getProduct(item.productId);
+              if (product && product.isPremium) {
+                const itemValue = parseFloat(item.price as string || "0") * (item.quantity || 1);
+                taxaPremium += itemValue * 0.10; // 10% de taxa
+              }
+            }
+            
+            // Valor líquido = valor da venda - taxa premium
+            const valorLiquido = valorVenda - taxaPremium;
+            const newBalance = currentBalance + valorLiquido;
 
             await storage.updateReseller(order.resellerId, {
               walletBalance: newBalance.toFixed(2),
               totalSales: (parseFloat(reseller.totalSales as string || "0") + valorVenda).toFixed(2),
-              totalCommission: (parseFloat(reseller.totalCommission as string || "0") + valorVenda).toFixed(2),
+              totalCommission: (parseFloat(reseller.totalCommission as string || "0") + taxaPremium).toFixed(2),
             });
+            
+            if (taxaPremium > 0) {
+              console.log(`[Vendor Approve] ✓ Taxa premium aplicada: R$ ${taxaPremium.toFixed(2)} (10%)`);
+            }
             console.log(`[Vendor Approve] ✓ Saldo revendedor atualizado: R$ ${newBalance.toFixed(2)}`);
           }
         }
