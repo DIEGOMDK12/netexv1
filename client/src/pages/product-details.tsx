@@ -92,7 +92,7 @@ export default function ProductDetails() {
 
   return (
     <div className="min-h-screen bg-[#0f172a]">
-      <div className="max-w-6xl mx-auto px-4 py-6 pb-40 md:pb-8">
+      <div className="max-w-6xl mx-auto px-4 py-6 pb-8">
         <Button
           variant="ghost"
           onClick={() => setLocation("/")}
@@ -392,30 +392,6 @@ export default function ProductDetails() {
             </div>
           </div>
         )}
-      </div>
-
-      <div className="fixed bottom-0 left-0 right-0 md:hidden bg-[#0f172a] border-t border-gray-700 p-4 z-50">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            {hasDiscount && (
-              <p className="text-xs line-through text-gray-500">
-                R$ {Number(product.originalPrice).toFixed(2)}
-              </p>
-            )}
-            <p className="text-xl font-bold text-blue-500">
-              R$ {displayPrice}
-            </p>
-          </div>
-          <Button
-            onClick={handleBuyNow}
-            disabled={!hasStock}
-            className="flex-1 py-3 text-base font-bold rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600"
-            data-testid="button-buy-now-mobile"
-          >
-            <ShoppingCart className="w-5 h-5 mr-2" />
-            COMPRAR
-          </Button>
-        </div>
       </div>
 
       <CheckoutModal 
