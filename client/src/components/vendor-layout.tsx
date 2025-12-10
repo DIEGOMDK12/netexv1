@@ -2,6 +2,7 @@ import { CheckCircle } from "lucide-react";
 import { VendorBottomNav } from "./vendor-bottom-nav";
 import { VendorNavbarDesktop } from "./vendor-navbar-desktop";
 import { Badge } from "@/components/ui/badge";
+import { useNotifications } from "@/hooks/use-notifications";
 
 interface VendorLayoutProps {
   currentPage: string;
@@ -25,6 +26,13 @@ export function VendorLayout({
   children,
 }: VendorLayoutProps) {
   const isVerified = verificationStatus === "verified";
+  
+  useNotifications({
+    vendorId,
+    vendorEmail,
+    enabled: !!vendorId || !!vendorEmail,
+  });
+
   return (
     <div className="flex flex-col h-screen" style={{ backgroundColor: "#121212" }}>
       {/* Desktop Navbar - Hidden on mobile */}
