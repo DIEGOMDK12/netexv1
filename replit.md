@@ -36,6 +36,7 @@ Preferred communication style: Simple, everyday language.
 - **Dynamic Content:** Dynamic meta tag injection for SEO and social sharing based on reseller settings.
 - **Category Management:** Drag-and-drop reordering for categories.
 - **Email Delivery:** Resend integration for transactional emails (order delivery, notifications).
+- **Dynamic Products (Variants):** Products can have multiple pricing options (variants) with independent names, prices, and stock. The product display price shows "A partir de R$" with the lowest variant price until customer selects a specific option. Validation requires at least 1 variant with name and price for dynamic products.
 
 ## External Dependencies
 
