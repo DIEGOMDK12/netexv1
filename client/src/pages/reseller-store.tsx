@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useRoute } from "wouter";
+import { useRoute, useLocation } from "wouter";
 import { Loader2, Store, ShoppingCart, Search, Headphones, Package, Zap, Gift, Sparkles, Star, ThumbsUp, ShoppingBag } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import type { Product, Reseller, Review } from "@shared/schema";
 import { CheckoutModal } from "@/components/checkout-modal";
 import { useStore } from "@/lib/store-context";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { AnnouncementBar } from "@/components/announcement-bar";
 
 interface SellerStats {
@@ -19,12 +20,20 @@ interface SellerStats {
 
 export default function ResellerStore() {
   const [match, params] = useRoute("/loja/:slug");
+  const [, setLocation] = useLocation();
   const slug = params?.slug as string;
   const { addToCart, addToCartOnce, cartCount, setCurrentReseller } = useStore();
   const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const isLoggedIn = () => {
+    const vendorId = localStorage.getItem("vendor_id");
+    const vendorToken = localStorage.getItem("vendor_token");
+    return !!vendorId && !!vendorToken;
+  };
 
   const { data: reseller, isLoading: resellerLoading } = useQuery<Reseller>({
     queryKey: ["/api/reseller", slug],
@@ -158,6 +167,14 @@ export default function ResellerStore() {
   }, [validProducts]);
 
   const handleBuyClick = (product: Product) => {
+    if (!isLoggedIn()) {
+      toast({
+        title: "Faça login para comprar",
+        description: "Entre na sua conta ou cadastre-se para continuar",
+      });
+      setLocation("/login");
+      return;
+    }
     const productWithSeller = {
       ...product,
       resellerId: reseller?.id || product.resellerId

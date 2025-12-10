@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CheckoutModal } from "@/components/checkout-modal";
 import { ProductCard } from "@/components/product-card";
 import { useStore } from "@/lib/store-context";
+import { useToast } from "@/hooks/use-toast";
 import { SiPix } from "react-icons/si";
 import type { Product, Settings, Reseller, Review } from "@shared/schema";
 
@@ -15,8 +16,15 @@ export default function ProductDetails() {
   const [, setLocation] = useLocation();
   const [match, params] = useRoute("/product/:id");
   const { addToCart, addToCartOnce, setIsCartOpen } = useStore();
+  const { toast } = useToast();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
+
+  const isLoggedIn = () => {
+    const vendorId = localStorage.getItem("vendor_id");
+    const vendorToken = localStorage.getItem("vendor_token");
+    return !!vendorId && !!vendorToken;
+  };
 
   const productId = params?.id ? String(params.id) : null;
 
@@ -75,6 +83,14 @@ export default function ProductDetails() {
   const displayPrice = Number(product.currentPrice).toFixed(2);
 
   const handleAddToCart = () => {
+    if (!isLoggedIn()) {
+      toast({
+        title: "Faça login para comprar",
+        description: "Entre na sua conta ou cadastre-se para continuar",
+      });
+      setLocation("/login");
+      return;
+    }
     if (hasStock) {
       addToCart(product);
       setIsCartOpen(true);
@@ -82,6 +98,14 @@ export default function ProductDetails() {
   };
 
   const handleBuyNow = () => {
+    if (!isLoggedIn()) {
+      toast({
+        title: "Faça login para comprar",
+        description: "Entre na sua conta ou cadastre-se para continuar",
+      });
+      setLocation("/login");
+      return;
+    }
     if (hasStock) {
       addToCartOnce(product);
       setIsCheckoutOpen(true);

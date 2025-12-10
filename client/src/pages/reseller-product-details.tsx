@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useRoute } from "wouter";
+import { useRoute, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ShoppingCart, Zap, Shield, Headphones, Star, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,12 +12,19 @@ import type { Product, Reseller } from "@shared/schema";
 
 export default function ResellerProductDetails() {
   const [, params] = useRoute("/loja/:slug/produto/:productId");
+  const [, setLocation] = useLocation();
   const slug = params?.slug as string;
   const productId = params?.productId as string;
   const { addToCart, addToCartOnce, cartCount, setCurrentReseller } = useStore();
   const { toast } = useToast();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
+
+  const isLoggedIn = () => {
+    const vendorId = localStorage.getItem("vendor_id");
+    const vendorToken = localStorage.getItem("vendor_token");
+    return !!vendorId && !!vendorToken;
+  };
 
   const { data: reseller, isLoading: resellerLoading } = useQuery<Reseller>({
     queryKey: ["/api/reseller", slug],
@@ -75,6 +82,14 @@ export default function ResellerProductDetails() {
   const displayOriginalPrice = parseFloat(product.originalPrice as any);
 
   const handleAddToCart = () => {
+    if (!isLoggedIn()) {
+      toast({
+        title: "Faça login para comprar",
+        description: "Entre na sua conta ou cadastre-se para continuar",
+      });
+      setLocation("/login");
+      return;
+    }
     if (hasStock) {
       const productWithSeller = { ...product, resellerId: reseller.id };
       addToCart(productWithSeller);
@@ -88,6 +103,14 @@ export default function ResellerProductDetails() {
   };
 
   const handleBuyNow = () => {
+    if (!isLoggedIn()) {
+      toast({
+        title: "Faça login para comprar",
+        description: "Entre na sua conta ou cadastre-se para continuar",
+      });
+      setLocation("/login");
+      return;
+    }
     if (hasStock) {
       const productWithSeller = { ...product, resellerId: reseller.id };
       addToCartOnce(productWithSeller);
