@@ -14,7 +14,7 @@ export default function ResellerProductDetails() {
   const [, params] = useRoute("/loja/:slug/produto/:productId");
   const slug = params?.slug as string;
   const productId = params?.productId as string;
-  const { addToCart, cartCount, setCurrentReseller } = useStore();
+  const { addToCart, addToCartOnce, cartCount, setCurrentReseller } = useStore();
   const { toast } = useToast();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
@@ -90,7 +90,7 @@ export default function ResellerProductDetails() {
   const handleBuyNow = () => {
     if (hasStock) {
       const productWithSeller = { ...product, resellerId: reseller.id };
-      addToCart(productWithSeller);
+      addToCartOnce(productWithSeller);
       setTimeout(() => {
         setIsCheckoutOpen(true);
       }, 50);

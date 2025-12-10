@@ -15,6 +15,7 @@ interface StoreContextType {
   settings: Settings | null;
   cart: CartItem[];
   addToCart: (product: Product, variant?: { id: number; name: string; price: string }) => void;
+  addToCartOnce: (product: Product, variant?: { id: number; name: string; price: string }) => void;
   removeFromCart: (productId: number, variantId?: number) => void;
   updateQuantity: (productId: number, quantity: number, variantId?: number) => void;
   clearCart: () => void;
@@ -75,6 +76,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const addToCartOnce = (product: Product, variant?: { id: number; name: string; price: string }) => {
+    setCart((prev) => {
+      const existing = prev.find((item) => 
+        item.product.id === product.id && 
+        (variant ? item.variant?.id === variant.id : !item.variant)
+      );
+      if (existing) {
+        return prev;
+      }
+      return [...prev, { product, quantity: 1, variant }];
+    });
+  };
+
   const removeFromCart = (productId: number, variantId?: number) => {
     setCart((prev) => prev.filter((item) => 
       !(item.product.id === productId && 
@@ -118,6 +132,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         settings,
         cart,
         addToCart,
+        addToCartOnce,
         removeFromCart,
         updateQuantity,
         clearCart,

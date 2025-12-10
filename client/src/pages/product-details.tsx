@@ -14,7 +14,7 @@ import type { Product, Settings, Reseller, Review } from "@shared/schema";
 export default function ProductDetails() {
   const [, setLocation] = useLocation();
   const [match, params] = useRoute("/product/:id");
-  const { addToCart, setIsCartOpen } = useStore();
+  const { addToCart, addToCartOnce, setIsCartOpen } = useStore();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
 
@@ -83,7 +83,7 @@ export default function ProductDetails() {
 
   const handleBuyNow = () => {
     if (hasStock) {
-      addToCart(product);
+      addToCartOnce(product);
       setIsCheckoutOpen(true);
     }
   };

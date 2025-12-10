@@ -20,7 +20,7 @@ interface SellerStats {
 export default function ResellerStore() {
   const [match, params] = useRoute("/loja/:slug");
   const slug = params?.slug as string;
-  const { addToCart, cartCount, setCurrentReseller } = useStore();
+  const { addToCart, addToCartOnce, cartCount, setCurrentReseller } = useStore();
   const { isAuthenticated } = useAuth();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -162,7 +162,7 @@ export default function ResellerStore() {
       ...product,
       resellerId: reseller?.id || product.resellerId
     };
-    addToCart(productWithSeller);
+    addToCartOnce(productWithSeller);
     setTimeout(() => {
       setIsCheckoutOpen(true);
     }, 50);
