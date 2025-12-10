@@ -22,9 +22,15 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
   const [, setLocation] = useLocation();
   const [settings, setSettings] = useState<any>(null);
 
-  const [email, setEmail] = useState("");
-  const [whatsapp, setWhatsapp] = useState("");
-  const [customerName, setCustomerName] = useState("");
+  const [email, setEmail] = useState(() => {
+    return localStorage.getItem("customer_email") || "";
+  });
+  const [whatsapp, setWhatsapp] = useState(() => {
+    return localStorage.getItem("customer_whatsapp") || "";
+  });
+  const [customerName, setCustomerName] = useState(() => {
+    return localStorage.getItem("customer_name") || "";
+  });
   const [couponCode, setCouponCode] = useState("");
   const [discount, setDiscount] = useState(0);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
