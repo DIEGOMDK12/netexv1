@@ -37,7 +37,7 @@ Preferred communication style: Simple, everyday language.
 - **Category Management:** Drag-and-drop reordering for categories.
 - **Email Delivery:** Resend integration for transactional emails (order delivery, notifications).
 - **Dynamic Products (Variants):** Products can have multiple pricing options (variants) with independent names, prices, and stock. The product display price shows "A partir de R$" with the lowest variant price until customer selects a specific option. Validation requires at least 1 variant with name and price for dynamic products.
-- **Premium Listings:** Products can be marked as "Anúncio Premium" which applies a 5% fee on sales instead of the standard rate and gives enhanced visibility in searches and site-wide promotions.
+- **Premium Listings:** Products can be marked as "Anúncio Premium" which applies a 10% fee on sales. When a customer purchases a premium product, 10% is deducted as platform fee and the reseller receives the net amount (90%) in their wallet balance. This gives enhanced visibility in searches and site-wide promotions.
 
 ## External Dependencies
 
