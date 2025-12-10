@@ -19,7 +19,8 @@ import {
   Coins,
   Headphones,
   Smartphone,
-  Package
+  Package,
+  Crown
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -615,10 +616,16 @@ function ProductCardMini({ product, stats }: { product: ProductWithSeller; stats
     }
   };
 
+  const isPremium = (product as any).isPremium;
+
   return (
     <Link href={`/product/${product.id}`}>
       <div 
-        className="bg-[#1e293b] rounded-lg overflow-hidden cursor-pointer group"
+        className={`rounded-lg overflow-hidden cursor-pointer group ${
+          isPremium 
+            ? "bg-gradient-to-br from-amber-900/30 to-yellow-900/20 ring-2 ring-amber-500/50" 
+            : "bg-[#1e293b]"
+        }`}
         data-testid={`card-product-${product.id}`}
       >
         <div className="aspect-video relative overflow-hidden bg-gray-900">
@@ -632,6 +639,12 @@ function ProductCardMini({ product, stats }: { product: ProductWithSeller; stats
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-blue-900/50 to-slate-800 flex items-center justify-center">
               <Package className="w-8 h-8 text-gray-600" />
+            </div>
+          )}
+          {isPremium && (
+            <div className="absolute top-1.5 left-1.5 flex items-center gap-1 bg-gradient-to-r from-amber-500 to-yellow-500 px-1.5 py-0.5 rounded text-[10px] font-bold text-black">
+              <Crown className="w-3 h-3" />
+              DESTAQUE
             </div>
           )}
           {!hasStock && (

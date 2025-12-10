@@ -560,11 +560,14 @@ export class DatabaseStorage implements IStorage {
           stock: products.stock,
           category: products.category,
           categoryId: products.categoryId,
+          subcategory: products.subcategory,
           instructions: products.instructions,
           warranty: products.warranty,
           deliveryContent: products.deliveryContent,
           active: products.active,
           limitPerUser: products.limitPerUser,
+          dynamicMode: products.dynamicMode,
+          isPremium: products.isPremium,
           resellerId: products.resellerId,
           createdAt: products.createdAt,
           sellerId: resellers.id,
@@ -576,7 +579,7 @@ export class DatabaseStorage implements IStorage {
         .from(products)
         .innerJoin(resellers, eq(products.resellerId, resellers.id))
         .where(eq(products.active, true))
-        .orderBy(desc(products.id));
+        .orderBy(desc(products.isPremium), desc(products.id));
 
       console.log(`[Storage] getProductsWithSellers: Found ${result.length} products with valid sellers`);
 
@@ -591,11 +594,14 @@ export class DatabaseStorage implements IStorage {
         stock: row.stock,
         category: row.category,
         categoryId: row.categoryId,
+        subcategory: row.subcategory,
         instructions: row.instructions,
         warranty: row.warranty,
         deliveryContent: row.deliveryContent,
         active: row.active,
         limitPerUser: row.limitPerUser,
+        dynamicMode: row.dynamicMode,
+        isPremium: row.isPremium,
         resellerId: row.resellerId,
         createdAt: row.createdAt,
         seller: {

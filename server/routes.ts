@@ -3985,10 +3985,11 @@ export async function registerRoutes(
 
   app.post("/api/vendor/products", async (req, res) => {
     try {
-      const { name, description, imageUrl, originalPrice, currentPrice, stock, category, subcategory, resellerId: bodyResellerId, deliveryContent, active, slug, categoryId: reqCategoryId, limitPerUser, dynamicMode: rawDynamicMode } = req.body;
+      const { name, description, imageUrl, originalPrice, currentPrice, stock, category, subcategory, resellerId: bodyResellerId, deliveryContent, active, slug, categoryId: reqCategoryId, limitPerUser, dynamicMode: rawDynamicMode, isPremium: rawIsPremium } = req.body;
       
       // Coerce dynamicMode to proper boolean (handles string "true"/"false" from JSON)
       const dynamicMode = rawDynamicMode === true || rawDynamicMode === "true";
+      const isPremium = rawIsPremium === true || rawIsPremium === "true";
 
       // CORREÇÃO 1: Obter resellerId do token autenticado OU do body
       const token = req.headers.authorization?.replace("Bearer ", "");
@@ -4109,6 +4110,7 @@ export async function registerRoutes(
         active: isActive,
         limitPerUser: limitPerUser || false,
         dynamicMode: dynamicMode, // CORREÇÃO: Salva o modo dinâmico
+        isPremium: isPremium, // CORREÇÃO: Salva se é anúncio premium
         resellerId: finalResellerId, // CORREÇÃO: Usa o resellerId do token ou body
       });
 
@@ -4142,10 +4144,11 @@ export async function registerRoutes(
 
   app.patch("/api/vendor/products/:id", async (req, res) => {
     const productId = parseInt(req.params.id);
-    const { name, description, imageUrl, currentPrice, originalPrice, stock, category, subcategory, deliveryContent, active, slug, categoryId: reqCategoryId, limitPerUser, dynamicMode: rawDynamicMode } = req.body;
+    const { name, description, imageUrl, currentPrice, originalPrice, stock, category, subcategory, deliveryContent, active, slug, categoryId: reqCategoryId, limitPerUser, dynamicMode: rawDynamicMode, isPremium: rawIsPremium } = req.body;
 
-    // Coerce dynamicMode to proper boolean (handles string "true"/"false" from JSON)
+    // Coerce dynamicMode and isPremium to proper boolean (handles string "true"/"false" from JSON)
     const dynamicMode = rawDynamicMode === true || rawDynamicMode === "true";
+    const isPremium = rawIsPremium === true || rawIsPremium === "true";
 
     console.log("[Update Product] Updating product", productId, "with:", { 
       name, 
@@ -4191,6 +4194,7 @@ export async function registerRoutes(
       if (active !== undefined) updateData.active = active;
       if (limitPerUser !== undefined) updateData.limitPerUser = limitPerUser;
       if (rawDynamicMode !== undefined) updateData.dynamicMode = dynamicMode;
+      if (rawIsPremium !== undefined) updateData.isPremium = isPremium;
 
       const product = await storage.updateProduct(productId, updateData);
 
