@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import nexStoreLogo from "@assets/generated_images/nex_store_modern_logo.png";
+import eliteVaultLogo from "@assets/generated_images/elitevault_modern_vault_logo.png";
 import { 
   Search, 
   Bell, 
@@ -187,7 +187,7 @@ export default function Home() {
       <header className="sticky top-0 z-50 bg-[#0f172a]/95 backdrop-blur-md border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <img src={nexStoreLogo} alt="ELITEVAULT" className="w-8 h-8 rounded-lg" />
+            <img src={eliteVaultLogo} alt="ELITEVAULT" className="w-8 h-8 rounded-lg" />
             <span className="text-lg font-bold text-white">ELITEVAULT</span>
           </div>
           
@@ -587,7 +587,7 @@ export default function Home() {
       <footer className="border-t border-white/5 py-8 px-4">
         <div className="max-w-7xl mx-auto text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <img src={nexStoreLogo} alt="ELITEVAULT" className="w-6 h-6 rounded" />
+            <img src={eliteVaultLogo} alt="ELITEVAULT" className="w-6 h-6 rounded" />
             <span className="font-bold text-white">ELITEVAULT</span>
           </div>
           <p className="text-sm text-gray-500">
