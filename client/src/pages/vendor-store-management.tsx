@@ -856,7 +856,7 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
                 </div>
                 <span className="text-xs text-gray-500 block">
                   {productForm.isPremium 
-                    ? "Taxa de 5% sobre vendas + destaque nas buscas e divulgações" 
+                    ? "Taxa de 10% sobre vendas + destaque nas buscas e divulgações" 
                     : "Taxa padrão sem destaque"}
                 </span>
               </Label>
