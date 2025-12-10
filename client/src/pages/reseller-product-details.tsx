@@ -60,11 +60,7 @@ export default function ResellerProductDetails() {
   const activeVariants = variants.filter((v) => v.active !== false);
   const selectedVariant = activeVariants.find((v) => v.id.toString() === selectedVariantId);
 
-  useEffect(() => {
-    if (activeVariants.length > 0 && !selectedVariantId) {
-      setSelectedVariantId(activeVariants[0].id.toString());
-    }
-  }, [activeVariants, selectedVariantId]);
+  // Removed auto-selection of first variant so user sees "A partir de" price and must choose manually
 
   useEffect(() => {
     if (reseller) {
@@ -98,9 +94,18 @@ export default function ResellerProductDetails() {
   const themeColor = reseller.themeColor || "#3B82F6";
   
   const getStockInfo = () => {
-    if (isDynamicMode && selectedVariant) {
-      const lines = selectedVariant.stock?.split("\n").filter((line) => line.trim()) || [];
-      return { stockLines: lines, hasStock: lines.length > 0 };
+    if (isDynamicMode) {
+      if (selectedVariant) {
+        const lines = selectedVariant.stock?.split("\n").filter((line) => line.trim()) || [];
+        return { stockLines: lines, hasStock: lines.length > 0 };
+      }
+      // No variant selected - count total stock from all active variants
+      let totalStock = 0;
+      activeVariants.forEach((v) => {
+        const lines = v.stock?.split("\n").filter((line: string) => line.trim()) || [];
+        totalStock += lines.length;
+      });
+      return { stockLines: new Array(totalStock), hasStock: totalStock > 0 };
     }
     const lines = product.stock?.split("\n").filter((line) => line.trim()) || [];
     return { stockLines: lines, hasStock: lines.length > 0 };
@@ -235,6 +240,7 @@ export default function ResellerProductDetails() {
               {/* Preço */}
               <div className="flex items-center gap-3">
                 <p className="text-3xl font-bold" style={{ color: themeColor }} data-testid="text-price">
+                  {isDynamicMode && !selectedVariant && <span className="text-sm font-normal opacity-70">A partir de </span>}
                   R$ {displayPrice.toFixed(2)}
                 </p>
                 {!isDynamicMode && (

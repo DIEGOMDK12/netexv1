@@ -361,7 +361,7 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
   });
 
   const handleAddProduct = () => {
-    // Validate based on mode - for dynamic mode, only name is required
+    // Validate based on mode - for dynamic mode, name and at least 1 variant are required
     if (dynamicMode) {
       if (!formData.name) {
         toast({
@@ -371,12 +371,22 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
         });
         return;
       }
-      // If variants are provided, validate them
+      // Validate at least 1 variant exists with name and price
+      const validVariants = variants.filter(v => v.name && v.name.trim() && v.price && v.price.trim());
+      if (validVariants.length === 0) {
+        toast({
+          title: "Variante obrigatória",
+          description: "Produtos dinâmicos precisam de pelo menos 1 variante com nome e preço",
+          variant: "destructive",
+        });
+        return;
+      }
+      // Validate all variants with name have price
       for (const v of variants) {
-        if (v.name && !v.price) {
+        if (v.name && v.name.trim() && (!v.price || !v.price.trim())) {
           toast({
             title: "Preencha o preço do item",
-            description: "Cada item precisa de nome e preço",
+            description: "Cada variante precisa de nome e preço",
             variant: "destructive",
           });
           return;
@@ -459,7 +469,7 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
   };
 
   const handleSaveEdit = () => {
-    // Validate based on mode - for dynamic mode, only name is required
+    // Validate based on mode - for dynamic mode, name and at least 1 variant are required
     if (dynamicMode) {
       if (!formData.name) {
         toast({
@@ -469,12 +479,22 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
         });
         return;
       }
-      // If variants are provided, validate them
+      // Validate at least 1 variant exists with name and price
+      const validVariants = variants.filter(v => v.name && v.name.trim() && v.price && v.price.trim());
+      if (validVariants.length === 0) {
+        toast({
+          title: "Variante obrigatória",
+          description: "Produtos dinâmicos precisam de pelo menos 1 variante com nome e preço",
+          variant: "destructive",
+        });
+        return;
+      }
+      // Validate all variants with name have price
       for (const v of variants) {
-        if (v.name && !v.price) {
+        if (v.name && v.name.trim() && (!v.price || !v.price.trim())) {
           toast({
             title: "Preencha o preço do item",
-            description: "Cada item precisa de nome e preço",
+            description: "Cada variante precisa de nome e preço",
             variant: "destructive",
           });
           return;
