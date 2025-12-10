@@ -171,7 +171,6 @@ function ProductCardWithVariants({
 
 export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
   const { toast } = useToast();
-  const [showProductTypeSelector, setShowProductTypeSelector] = useState(false);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
@@ -610,119 +609,42 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-col sm:flex-row gap-4">
         <h1 className="text-3xl font-bold text-white">Meus Produtos</h1>
-        <Button
-          onClick={() => {
-            setEditingProductId(null);
-            setShowProductTypeSelector(true);
-          }}
-          className="w-full sm:w-auto flex items-center gap-2"
-          style={{
-            background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)",
-            color: "#FFFFFF",
-            border: "1px solid rgba(255, 255, 255, 0.2)",
-          }}
-          data-testid="button-add-product-modal"
-        >
-          <Plus className="w-4 h-4" />
-          Novo Produto
-        </Button>
-      </div>
-
-      {/* Product Type Selection Modal */}
-      {showProductTypeSelector && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-          onClick={() => setShowProductTypeSelector(false)}
-        >
-          <div 
-            className="w-full max-w-md mx-4 p-6 rounded-xl space-y-4"
-            style={{
-              background: "rgba(30, 30, 40, 0.95)",
-              backdropFilter: "blur(20px)",
-              border: "1px solid rgba(255, 255, 255, 0.15)",
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Button
+            onClick={() => {
+              setEditingProductId(null);
+              setDynamicMode(false);
+              setVariants([]);
+              setFormData({ name: "", price: "", originalPrice: "", description: "", imageUrl: "", stock: "", category: "", subcategory: "", deliveryContent: "" });
+              setIsAddingProduct(true);
             }}
-            onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-2"
+            data-testid="button-add-simple-product"
           >
-            <div className="text-center mb-6">
-              <h2 className="text-xl font-bold text-white mb-2">Escolha o tipo de anúncio</h2>
-              <p className="text-sm text-gray-400">Selecione como você deseja vender este produto</p>
-            </div>
-
-            {/* Option 1 - Dynamic/Variants */}
-            <button
-              onClick={() => {
-                setShowProductTypeSelector(false);
-                setDynamicMode(true);
-                setVariants([{ name: "", price: "", stock: "" }]);
-                setFormData({ name: "", price: "", originalPrice: "", description: "", imageUrl: "", stock: "", category: "", subcategory: "", deliveryContent: "" });
-                setIsAddingProduct(true);
-              }}
-              className="w-full p-4 rounded-lg text-left transition-all duration-200 group"
-              style={{
-                background: "linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(59, 130, 246, 0.15))",
-                border: "1px solid rgba(139, 92, 246, 0.3)",
-              }}
-              data-testid="button-select-dynamic-product"
-            >
-              <div className="flex items-start gap-4">
-                <div 
-                  className="p-3 rounded-lg shrink-0"
-                  style={{ background: "linear-gradient(135deg, #8b5cf6, #3b82f6)" }}
-                >
-                  <Layers className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-white mb-1">Produto com Variantes (Dinâmico)</h3>
-                  <p className="text-sm text-gray-400">
-                    Para produtos com múltiplas opções. Ex: Netflix (30 Dias / Vitalício), Jogos (Diamantes / Moedas).
-                  </p>
-                </div>
-              </div>
-            </button>
-
-            {/* Option 2 - Simple Product */}
-            <button
-              onClick={() => {
-                setShowProductTypeSelector(false);
-                setDynamicMode(false);
-                setVariants([]);
-                setFormData({ name: "", price: "", originalPrice: "", description: "", imageUrl: "", stock: "", category: "", subcategory: "", deliveryContent: "" });
-                setIsAddingProduct(true);
-              }}
-              className="w-full p-4 rounded-lg text-left transition-all duration-200 group"
-              style={{
-                background: "rgba(255, 255, 255, 0.05)",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
-              }}
-              data-testid="button-select-simple-product"
-            >
-              <div className="flex items-start gap-4">
-                <div 
-                  className="p-3 rounded-lg shrink-0"
-                  style={{ background: "rgba(34, 197, 94, 0.2)", border: "1px solid rgba(34, 197, 94, 0.3)" }}
-                >
-                  <Tag className="w-6 h-6 text-green-400" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-white mb-1">Produto Simples</h3>
-                  <p className="text-sm text-gray-400">
-                    Para venda única. Ex: Uma conta específica, uma chave de ativação.
-                  </p>
-                </div>
-              </div>
-            </button>
-
-            <Button
-              variant="ghost"
-              onClick={() => setShowProductTypeSelector(false)}
-              className="w-full mt-4 text-gray-400"
-              data-testid="button-cancel-type-selection"
-            >
-              Cancelar
-            </Button>
-          </div>
+            <Plus className="w-4 h-4" />
+            Produto Simples
+          </Button>
+          <Button
+            onClick={() => {
+              setEditingProductId(null);
+              setDynamicMode(true);
+              setVariants([{ name: "", price: "", stock: "" }]);
+              setFormData({ name: "", price: "", originalPrice: "", description: "", imageUrl: "", stock: "", category: "", subcategory: "", deliveryContent: "" });
+              setIsAddingProduct(true);
+            }}
+            className="flex items-center gap-2"
+            style={{
+              background: "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
+              color: "#FFFFFF",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+            }}
+            data-testid="button-add-dynamic-product"
+          >
+            <Layers className="w-4 h-4" />
+            Produto Dinâmico
+          </Button>
         </div>
-      )}
+      </div>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteConfirm !== null} onOpenChange={() => setShowDeleteConfirm(null)}>
@@ -1169,16 +1091,42 @@ Chave123456"
         >
           <CardContent className="text-center py-12">
             <p className="text-gray-400 mb-4">Nenhum produto cadastrado ainda</p>
-            <Button
-              onClick={() => {
-                setEditingProductId(null);
-                setShowProductTypeSelector(true);
-              }}
-              variant="outline"
-              data-testid="button-add-first-product"
-            >
-              Adicionar Primeiro Produto
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2 justify-center">
+              <Button
+                onClick={() => {
+                  setEditingProductId(null);
+                  setDynamicMode(false);
+                  setVariants([]);
+                  setFormData({ name: "", price: "", originalPrice: "", description: "", imageUrl: "", stock: "", category: "", subcategory: "", deliveryContent: "" });
+                  setIsAddingProduct(true);
+                }}
+                variant="outline"
+                className="flex items-center gap-2"
+                data-testid="button-add-first-simple-product"
+              >
+                <Plus className="w-4 h-4" />
+                Produto Simples
+              </Button>
+              <Button
+                onClick={() => {
+                  setEditingProductId(null);
+                  setDynamicMode(true);
+                  setVariants([{ name: "", price: "", stock: "" }]);
+                  setFormData({ name: "", price: "", originalPrice: "", description: "", imageUrl: "", stock: "", category: "", subcategory: "", deliveryContent: "" });
+                  setIsAddingProduct(true);
+                }}
+                className="flex items-center gap-2"
+                style={{
+                  background: "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
+                  color: "#FFFFFF",
+                  border: "1px solid rgba(255, 255, 255, 0.2)",
+                }}
+                data-testid="button-add-first-dynamic-product"
+              >
+                <Layers className="w-4 h-4" />
+                Produto Dinâmico
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : (
