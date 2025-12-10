@@ -174,7 +174,8 @@ export function DashboardMain({ vendorId, isAdmin }: DashboardMainProps) {
     );
   }
 
-  const availableBalance = vendor?.totalCommission ? parseFloat(vendor.totalCommission.toString()) : 0;
+  // Usar walletBalance para saldo disponível (atualizado após saques)
+  const availableBalance = vendor?.walletBalance ? parseFloat(vendor.walletBalance.toString()) : 0;
 
   const handleWithdrawalSubmit = () => {
     const amount = parseFloat(withdrawalAmount);
