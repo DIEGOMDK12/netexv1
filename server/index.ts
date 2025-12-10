@@ -107,6 +107,13 @@ async function runStartupMigrations() {
     `);
     console.log("[Migration] Added active column to product_variants table");
     
+    // Add variant_id column to order_items if it doesn't exist
+    await client.query(`
+      ALTER TABLE order_items 
+      ADD COLUMN IF NOT EXISTS variant_id INTEGER
+    `);
+    console.log("[Migration] Added variant_id column to order_items table");
+    
     client.release();
     console.log("[Migration] Startup migrations completed successfully");
   } catch (error: any) {
