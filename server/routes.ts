@@ -102,8 +102,64 @@ function isAuthenticated(token: string | undefined): boolean {
   return token ? (token === VALID_ADMIN_TOKEN || adminTokens.has(token)) : false;
 }
 
+// Cache for vendor sessions to reduce database queries (5 minute TTL)
+const vendorSessionCache = new Map<string, { resellerId: number; expiresAt: number }>();
+
+async function isVendorAuthenticatedAsync(token: string | undefined): Promise<{ valid: boolean; resellerId?: number }> {
+  if (!token) return { valid: false };
+  
+  // Check memory cache first
+  const cached = vendorSessionCache.get(token);
+  if (cached && cached.expiresAt > Date.now()) {
+    return { valid: true, resellerId: cached.resellerId };
+  }
+  
+  // Also check in-memory maps for backwards compatibility (existing sessions)
+  if (tokenToVendor.has(token)) {
+    return { valid: true, resellerId: tokenToVendor.get(token) };
+  }
+  
+  // Check database for persistent session
+  try {
+    const session = await storage.getVendorSession(token);
+    if (session) {
+      // Cache the session for 5 minutes
+      vendorSessionCache.set(token, { 
+        resellerId: session.resellerId, 
+        expiresAt: Date.now() + 5 * 60 * 1000 
+      });
+      // Also add to in-memory maps for backwards compatibility
+      vendorTokens.set(session.resellerId, token);
+      tokenToVendor.set(token, session.resellerId);
+      return { valid: true, resellerId: session.resellerId };
+    }
+  } catch (error: any) {
+    console.error("[Auth] Error checking vendor session:", error.message);
+  }
+  
+  return { valid: false };
+}
+
+// Synchronous version - validates expiry from cache (call async version for full DB check)
 function isVendorAuthenticated(token: string | undefined): boolean {
-  return token ? tokenToVendor.has(token) : false;
+  if (!token) return false;
+  
+  // Check cache first with expiry validation
+  const cached = vendorSessionCache.get(token);
+  if (cached) {
+    if (cached.expiresAt > Date.now()) {
+      return true;
+    } else {
+      // Session expired - clean up
+      vendorSessionCache.delete(token);
+      tokenToVendor.delete(token);
+      return false;
+    }
+  }
+  
+  // Fall back to in-memory maps (for tokens created before DB persistence was added)
+  // These don't have expiry info, so they remain valid until server restart
+  return tokenToVendor.has(token);
 }
 
 function generateWhatsAppLink(phone: string, message: string): string {
@@ -601,7 +657,9 @@ export async function registerRoutes(
     try {
       const token = req.headers.authorization?.replace("Bearer ", "");
       
-      if (!isAuthenticated(token) && !isVendorAuthenticated(token)) {
+      // Use async authentication to check database for persistent sessions
+      const vendorAuth = await isVendorAuthenticatedAsync(token);
+      if (!isAuthenticated(token) && !vendorAuth.valid) {
         console.log("[POST /api/upload] Unauthorized upload attempt");
         return res.status(401).json({ error: "Não autorizado. Faça login para fazer upload de imagens." });
       }
@@ -3063,8 +3121,27 @@ export async function registerRoutes(
       }
 
       const token = generateToken();
+      
+      // Clear any existing tokens for this vendor from in-memory caches
+      const existingToken = vendorTokens.get(vendor.id);
+      if (existingToken) {
+        tokenToVendor.delete(existingToken);
+        vendorSessionCache.delete(existingToken);
+      }
+      
+      // Persist session to database (30 days expiry)
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      try {
+        await storage.createVendorSession(token, vendor.id, expiresAt);
+        console.log("[Vendor Login] Session persisted to database for vendor:", vendor.id);
+      } catch (sessionError: any) {
+        console.error("[Vendor Login] Failed to persist session, using in-memory:", sessionError.message);
+      }
+      
+      // Also store in memory for immediate access
       vendorTokens.set(vendor.id, token);
       tokenToVendor.set(token, vendor.id);
+      vendorSessionCache.set(token, { resellerId: vendor.id, expiresAt: expiresAt.getTime() });
 
       console.log("[🔴 Vendor Login] ✅ Sucesso - retornando dados do vendor");
       console.log("[🔴 Vendor Login] Subscription:", {
@@ -3102,12 +3179,12 @@ export async function registerRoutes(
     console.log("[Vendor Restore Session] Attempting to restore session for vendor:", vendorId || email);
 
     try {
-      // Check if token is already valid
+      // Check if token is already valid in memory
       if (existingToken && tokenToVendor.has(existingToken)) {
         const storedVendorId = tokenToVendor.get(existingToken);
         const vendor = await storage.getReseller(storedVendorId!);
         if (vendor && vendor.active) {
-          console.log("[Vendor Restore Session] Token already valid for vendor:", vendor.id);
+          console.log("[Vendor Restore Session] Token already valid in memory for vendor:", vendor.id);
           return res.json({
             success: true,
             token: existingToken,
@@ -3121,6 +3198,38 @@ export async function registerRoutes(
               subscriptionExpiresAt: vendor.subscriptionExpiresAt,
             },
           });
+        }
+      }
+      
+      // Check if token exists in database (persistent session after restart)
+      if (existingToken) {
+        const dbSession = await storage.getVendorSession(existingToken);
+        if (dbSession) {
+          const vendor = await storage.getReseller(dbSession.resellerId);
+          if (vendor && vendor.active) {
+            // Restore token to in-memory cache
+            vendorTokens.set(vendor.id, existingToken);
+            tokenToVendor.set(existingToken, vendor.id);
+            vendorSessionCache.set(existingToken, { 
+              resellerId: vendor.id, 
+              expiresAt: dbSession.expiresAt.getTime() 
+            });
+            
+            console.log("[Vendor Restore Session] Token restored from database for vendor:", vendor.id);
+            return res.json({
+              success: true,
+              token: existingToken,
+              vendor: {
+                id: vendor.id,
+                name: vendor.name,
+                email: vendor.email,
+                slug: vendor.slug,
+                storeName: vendor.storeName,
+                subscriptionStatus: vendor.subscriptionStatus,
+                subscriptionExpiresAt: vendor.subscriptionExpiresAt,
+              },
+            });
+          }
         }
       }
 
@@ -3144,8 +3253,27 @@ export async function registerRoutes(
 
       // Generate new token and establish session
       const newToken = generateToken();
+      
+      // Clear any existing tokens for this vendor from in-memory caches
+      const oldToken = vendorTokens.get(vendor.id);
+      if (oldToken) {
+        tokenToVendor.delete(oldToken);
+        vendorSessionCache.delete(oldToken);
+      }
+      
+      // Persist session to database (30 days expiry)
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      try {
+        await storage.createVendorSession(newToken, vendor.id, expiresAt);
+        console.log("[Vendor Restore Session] Session persisted to database for vendor:", vendor.id);
+      } catch (sessionError: any) {
+        console.error("[Vendor Restore Session] Failed to persist session:", sessionError.message);
+      }
+      
+      // Store in memory
       vendorTokens.set(vendor.id, newToken);
       tokenToVendor.set(newToken, vendor.id);
+      vendorSessionCache.set(newToken, { resellerId: vendor.id, expiresAt: expiresAt.getTime() });
 
       console.log("[Vendor Restore Session] Session restored successfully for vendor:", vendor.id);
 
@@ -3656,10 +3784,16 @@ export async function registerRoutes(
     const token = req.headers.authorization?.replace("Bearer ", "");
     let vendorId = parseInt(req.query.vendorId as string);
     
-    // Se não veio do query, tenta pegar do token
-    if (!vendorId && token && tokenToVendor.has(token)) {
-      vendorId = tokenToVendor.get(token)!;
-      console.log("[Vendor Products GET] ✓ vendorId obtido do token:", vendorId);
+    // Se não veio do query, tenta pegar do token (check async for DB persistence)
+    if (!vendorId && token) {
+      const vendorAuth = await isVendorAuthenticatedAsync(token);
+      if (vendorAuth.valid && vendorAuth.resellerId) {
+        vendorId = vendorAuth.resellerId;
+        console.log("[Vendor Products GET] ✓ vendorId obtido do token (DB):", vendorId);
+      } else if (tokenToVendor.has(token)) {
+        vendorId = tokenToVendor.get(token)!;
+        console.log("[Vendor Products GET] ✓ vendorId obtido do token (memory):", vendorId);
+      }
     }
     
     console.log("[Vendor Products GET] vendorId final:", vendorId, "| query:", req.query.vendorId, "| token:", token ? "presente" : "ausente");

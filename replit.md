@@ -19,13 +19,13 @@ Preferred communication style: Simple, everyday language.
 ### Backend
 - **Framework:** Express.js with TypeScript, using Node's native `http` module.
 - **API Design:** RESTful endpoints under `/api`, token-based authentication for admin routes (in-memory token storage), custom logging middleware.
-- **Authentication:** Stateless authentication with tokens (cleared on server restart), single admin user system.
+- **Authentication:** Token-based authentication for admin (in-memory), persistent database-backed sessions for vendors (survives server restarts with 30-day expiry), single admin user system.
 - **Core Features:** Separation of public and sensitive settings, robust webhook handling for payment confirmations.
 
 ### Database
 - **ORM:** Drizzle ORM for type-safe queries.
 - **Database:** PostgreSQL (via Neon's serverless driver).
-- **Schema:** Includes `products`, `categories`, `orders`, `orderItems`, `coupons`, `settings`, and `resellers` tables. Employs `drizzle-zod` for validation.
+- **Schema:** Includes `products`, `categories`, `orders`, `orderItems`, `coupons`, `settings`, `resellers`, and `vendor_sessions` tables. Employs `drizzle-zod` for validation.
 - **Data Handling:** `Decimal` type for monetary values, `IStorage` interface for database operations, auto-incrementing integer primary keys.
 - **Category System:** Immutable 5-category structure (Games, Steam, Streaming & TV, Cursos & Tutoriais, Outros) with predefined subcategories, seeded on server startup.
 

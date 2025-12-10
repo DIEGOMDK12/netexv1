@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { pool } from "./db";
+import { storage } from "./storage";
 
 const app = express();
 const httpServer = createServer(app);
@@ -550,6 +551,24 @@ async function cleanupExpiredOrders() {
 
       cleanupExpiredOrders().catch((err) =>
         console.error("[Cron] Initial cleanup error:", err)
+      );
+
+      // Clean up expired vendor sessions every hour
+      console.log(
+        "[Cron] Starting vendor session cleanup (every 60 minutes)"
+      );
+      setInterval(async () => {
+        try {
+          await storage.deleteExpiredVendorSessions();
+          console.log("[Cron] Cleaned up expired vendor sessions");
+        } catch (err: any) {
+          console.error("[Cron] Vendor session cleanup error:", err.message);
+        }
+      }, 60 * 60 * 1000);
+      
+      // Initial cleanup on startup
+      storage.deleteExpiredVendorSessions().catch((err: any) =>
+        console.error("[Cron] Initial vendor session cleanup error:", err.message)
       );
     },
   );

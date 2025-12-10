@@ -316,3 +316,14 @@ export const insertReviewSchema = createInsertSchema(reviews).omit({ id: true, c
 export type Review = typeof reviews.$inferSelect;
 export type InsertReview = z.infer<typeof insertReviewSchema>;
 
+// Vendor sessions table for persistent authentication
+export const vendorSessions = pgTable("vendor_sessions", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  token: varchar("token", { length: 64 }).notNull().unique(),
+  resellerId: integer("reseller_id").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type VendorSession = typeof vendorSessions.$inferSelect;
+

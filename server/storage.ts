@@ -1,5 +1,5 @@
 import { 
-  products, orders, orderItems, coupons, settings, resellers, categories, customerUsers, withdrawalRequests, announcementSettings, webhooks, chatMessages, reviews,
+  products, orders, orderItems, coupons, settings, resellers, categories, customerUsers, withdrawalRequests, announcementSettings, webhooks, chatMessages, reviews, vendorSessions,
   type Product, type InsertProduct,
   type Order, type InsertOrder,
   type OrderItem, type InsertOrderItem,
@@ -12,10 +12,11 @@ import {
   type AnnouncementSetting, type InsertAnnouncementSetting,
   type Webhook, type InsertWebhook,
   type ChatMessage, type InsertChatMessage,
-  type Review, type InsertReview
+  type Review, type InsertReview,
+  type VendorSession
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, isNotNull, inArray, and, sql } from "drizzle-orm";
+import { eq, desc, isNotNull, inArray, and, sql, gt, lt } from "drizzle-orm";
 
 export interface IStorage {
   getCustomerUser(id: string): Promise<CustomerUser | undefined>;
@@ -112,6 +113,11 @@ export interface IStorage {
   getResellerStats(resellerId: number): Promise<{ averageRating: number; totalReviews: number; positivePercent: number; totalSales: number }>;
   getBatchSellerStats(resellerIds: number[]): Promise<Record<number, { averageRating: number; totalReviews: number }>>;
 
+  // Vendor sessions for persistent authentication
+  createVendorSession(token: string, resellerId: number, expiresAt: Date): Promise<VendorSession>;
+  getVendorSession(token: string): Promise<VendorSession | undefined>;
+  deleteVendorSession(token: string): Promise<void>;
+  deleteExpiredVendorSessions(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -740,6 +746,37 @@ export class DatabaseStorage implements IStorage {
     }
     
     return statsMap;
+  }
+
+  // Vendor sessions for persistent authentication
+  async createVendorSession(token: string, resellerId: number, expiresAt: Date): Promise<VendorSession> {
+    // Delete any existing sessions for this reseller first
+    await db.delete(vendorSessions).where(eq(vendorSessions.resellerId, resellerId));
+    
+    const [session] = await db.insert(vendorSessions).values({
+      token,
+      resellerId,
+      expiresAt,
+    }).returning();
+    return session;
+  }
+
+  async getVendorSession(token: string): Promise<VendorSession | undefined> {
+    const [session] = await db.select()
+      .from(vendorSessions)
+      .where(and(
+        eq(vendorSessions.token, token),
+        gt(vendorSessions.expiresAt, new Date())
+      ));
+    return session || undefined;
+  }
+
+  async deleteVendorSession(token: string): Promise<void> {
+    await db.delete(vendorSessions).where(eq(vendorSessions.token, token));
+  }
+
+  async deleteExpiredVendorSessions(): Promise<void> {
+    await db.delete(vendorSessions).where(lt(vendorSessions.expiresAt, new Date()));
   }
 
 }
