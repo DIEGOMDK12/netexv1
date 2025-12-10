@@ -158,9 +158,13 @@ export default function AdminWithdrawals() {
   });
 
   const pendingCount = withdrawals?.filter(w => w.status === "pending").length ?? 0;
+  // Mostrar o valor líquido (netAmount) - valor que deve ser enviado via PIX
   const totalPendingAmount = withdrawals
     ?.filter(w => w.status === "pending")
-    .reduce((sum, w) => sum + parseFloat(w.amount.toString()), 0) ?? 0;
+    .reduce((sum, w) => {
+      const netAmount = w.netAmount ? parseFloat(w.netAmount.toString()) : parseFloat(w.amount.toString());
+      return sum + netAmount;
+    }, 0) ?? 0;
 
   if (isLoading) {
     return (
@@ -210,13 +214,13 @@ export default function AdminWithdrawals() {
         >
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-gray-400">Valor Total Pendente</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-400">Valor Total a Enviar</CardTitle>
               <Wallet className="w-5 h-5 text-emerald-500" />
             </div>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-emerald-400">R$ {totalPendingAmount.toFixed(2)}</p>
-            <p className="text-xs text-gray-500 mt-2">Para ser pago via PIX</p>
+            <p className="text-xs text-gray-500 mt-2">Valor liquido a enviar via PIX</p>
           </CardContent>
         </Card>
       </div>
@@ -256,7 +260,7 @@ export default function AdminWithdrawals() {
                   <tr className="border-b border-white/10">
                     <th className="text-left py-3 px-3 text-gray-400 font-medium">Data</th>
                     <th className="text-left py-3 px-3 text-gray-400 font-medium">Loja</th>
-                    <th className="text-right py-3 px-3 text-gray-400 font-medium">Valor</th>
+                    <th className="text-right py-3 px-3 text-gray-400 font-medium">Valor a Enviar</th>
                     <th className="text-left py-3 px-3 text-gray-400 font-medium hidden xl:table-cell">Titular</th>
                     <th className="text-left py-3 px-3 text-gray-400 font-medium hidden lg:table-cell">Chave PIX</th>
                     <th className="text-left py-3 px-3 text-gray-400 font-medium hidden md:table-cell">Tipo</th>
@@ -279,7 +283,9 @@ export default function AdminWithdrawals() {
                           </div>
                         </td>
                         <td className="py-3 px-3 text-right font-semibold text-emerald-400">
-                          R$ {parseFloat(withdrawal.amount.toString()).toFixed(2)}
+                          R$ {withdrawal.netAmount 
+                            ? parseFloat(withdrawal.netAmount.toString()).toFixed(2)
+                            : parseFloat(withdrawal.amount.toString()).toFixed(2)}
                         </td>
                         <td className="py-3 px-3 text-white hidden xl:table-cell text-sm truncate max-w-[150px]">
                           {withdrawal.pixHolderName || "-"}
@@ -370,19 +376,19 @@ export default function AdminWithdrawals() {
                     <p className="text-white font-medium">{selectedWithdrawal.reseller?.storeName}</p>
                   </div>
                   <div>
-                    <p className="text-gray-500">Valor Solicitado</p>
-                    <p className="text-emerald-400 font-bold">R$ {parseFloat(selectedWithdrawal.amount.toString()).toFixed(2)}</p>
+                    <p className="text-gray-500">Valor a Enviar via PIX</p>
+                    <p className="text-emerald-400 font-bold text-lg">R$ {selectedWithdrawal.netAmount 
+                      ? parseFloat(selectedWithdrawal.netAmount.toString()).toFixed(2)
+                      : parseFloat(selectedWithdrawal.amount.toString()).toFixed(2)}</p>
                   </div>
-                  {selectedWithdrawal.netAmount && (
-                    <div>
-                      <p className="text-gray-500">Valor Liquido</p>
-                      <p className="text-white font-bold">R$ {parseFloat(selectedWithdrawal.netAmount.toString()).toFixed(2)}</p>
-                    </div>
-                  )}
+                  <div>
+                    <p className="text-gray-500">Valor Bruto (do saldo)</p>
+                    <p className="text-gray-300">R$ {parseFloat(selectedWithdrawal.amount.toString()).toFixed(2)}</p>
+                  </div>
                   {selectedWithdrawal.withdrawalFee && (
                     <div>
-                      <p className="text-gray-500">Taxa</p>
-                      <p className="text-yellow-400">R$ {parseFloat(selectedWithdrawal.withdrawalFee.toString()).toFixed(2)}</p>
+                      <p className="text-gray-500">Taxa Descontada</p>
+                      <p className="text-yellow-400">- R$ {parseFloat(selectedWithdrawal.withdrawalFee.toString()).toFixed(2)}</p>
                     </div>
                   )}
                   <div className="col-span-2">
