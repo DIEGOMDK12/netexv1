@@ -574,10 +574,12 @@ async function cleanupExpiredOrders() {
         }
       }, 60 * 60 * 1000);
       
-      // Initial cleanup on startup
-      storage.deleteExpiredVendorSessions().catch((err: any) =>
-        console.error("[Cron] Initial vendor session cleanup error:", err.message)
-      );
+      // Initial cleanup on startup (with delay to ensure DB is ready)
+      setTimeout(() => {
+        storage.deleteExpiredVendorSessions().catch((err: any) =>
+          console.error("[Cron] Initial vendor session cleanup error:", err.message)
+        );
+      }, 5000);
     },
   );
 })();
