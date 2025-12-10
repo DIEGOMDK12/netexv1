@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { ShoppingCart, Package } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { Product } from "@shared/schema";
 import { useStore } from "@/lib/store-context";
+import { useToast } from "@/hooks/use-toast";
 
 interface ProductCardProps {
   product: Product;
@@ -16,6 +17,8 @@ interface ProductCardProps {
 export function ProductCard({ product, seller, themeColor, textColor }: ProductCardProps) {
   const { addToCart, setIsCartOpen } = useStore();
   const [imgError, setImgError] = useState(false);
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   const hasDiscount = Number(product.originalPrice) > Number(product.currentPrice);
   const discountPercent = hasDiscount
@@ -29,8 +32,24 @@ export function ProductCard({ product, seller, themeColor, textColor }: ProductC
   const stockLines = product.stock?.split("\n").filter((line) => line.trim()) || [];
   const hasStock = stockLines.length > 0;
 
+  const isLoggedIn = () => {
+    const vendorId = localStorage.getItem("vendor_id");
+    const vendorToken = localStorage.getItem("vendor_token");
+    return !!vendorId && !!vendorToken;
+  };
+
   const handleBuy = () => {
     console.log("[ProductCard.handleBuy] Started for product:", { id: product.id, name: product.name, resellerId: product.resellerId, seller });
+    
+    // Check if user is logged in
+    if (!isLoggedIn()) {
+      toast({
+        title: "Faça login para comprar",
+        description: "Entre na sua conta ou cadastre-se para continuar",
+      });
+      setLocation("/login");
+      return;
+    }
     
     if (!hasStock) {
       console.error("[ProductCard] No stock available for", product.name, "Stock:", product.stock);
