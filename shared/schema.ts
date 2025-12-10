@@ -128,16 +128,6 @@ export const products = pgTable("products", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-// Product variants table for dynamic mode products
-export const productVariants = pgTable("product_variants", {
-  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  productId: integer("product_id").notNull(),
-  name: text("name").notNull(),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  stock: text("stock").notNull().default(""),
-  active: boolean("active").default(true),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
 
 export const orders = pgTable("orders", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -326,8 +316,3 @@ export const insertReviewSchema = createInsertSchema(reviews).omit({ id: true, c
 export type Review = typeof reviews.$inferSelect;
 export type InsertReview = z.infer<typeof insertReviewSchema>;
 
-// Product Variants types
-// @ts-expect-error drizzle-zod omit type inference issue
-export const insertProductVariantSchema = createInsertSchema(productVariants).omit({ id: true, createdAt: true });
-export type ProductVariant = typeof productVariants.$inferSelect;
-export type InsertProductVariant = z.infer<typeof insertProductVariantSchema>;

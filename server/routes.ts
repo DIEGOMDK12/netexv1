@@ -3828,7 +3828,7 @@ export async function registerRoutes(
 
   app.post("/api/vendor/products", async (req, res) => {
     try {
-      const { name, description, imageUrl, originalPrice, currentPrice, stock, category, subcategory, resellerId: bodyResellerId, deliveryContent, active, slug, categoryId: reqCategoryId, limitPerUser, dynamicMode: rawDynamicMode, variants } = req.body;
+      const { name, description, imageUrl, originalPrice, currentPrice, stock, category, subcategory, resellerId: bodyResellerId, deliveryContent, active, slug, categoryId: reqCategoryId, limitPerUser, dynamicMode: rawDynamicMode } = req.body;
       
       // Coerce dynamicMode to proper boolean (handles string "true"/"false" from JSON)
       const dynamicMode = rawDynamicMode === true || rawDynamicMode === "true";
@@ -3957,40 +3957,6 @@ export async function registerRoutes(
 
       console.log("[Create Product] Product created successfully:", { id: product.id, resellerId: product.resellerId, stockCount: stockItems, active: isActive });
 
-      // CORREÇÃO: Salvar variantes se houver (modo dinâmico)
-      if (dynamicMode && variants && Array.isArray(variants) && variants.length > 0) {
-        console.log("[Create Product] Saving", variants.length, "variants for product", product.id);
-        for (const variant of variants) {
-          if (variant.name && variant.price) {
-            try {
-              await storage.createProductVariant({
-                productId: product.id,
-                name: variant.name,
-                price: variant.price.toString(),
-                stock: variant.stock || "",
-                active: true,
-              });
-              console.log("[Create Product] ✓ Variant saved:", variant.name, "stock:", variant.stock || "(empty)");
-            } catch (variantError: any) {
-              console.error("[Create Product] Error saving variant:", variantError.message);
-            }
-          }
-        }
-        
-        // Calculate min price from variants and update product
-        const prices = variants
-          .filter((v: any) => v.price)
-          .map((v: any) => parseFloat(v.price));
-        if (prices.length > 0) {
-          const minPrice = Math.min(...prices).toFixed(2);
-          await storage.updateProduct(product.id, { 
-            currentPrice: minPrice,
-            originalPrice: minPrice 
-          });
-          console.log("[Create Product] ✓ Updated product price to min variant price:", minPrice);
-        }
-      }
-
       res.json(product);
     } catch (error: any) {
       console.error("===========================================");
@@ -4019,7 +3985,7 @@ export async function registerRoutes(
 
   app.patch("/api/vendor/products/:id", async (req, res) => {
     const productId = parseInt(req.params.id);
-    const { name, description, imageUrl, currentPrice, originalPrice, stock, category, subcategory, deliveryContent, active, slug, categoryId: reqCategoryId, limitPerUser, dynamicMode: rawDynamicMode, variants } = req.body;
+    const { name, description, imageUrl, currentPrice, originalPrice, stock, category, subcategory, deliveryContent, active, slug, categoryId: reqCategoryId, limitPerUser, dynamicMode: rawDynamicMode } = req.body;
 
     // Coerce dynamicMode to proper boolean (handles string "true"/"false" from JSON)
     const dynamicMode = rawDynamicMode === true || rawDynamicMode === "true";
@@ -4070,57 +4036,6 @@ export async function registerRoutes(
       if (rawDynamicMode !== undefined) updateData.dynamicMode = dynamicMode;
 
       const product = await storage.updateProduct(productId, updateData);
-
-      // CORREÇÃO: Salvar/atualizar variantes se houver (modo dinâmico)
-      if (dynamicMode && variants && Array.isArray(variants)) {
-        console.log("[Update Product] Processing", variants.length, "variants for product", productId);
-        for (const variant of variants) {
-          if (variant.name && variant.price) {
-            try {
-              if (variant.id) {
-                // Atualizar variante existente
-                await storage.updateProductVariant(variant.id, {
-                  name: variant.name,
-                  price: variant.price.toString(),
-                  stock: variant.stock || "",
-                  active: true,
-                });
-                console.log("[Update Product] ✓ Variant updated:", variant.id, variant.name, "stock:", variant.stock || "(empty)");
-              } else {
-                // Criar nova variante
-                await storage.createProductVariant({
-                  productId: productId,
-                  name: variant.name,
-                  price: variant.price.toString(),
-                  stock: variant.stock || "",
-                  active: true,
-                });
-                console.log("[Update Product] ✓ New variant created:", variant.name, "stock:", variant.stock || "(empty)");
-              }
-            } catch (variantError: any) {
-              console.error("[Update Product] Error saving variant:", variantError.message);
-            }
-          }
-        }
-      }
-
-      // Recalculate min price from variants for dynamic mode products
-      if (dynamicMode) {
-        const allVariants = await storage.getProductVariants(productId);
-        if (allVariants.length > 0) {
-          const prices = allVariants
-            .filter((v) => v.active && v.price)
-            .map((v) => parseFloat(v.price));
-          if (prices.length > 0) {
-            const minPrice = Math.min(...prices).toFixed(2);
-            await storage.updateProduct(productId, { 
-              currentPrice: minPrice,
-              originalPrice: minPrice 
-            });
-            console.log("[Update Product] ✓ Updated product price to min variant price:", minPrice);
-          }
-        }
-      }
 
       console.log("[Update Product] Product updated successfully:", productId, "with stock count:", stockItems);
       res.json(product);
@@ -6148,119 +6063,6 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("[Reviews] Error fetching seller stats:", error);
       res.status(500).json({ error: "Erro ao buscar estatisticas" });
-    }
-  });
-
-  // ============== PRODUCT VARIANTS API (Dynamic Mode) ==============
-  
-  // Get all variants for a product
-  app.get("/api/products/:productId/variants", async (req, res) => {
-    const productId = parseInt(req.params.productId);
-    
-    if (isNaN(productId)) {
-      return res.status(400).json({ error: "ID do produto inválido" });
-    }
-    
-    try {
-      const variants = await storage.getProductVariants(productId);
-      res.json(variants);
-    } catch (error: any) {
-      console.error("[Variants] Error fetching variants:", error);
-      res.status(500).json({ error: "Erro ao buscar variantes" });
-    }
-  });
-
-  // Create a new variant for a product
-  app.post("/api/products/:productId/variants", async (req, res) => {
-    const productId = parseInt(req.params.productId);
-    const token = req.headers.authorization?.replace("Bearer ", "");
-    
-    if (!isVendorAuthenticated(token)) {
-      return res.status(401).json({ error: "Não autorizado" });
-    }
-    
-    if (isNaN(productId)) {
-      return res.status(400).json({ error: "ID do produto inválido" });
-    }
-    
-    try {
-      const { name, price, stock, active } = req.body;
-      
-      if (!name || price === undefined) {
-        return res.status(400).json({ error: "Nome e preço são obrigatórios" });
-      }
-      
-      const variant = await storage.createProductVariant({
-        productId,
-        name,
-        price: price.toString(),
-        stock: stock || "",
-        active: active !== false,
-      });
-      
-      res.json(variant);
-    } catch (error: any) {
-      console.error("[Variants] Error creating variant:", error);
-      res.status(500).json({ error: "Erro ao criar variante" });
-    }
-  });
-
-  // Update a variant
-  app.put("/api/products/:productId/variants/:variantId", async (req, res) => {
-    const productId = parseInt(req.params.productId);
-    const variantId = parseInt(req.params.variantId);
-    const token = req.headers.authorization?.replace("Bearer ", "");
-    
-    if (!isVendorAuthenticated(token)) {
-      return res.status(401).json({ error: "Não autorizado" });
-    }
-    
-    if (isNaN(productId) || isNaN(variantId)) {
-      return res.status(400).json({ error: "IDs inválidos" });
-    }
-    
-    try {
-      const { name, price, stock, active } = req.body;
-      
-      const updateData: any = {};
-      if (name !== undefined) updateData.name = name;
-      if (price !== undefined) updateData.price = price.toString();
-      if (stock !== undefined) updateData.stock = stock;
-      if (active !== undefined) updateData.active = active;
-      
-      const variant = await storage.updateProductVariant(variantId, updateData);
-      
-      if (!variant) {
-        return res.status(404).json({ error: "Variante não encontrada" });
-      }
-      
-      res.json(variant);
-    } catch (error: any) {
-      console.error("[Variants] Error updating variant:", error);
-      res.status(500).json({ error: "Erro ao atualizar variante" });
-    }
-  });
-
-  // Delete a variant
-  app.delete("/api/products/:productId/variants/:variantId", async (req, res) => {
-    const productId = parseInt(req.params.productId);
-    const variantId = parseInt(req.params.variantId);
-    const token = req.headers.authorization?.replace("Bearer ", "");
-    
-    if (!isVendorAuthenticated(token)) {
-      return res.status(401).json({ error: "Não autorizado" });
-    }
-    
-    if (isNaN(productId) || isNaN(variantId)) {
-      return res.status(400).json({ error: "IDs inválidos" });
-    }
-    
-    try {
-      await storage.deleteProductVariant(variantId);
-      res.json({ success: true });
-    } catch (error: any) {
-      console.error("[Variants] Error deleting variant:", error);
-      res.status(500).json({ error: "Erro ao excluir variante" });
     }
   });
 
