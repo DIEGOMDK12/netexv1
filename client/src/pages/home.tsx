@@ -112,10 +112,44 @@ export default function Home() {
 
   const activeProducts = products.filter(p => p.active);
   
+  // Função para embaralhar produtos com peso para Premium (aparecem mais)
+  const shuffleWithPremiumWeight = (prods: ProductWithSeller[]) => {
+    // Separa premium e normais
+    const premiumProds = prods.filter(p => (p as any).isPremium);
+    const normalProds = prods.filter(p => !(p as any).isPremium);
+    
+    // Duplica os premium para aparecerem mais vezes na rotação
+    const weighted = [...premiumProds, ...premiumProds, ...normalProds];
+    
+    // Remove duplicatas (mantém apenas uma instância de cada produto)
+    const seen = new Set<number>();
+    const shuffled: ProductWithSeller[] = [];
+    
+    // Embaralha usando Fisher-Yates
+    const toShuffle = [...weighted];
+    for (let i = toShuffle.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [toShuffle[i], toShuffle[j]] = [toShuffle[j], toShuffle[i]];
+    }
+    
+    // Adiciona sem duplicatas, premium primeiro
+    for (const p of toShuffle) {
+      if (!seen.has(p.id)) {
+        seen.add(p.id);
+        shuffled.push(p);
+      }
+    }
+    
+    return shuffled;
+  };
+  
+  // Produtos embaralhados com peso para Premium
+  const shuffledProducts = shuffleWithPremiumWeight(activeProducts);
+  
   const selectedCategoryData = globalCategories.find(c => c.name === selectedCategory);
   const availableSubcategories = selectedCategoryData?.subcategories || [];
   
-  const filteredProducts = activeProducts.filter(p => {
+  const filteredProducts = shuffledProducts.filter(p => {
     // Filtro de busca
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -168,20 +202,20 @@ export default function Home() {
       }, []).slice(0, 8)
     : defaultCategories;
 
-  const steamProducts = activeProducts.filter(p => 
+  const steamProducts = shuffleWithPremiumWeight(activeProducts.filter(p => 
     p.category === 'Steam' || 
     p.name?.toLowerCase().includes('steam')
-  ).slice(0, 4);
+  )).slice(0, 4);
 
-  const subscriptionProducts = activeProducts.filter(p => 
+  const subscriptionProducts = shuffleWithPremiumWeight(activeProducts.filter(p => 
     p.category === 'Streaming & TV' ||
     p.name?.toLowerCase().includes('netflix') ||
     p.name?.toLowerCase().includes('spotify') ||
     p.name?.toLowerCase().includes('disney') ||
     p.name?.toLowerCase().includes('prime video')
-  ).slice(0, 4);
+  )).slice(0, 4);
 
-  const featuredProducts = activeProducts.slice(0, 8);
+  const featuredProducts = shuffledProducts.slice(0, 8);
 
   return (
     <div className="min-h-screen bg-[#0f172a]">
