@@ -422,7 +422,7 @@ export function DashboardMain({ vendorId, isAdmin }: DashboardMainProps) {
                 <thead>
                   <tr className="border-b border-white/10">
                     <th className="text-left py-3 px-3 text-gray-400 font-medium">Data</th>
-                    <th className="text-right py-3 px-3 text-gray-400 font-medium">Valor</th>
+                    <th className="text-right py-3 px-3 text-gray-400 font-medium">Valor Recebido</th>
                     <th className="text-left py-3 px-3 text-gray-400 font-medium hidden md:table-cell">Chave PIX</th>
                     <th className="text-center py-3 px-3 text-gray-400 font-medium">Status</th>
                   </tr>
@@ -430,13 +430,16 @@ export function DashboardMain({ vendorId, isAdmin }: DashboardMainProps) {
                 <tbody>
                   {withdrawals.map((withdrawal) => {
                     const badge = getStatusBadge(withdrawal.status);
+                    const valorRecebido = withdrawal.netAmount 
+                      ? parseFloat(withdrawal.netAmount.toString())
+                      : parseFloat(withdrawal.amount.toString());
                     return (
                       <tr key={withdrawal.id} className="border-b border-white/5 hover:bg-white/5 transition">
                         <td className="py-3 px-3 text-white text-sm">
                           {formatDate(withdrawal.createdAt)}
                         </td>
                         <td className="py-3 px-3 text-right font-semibold text-emerald-400">
-                          R$ {parseFloat(withdrawal.amount.toString()).toFixed(2)}
+                          R$ {valorRecebido.toFixed(2)}
                         </td>
                         <td className="py-3 px-3 text-gray-400 hidden md:table-cell text-sm truncate max-w-[200px]">
                           {withdrawal.pixKey}
