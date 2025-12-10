@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import eliteVaultLogo from "@assets/generated_images/elitevault_modern_vault_logo.png";
+import eliteVaultLogo from "@assets/generated_images/premium_vault_door_icon.png";
 import { 
   Search, 
   Bell, 
