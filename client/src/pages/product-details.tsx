@@ -51,6 +51,12 @@ export default function ProductDetails() {
     enabled: !!productId,
   });
 
+  // Fetch seller stats (rating, sales, positive %)
+  const { data: sellerStats } = useQuery<{ averageRating: number; totalReviews: number; positivePercent: number; totalSales: number }>({
+    queryKey: ["/api/seller", product?.resellerId, "stats"],
+    enabled: !!product?.resellerId,
+  });
+
   const themeColor = "#2563eb";
   const textColor = "#FFFFFF";
 
@@ -324,15 +330,21 @@ export default function ProductDetails() {
 
               <div className="grid grid-cols-3 gap-2 text-center mb-4">
                 <div className="bg-[#0f172a] rounded-lg p-2">
-                  <div className="text-lg font-bold text-white">4.8</div>
+                  <div className="text-lg font-bold text-white" data-testid="text-seller-rating">
+                    {sellerStats?.averageRating?.toFixed(1) || "0.0"}
+                  </div>
                   <div className="text-xs text-gray-500">Avaliacao</div>
                 </div>
                 <div className="bg-[#0f172a] rounded-lg p-2">
-                  <div className="text-lg font-bold text-white">147</div>
+                  <div className="text-lg font-bold text-white" data-testid="text-seller-sales">
+                    {sellerStats?.totalSales || 0}
+                  </div>
                   <div className="text-xs text-gray-500">Vendas</div>
                 </div>
                 <div className="bg-[#0f172a] rounded-lg p-2">
-                  <div className="text-lg font-bold text-white">98%</div>
+                  <div className="text-lg font-bold text-white" data-testid="text-seller-positive">
+                    {sellerStats?.positivePercent || 0}%
+                  </div>
                   <div className="text-xs text-gray-500">Positivo</div>
                 </div>
               </div>
