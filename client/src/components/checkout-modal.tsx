@@ -22,15 +22,49 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
   const [, setLocation] = useLocation();
   const [settings, setSettings] = useState<any>(null);
 
-  const [email, setEmail] = useState(() => {
-    return localStorage.getItem("customer_email") || "";
-  });
+  const [email, setEmail] = useState("");
   const [whatsapp, setWhatsapp] = useState(() => {
     return localStorage.getItem("customer_whatsapp") || "";
   });
-  const [customerName, setCustomerName] = useState(() => {
-    return localStorage.getItem("customer_name") || "";
-  });
+  const [customerName, setCustomerName] = useState("");
+
+  // Load logged-in user data when modal opens
+  useEffect(() => {
+    const loadUserData = async () => {
+      const vendorToken = localStorage.getItem("vendor_token");
+      const vendorId = localStorage.getItem("vendor_id");
+      
+      if (vendorToken && vendorId) {
+        try {
+          const response = await fetch("/api/vendor/profile", {
+            headers: { "Authorization": `Bearer ${vendorToken}` }
+          });
+          if (response.ok) {
+            const vendor = await response.json();
+            if (vendor.email) setEmail(vendor.email);
+            if (vendor.name) setCustomerName(vendor.name);
+            if (vendor.phone) setWhatsapp(vendor.phone);
+          }
+        } catch (error) {
+          console.error("[CheckoutModal] Failed to load user data:", error);
+        }
+      }
+      
+      // Fallback to localStorage if no vendor data
+      if (!email) {
+        const savedEmail = localStorage.getItem("customer_email");
+        if (savedEmail) setEmail(savedEmail);
+      }
+      if (!customerName) {
+        const savedName = localStorage.getItem("customer_name");
+        if (savedName) setCustomerName(savedName);
+      }
+    };
+    
+    if (open) {
+      loadUserData();
+    }
+  }, [open]);
   const [couponCode, setCouponCode] = useState("");
   const [discount, setDiscount] = useState(0);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);

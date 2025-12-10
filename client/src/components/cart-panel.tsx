@@ -2,6 +2,8 @@ import { X, Minus, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/lib/store-context";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 
 interface CartPanelProps {
   onCheckout: () => void;
@@ -11,6 +13,28 @@ interface CartPanelProps {
 
 export function CartPanel({ onCheckout, themeColor, textColor }: CartPanelProps) {
   const { cart, isCartOpen, setIsCartOpen, updateQuantity, removeFromCart, cartTotal } = useStore();
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+
+  const isLoggedIn = () => {
+    const vendorId = localStorage.getItem("vendor_id");
+    const vendorToken = localStorage.getItem("vendor_token");
+    return !!vendorId && !!vendorToken;
+  };
+
+  const handleCheckout = () => {
+    if (!isLoggedIn()) {
+      setIsCartOpen(false);
+      toast({
+        title: "Faça login para continuar",
+        description: "Você precisa estar logado para finalizar a compra",
+      });
+      setLocation("/login");
+      return;
+    }
+    setIsCartOpen(false);
+    onCheckout();
+  };
 
   return (
     <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
@@ -133,10 +157,7 @@ export function CartPanel({ onCheckout, themeColor, textColor }: CartPanelProps)
             <Button
               className="w-full h-10 font-medium rounded-lg"
               style={{ backgroundColor: themeColor || "#3B82F6", color: "#FFFFFF" }}
-              onClick={() => {
-                setIsCartOpen(false);
-                onCheckout();
-              }}
+              onClick={handleCheckout}
               data-testid="button-checkout"
             >
               Finalizar Compra
