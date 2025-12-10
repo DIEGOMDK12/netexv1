@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLocation } from "wouter";
@@ -5,7 +6,6 @@ import { Loader2, Copy, CheckCircle, Gift, Mail, Star, MessageSquare } from "luc
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
@@ -141,7 +141,7 @@ export default function MyOrders() {
   });
 
   // Populate reviewedOrders when customer reviews load
-  React.useEffect(() => {
+  useEffect(() => {
     if (customerReviews && Array.isArray(customerReviews)) {
       const reviewedOrderIds = new Set(customerReviews.map((r: any) => r.orderId));
       setReviewedOrders(reviewedOrderIds);
