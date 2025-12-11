@@ -432,10 +432,10 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
             return;
           }
           const numericPrice = parseFloat(v.price.replace(',', '.'));
-          if (isNaN(numericPrice) || numericPrice <= 0) {
+          if (isNaN(numericPrice) || numericPrice < 2) {
             toast({
               title: "Preço inválido",
-              description: `O preço "${v.price}" não é um valor numérico válido`,
+              description: `O preço mínimo é R$ 2,00. O preço "${v.price}" é inválido.`,
               variant: "destructive",
             });
             return;
@@ -447,6 +447,15 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
         toast({
           title: "Campos obrigatórios",
           description: "Nome, preço e preço original são necessários",
+          variant: "destructive",
+        });
+        return;
+      }
+      const numericPrice = parseFloat(formData.price.replace(',', '.'));
+      if (isNaN(numericPrice) || numericPrice < 2) {
+        toast({
+          title: "Preço inválido",
+          description: "O preço mínimo é R$ 2,00",
           variant: "destructive",
         });
         return;
@@ -467,7 +476,7 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
           if (!v.name || !v.name.trim()) return false;
           if (!v.price || !v.price.trim()) return false;
           const numericPrice = parseFloat(v.price.replace(',', '.'));
-          return !isNaN(numericPrice) && numericPrice > 0;
+          return !isNaN(numericPrice) && numericPrice >= 2;
         }).map(v => ({
           ...v,
           price: parseFloat(v.price.replace(',', '.')).toString()
@@ -581,10 +590,10 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
             return;
           }
           const numericPrice = parseFloat(v.price.replace(',', '.'));
-          if (isNaN(numericPrice) || numericPrice <= 0) {
+          if (isNaN(numericPrice) || numericPrice < 2) {
             toast({
               title: "Preço inválido",
-              description: `O preço "${v.price}" não é um valor numérico válido`,
+              description: `O preço mínimo é R$ 2,00. O preço "${v.price}" é inválido.`,
               variant: "destructive",
             });
             return;
@@ -596,6 +605,15 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
         toast({
           title: "Campos obrigatórios",
           description: "Nome, preço e preço original são necessários",
+          variant: "destructive",
+        });
+        return;
+      }
+      const numericPrice = parseFloat(formData.price.replace(',', '.'));
+      if (isNaN(numericPrice) || numericPrice < 2) {
+        toast({
+          title: "Preço inválido",
+          description: "O preço mínimo é R$ 2,00",
           variant: "destructive",
         });
         return;
@@ -616,7 +634,7 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
           if (!v.name || !v.name.trim()) return false;
           if (!v.price || !v.price.trim()) return false;
           const numericPrice = parseFloat(v.price.replace(',', '.'));
-          return !isNaN(numericPrice) && numericPrice > 0;
+          return !isNaN(numericPrice) && numericPrice >= 2;
         }).map(v => ({
           ...v,
           price: parseFloat(v.price.replace(',', '.')).toString()

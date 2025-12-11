@@ -4180,6 +4180,13 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Nome do produto é obrigatório" });
       }
 
+      // Validar preço mínimo de R$ 2,00
+      const priceValue = parseFloat(currentPrice || originalPrice || "0");
+      if (!dynamicMode && (isNaN(priceValue) || priceValue < 2)) {
+        console.error("[Create Product] Price below minimum:", priceValue);
+        return res.status(400).json({ error: "O preço mínimo é R$ 2,00" });
+      }
+
       // Normalize stock/license_keys: handle string or array input
       let normalizedStock = "";
       const stockInput = stock || req.body.license_keys || req.body.licenseKeys || "";
