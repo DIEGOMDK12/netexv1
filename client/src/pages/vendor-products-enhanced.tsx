@@ -307,29 +307,23 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
     mutationFn: async (data: any) => {
       const result = await apiRequest("PATCH", `/api/vendor/products/${editingProductId}`, data);
       
-      // If dynamic mode, update variants
+      // If dynamic mode, sync variants using the sync endpoint
       if (editingProductId && data.dynamicMode !== undefined) {
-        // Delete existing variants first if switching to non-dynamic mode
-        // Or update them if still in dynamic mode
         if (data.dynamicMode && data.variants && data.variants.length > 0) {
-          // For each variant, create or update
-          for (const variant of data.variants) {
-            if (variant.id) {
-              // Update existing variant
-              await apiRequest("PUT", `/api/products/${editingProductId}/variants/${variant.id}`, {
-                name: variant.name,
-                price: variant.price,
-                stock: variant.stock,
-              });
-            } else {
-              // Create new variant
-              await apiRequest("POST", `/api/products/${editingProductId}/variants`, {
-                name: variant.name,
-                price: variant.price,
-                stock: variant.stock,
-              });
-            }
-          }
+          // Use sync endpoint to handle all variant operations (create, update, delete)
+          await apiRequest("POST", `/api/products/${editingProductId}/variants/sync`, {
+            variants: data.variants.map((v: any) => ({
+              id: v.id || undefined,
+              name: v.name,
+              price: v.price,
+              stock: v.stock,
+            })),
+          });
+        } else if (!data.dynamicMode) {
+          // If switching to simple mode, delete all variants
+          await apiRequest("POST", `/api/products/${editingProductId}/variants/sync`, {
+            variants: [],
+          });
         }
       }
       return result;

@@ -4317,11 +4317,141 @@ export async function registerRoutes(
     const productId = parseInt(req.params.id);
 
     try {
+      // Also delete product variants
+      await storage.deleteProductVariants(productId);
       await storage.deleteProduct(productId);
       res.json({ success: true });
     } catch (error) {
       console.error("[Delete Product] Error:", error);
       res.status(500).json({ error: "Failed to delete product" });
+    }
+  });
+
+  // Product Variants Routes
+  app.get("/api/products/:productId/variants", async (req, res) => {
+    try {
+      const productId = parseInt(req.params.productId);
+      const variants = await storage.getProductVariants(productId);
+      console.log("[GET /api/products/:productId/variants] Found", variants.length, "variants for product", productId);
+      res.json(variants);
+    } catch (error) {
+      console.error("[GET /api/products/:productId/variants] Error:", error);
+      res.status(500).json({ error: "Failed to fetch variants" });
+    }
+  });
+
+  app.post("/api/products/:productId/variants", async (req, res) => {
+    try {
+      const productId = parseInt(req.params.productId);
+      const { name, price, stock, active } = req.body;
+
+      if (!name || !price) {
+        return res.status(400).json({ error: "Nome e preco sao obrigatorios" });
+      }
+
+      const variant = await storage.createProductVariant({
+        productId,
+        name,
+        price: price.toString(),
+        stock: stock || "",
+        active: active !== false,
+      });
+
+      console.log("[POST /api/products/:productId/variants] Created variant:", variant.id, "for product", productId);
+      res.json(variant);
+    } catch (error) {
+      console.error("[POST /api/products/:productId/variants] Error:", error);
+      res.status(500).json({ error: "Failed to create variant" });
+    }
+  });
+
+  app.put("/api/products/:productId/variants/:variantId", async (req, res) => {
+    try {
+      const variantId = parseInt(req.params.variantId);
+      const { name, price, stock, active } = req.body;
+
+      const updateData: any = {};
+      if (name !== undefined) updateData.name = name;
+      if (price !== undefined) updateData.price = price.toString();
+      if (stock !== undefined) updateData.stock = stock;
+      if (active !== undefined) updateData.active = active;
+
+      const variant = await storage.updateProductVariant(variantId, updateData);
+      console.log("[PUT /api/products/:productId/variants/:variantId] Updated variant:", variantId);
+      res.json(variant);
+    } catch (error) {
+      console.error("[PUT /api/products/:productId/variants/:variantId] Error:", error);
+      res.status(500).json({ error: "Failed to update variant" });
+    }
+  });
+
+  app.delete("/api/products/:productId/variants/:variantId", async (req, res) => {
+    try {
+      const variantId = parseInt(req.params.variantId);
+      await storage.deleteProductVariant(variantId);
+      console.log("[DELETE /api/products/:productId/variants/:variantId] Deleted variant:", variantId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[DELETE /api/products/:productId/variants/:variantId] Error:", error);
+      res.status(500).json({ error: "Failed to delete variant" });
+    }
+  });
+
+  // Bulk update/sync variants for a product
+  app.post("/api/products/:productId/variants/sync", async (req, res) => {
+    try {
+      const productId = parseInt(req.params.productId);
+      const { variants } = req.body;
+
+      if (!Array.isArray(variants)) {
+        return res.status(400).json({ error: "Variants deve ser um array" });
+      }
+
+      console.log("[POST /api/products/:productId/variants/sync] Syncing", variants.length, "variants for product", productId);
+
+      // Get existing variants
+      const existingVariants = await storage.getProductVariants(productId);
+      const existingIds = new Set(existingVariants.map(v => v.id));
+      const incomingIds = new Set(variants.filter((v: any) => v.id).map((v: any) => v.id));
+
+      // Delete variants that are no longer present
+      for (const existing of existingVariants) {
+        if (!incomingIds.has(existing.id)) {
+          await storage.deleteProductVariant(existing.id);
+          console.log("[Sync] Deleted variant:", existing.id);
+        }
+      }
+
+      // Update or create variants
+      const resultVariants = [];
+      for (const v of variants) {
+        if (v.id && existingIds.has(v.id)) {
+          // Update existing variant
+          const updated = await storage.updateProductVariant(v.id, {
+            name: v.name,
+            price: v.price?.toString() || "0",
+            stock: v.stock || "",
+            active: v.active !== false,
+          });
+          if (updated) resultVariants.push(updated);
+        } else {
+          // Create new variant
+          const created = await storage.createProductVariant({
+            productId,
+            name: v.name,
+            price: v.price?.toString() || "0",
+            stock: v.stock || "",
+            active: v.active !== false,
+          });
+          resultVariants.push(created);
+        }
+      }
+
+      console.log("[Sync] Completed. Result:", resultVariants.length, "variants");
+      res.json(resultVariants);
+    } catch (error) {
+      console.error("[POST /api/products/:productId/variants/sync] Error:", error);
+      res.status(500).json({ error: "Failed to sync variants" });
     }
   });
 

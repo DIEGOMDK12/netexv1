@@ -1,5 +1,5 @@
 import { 
-  products, orders, orderItems, coupons, settings, resellers, categories, customerUsers, withdrawalRequests, announcementSettings, webhooks, chatMessages, reviews, vendorSessions,
+  products, orders, orderItems, coupons, settings, resellers, categories, customerUsers, withdrawalRequests, announcementSettings, webhooks, chatMessages, reviews, vendorSessions, productVariants,
   type Product, type InsertProduct,
   type Order, type InsertOrder,
   type OrderItem, type InsertOrderItem,
@@ -13,7 +13,8 @@ import {
   type Webhook, type InsertWebhook,
   type ChatMessage, type InsertChatMessage,
   type Review, type InsertReview,
-  type VendorSession
+  type VendorSession,
+  type ProductVariant, type InsertProductVariant
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, isNotNull, inArray, and, sql, gt, lt } from "drizzle-orm";
@@ -118,6 +119,14 @@ export interface IStorage {
   getVendorSession(token: string): Promise<VendorSession | undefined>;
   deleteVendorSession(token: string): Promise<void>;
   deleteExpiredVendorSessions(): Promise<void>;
+
+  // Product variants
+  getProductVariants(productId: number): Promise<ProductVariant[]>;
+  getProductVariant(id: number): Promise<ProductVariant | undefined>;
+  createProductVariant(variant: Omit<InsertProductVariant, 'id' | 'createdAt'>): Promise<ProductVariant>;
+  updateProductVariant(id: number, variant: Partial<InsertProductVariant>): Promise<ProductVariant | undefined>;
+  deleteProductVariant(id: number): Promise<void>;
+  deleteProductVariants(productId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -784,6 +793,39 @@ export class DatabaseStorage implements IStorage {
 
   async deleteExpiredVendorSessions(): Promise<void> {
     await db.delete(vendorSessions).where(lt(vendorSessions.expiresAt, new Date()));
+  }
+
+  // Product variants
+  async getProductVariants(productId: number): Promise<ProductVariant[]> {
+    return db.select().from(productVariants)
+      .where(eq(productVariants.productId, productId))
+      .orderBy(productVariants.id);
+  }
+
+  async getProductVariant(id: number): Promise<ProductVariant | undefined> {
+    const [variant] = await db.select().from(productVariants).where(eq(productVariants.id, id));
+    return variant || undefined;
+  }
+
+  async createProductVariant(variant: Omit<InsertProductVariant, 'id' | 'createdAt'>): Promise<ProductVariant> {
+    const [created] = await db.insert(productVariants).values(variant).returning();
+    return created;
+  }
+
+  async updateProductVariant(id: number, variant: Partial<InsertProductVariant>): Promise<ProductVariant | undefined> {
+    const [updated] = await db.update(productVariants)
+      .set(variant)
+      .where(eq(productVariants.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteProductVariant(id: number): Promise<void> {
+    await db.delete(productVariants).where(eq(productVariants.id, id));
+  }
+
+  async deleteProductVariants(productId: number): Promise<void> {
+    await db.delete(productVariants).where(eq(productVariants.productId, productId));
   }
 
 }
