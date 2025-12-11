@@ -127,9 +127,15 @@ function ProductCardWithVariants({
         <div className="mb-3 flex flex-wrap gap-1">
           {isDynamicMode ? (
             <>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400">
-                {variantCount} variante{variantCount !== 1 ? 's' : ''}
-              </span>
+              {variantCount > 0 ? (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400">
+                  {variantCount} variante{variantCount !== 1 ? 's' : ''}
+                </span>
+              ) : (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400">
+                  Sem variantes configuradas
+                </span>
+              )}
               <span className={`text-xs px-2 py-0.5 rounded-full ${stockCount > 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
                 {stockCount > 0 ? `${stockCount} em estoque` : 'Sem estoque'}
               </span>
@@ -426,19 +432,30 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
       }
     }
 
+    // Filter only valid variants (with name and price) before sending
+    const validVariantsToSend = dynamicMode 
+      ? variants.filter(v => v.name && v.name.trim() && v.price && v.price.trim())
+      : [];
+    
+    console.log("[handleAddProduct] Sending product with variants:", {
+      dynamicMode,
+      variantsCount: validVariantsToSend.length,
+      variants: validVariantsToSend
+    });
+
     createMutation.mutate({
       name: formData.name,
       description: formData.description,
       imageUrl: formData.imageUrl || "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400",
-      currentPrice: formData.price,
-      originalPrice: formData.originalPrice,
+      currentPrice: dynamicMode && validVariantsToSend.length > 0 ? validVariantsToSend[0].price : formData.price,
+      originalPrice: dynamicMode ? "0" : formData.originalPrice,
       stock: dynamicMode ? "" : formData.stock,
       deliveryContent: formData.deliveryContent,
       category: formData.category || "Outros",
       subcategory: formData.subcategory || null,
       resellerId: vendorId,
       dynamicMode: dynamicMode,
-      variants: dynamicMode ? variants : [],
+      variants: validVariantsToSend,
     });
   };
 
@@ -534,18 +551,29 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
       }
     }
 
+    // Filter only valid variants (with name and price) before sending
+    const validVariantsToSend = dynamicMode 
+      ? variants.filter(v => v.name && v.name.trim() && v.price && v.price.trim())
+      : [];
+    
+    console.log("[handleSaveEdit] Updating product with variants:", {
+      dynamicMode,
+      variantsCount: validVariantsToSend.length,
+      variants: validVariantsToSend
+    });
+
     updateMutation.mutate({
       name: formData.name,
       description: formData.description,
       imageUrl: formData.imageUrl,
-      currentPrice: formData.price,
-      originalPrice: formData.originalPrice,
+      currentPrice: dynamicMode && validVariantsToSend.length > 0 ? validVariantsToSend[0].price : formData.price,
+      originalPrice: dynamicMode ? "0" : formData.originalPrice,
       stock: dynamicMode ? "" : formData.stock,
       deliveryContent: formData.deliveryContent,
       category: formData.category || "Outros",
       subcategory: formData.subcategory || null,
       dynamicMode: dynamicMode,
-      variants: dynamicMode ? variants : [],
+      variants: validVariantsToSend,
     });
   };
 
