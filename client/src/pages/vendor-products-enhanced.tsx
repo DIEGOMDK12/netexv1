@@ -392,25 +392,41 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
         });
         return;
       }
-      // Validate at least 1 variant exists with name and price
-      const validVariants = variants.filter(v => v.name && v.name.trim() && v.price && v.price.trim());
+      // Validate at least 1 variant exists with name and valid numeric price
+      const validVariants = variants.filter(v => {
+        if (!v.name || !v.name.trim()) return false;
+        if (!v.price || !v.price.trim()) return false;
+        const numericPrice = parseFloat(v.price.replace(',', '.'));
+        return !isNaN(numericPrice) && numericPrice > 0;
+      });
       if (validVariants.length === 0) {
         toast({
           title: "Variante obrigatória",
-          description: "Produtos dinâmicos precisam de pelo menos 1 variante com nome e preço",
+          description: "Produtos dinâmicos precisam de pelo menos 1 variante com nome e preço válido",
           variant: "destructive",
         });
         return;
       }
-      // Validate all variants with name have price
+      // Validate all variants with name have valid numeric price
       for (const v of variants) {
-        if (v.name && v.name.trim() && (!v.price || !v.price.trim())) {
-          toast({
-            title: "Preencha o preço do item",
-            description: "Cada variante precisa de nome e preço",
-            variant: "destructive",
-          });
-          return;
+        if (v.name && v.name.trim()) {
+          if (!v.price || !v.price.trim()) {
+            toast({
+              title: "Preencha o preço do item",
+              description: "Cada variante precisa de nome e preço",
+              variant: "destructive",
+            });
+            return;
+          }
+          const numericPrice = parseFloat(v.price.replace(',', '.'));
+          if (isNaN(numericPrice) || numericPrice <= 0) {
+            toast({
+              title: "Preço inválido",
+              description: `O preço "${v.price}" não é um valor numérico válido`,
+              variant: "destructive",
+            });
+            return;
+          }
         }
       }
     } else {
@@ -432,14 +448,28 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
       }
     }
 
-    // Filter only valid variants (with name and price) before sending
+    // Filter only valid variants (with name and valid numeric price) before sending
     const validVariantsToSend = dynamicMode 
-      ? variants.filter(v => v.name && v.name.trim() && v.price && v.price.trim())
+      ? variants.filter(v => {
+          if (!v.name || !v.name.trim()) return false;
+          if (!v.price || !v.price.trim()) return false;
+          const numericPrice = parseFloat(v.price.replace(',', '.'));
+          return !isNaN(numericPrice) && numericPrice > 0;
+        }).map(v => ({
+          ...v,
+          price: parseFloat(v.price.replace(',', '.')).toString()
+        }))
       : [];
+    
+    // For dynamic mode, use the min price from variants; for regular mode, use formData.price
+    const computedPrice = dynamicMode && validVariantsToSend.length > 0 
+      ? Math.min(...validVariantsToSend.map(v => parseFloat(v.price))).toString()
+      : formData.price;
     
     console.log("[handleAddProduct] Sending product with variants:", {
       dynamicMode,
       variantsCount: validVariantsToSend.length,
+      computedPrice,
       variants: validVariantsToSend
     });
 
@@ -447,8 +477,8 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
       name: formData.name,
       description: formData.description,
       imageUrl: formData.imageUrl || "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400",
-      currentPrice: dynamicMode && validVariantsToSend.length > 0 ? validVariantsToSend[0].price : formData.price,
-      originalPrice: dynamicMode ? "0" : formData.originalPrice,
+      currentPrice: computedPrice,
+      originalPrice: dynamicMode ? computedPrice : formData.originalPrice,
       stock: dynamicMode ? "" : formData.stock,
       deliveryContent: formData.deliveryContent,
       category: formData.category || "Outros",
@@ -511,25 +541,41 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
         });
         return;
       }
-      // Validate at least 1 variant exists with name and price
-      const validVariants = variants.filter(v => v.name && v.name.trim() && v.price && v.price.trim());
+      // Validate at least 1 variant exists with name and valid numeric price
+      const validVariants = variants.filter(v => {
+        if (!v.name || !v.name.trim()) return false;
+        if (!v.price || !v.price.trim()) return false;
+        const numericPrice = parseFloat(v.price.replace(',', '.'));
+        return !isNaN(numericPrice) && numericPrice > 0;
+      });
       if (validVariants.length === 0) {
         toast({
           title: "Variante obrigatória",
-          description: "Produtos dinâmicos precisam de pelo menos 1 variante com nome e preço",
+          description: "Produtos dinâmicos precisam de pelo menos 1 variante com nome e preço válido",
           variant: "destructive",
         });
         return;
       }
-      // Validate all variants with name have price
+      // Validate all variants with name have valid numeric price
       for (const v of variants) {
-        if (v.name && v.name.trim() && (!v.price || !v.price.trim())) {
-          toast({
-            title: "Preencha o preço do item",
-            description: "Cada variante precisa de nome e preço",
-            variant: "destructive",
-          });
-          return;
+        if (v.name && v.name.trim()) {
+          if (!v.price || !v.price.trim()) {
+            toast({
+              title: "Preencha o preço do item",
+              description: "Cada variante precisa de nome e preço",
+              variant: "destructive",
+            });
+            return;
+          }
+          const numericPrice = parseFloat(v.price.replace(',', '.'));
+          if (isNaN(numericPrice) || numericPrice <= 0) {
+            toast({
+              title: "Preço inválido",
+              description: `O preço "${v.price}" não é um valor numérico válido`,
+              variant: "destructive",
+            });
+            return;
+          }
         }
       }
     } else {
@@ -551,14 +597,28 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
       }
     }
 
-    // Filter only valid variants (with name and price) before sending
+    // Filter only valid variants (with name and valid numeric price) before sending
     const validVariantsToSend = dynamicMode 
-      ? variants.filter(v => v.name && v.name.trim() && v.price && v.price.trim())
+      ? variants.filter(v => {
+          if (!v.name || !v.name.trim()) return false;
+          if (!v.price || !v.price.trim()) return false;
+          const numericPrice = parseFloat(v.price.replace(',', '.'));
+          return !isNaN(numericPrice) && numericPrice > 0;
+        }).map(v => ({
+          ...v,
+          price: parseFloat(v.price.replace(',', '.')).toString()
+        }))
       : [];
+    
+    // For dynamic mode, use the min price from variants; for regular mode, use formData.price
+    const computedPrice = dynamicMode && validVariantsToSend.length > 0 
+      ? Math.min(...validVariantsToSend.map(v => parseFloat(v.price))).toString()
+      : formData.price;
     
     console.log("[handleSaveEdit] Updating product with variants:", {
       dynamicMode,
       variantsCount: validVariantsToSend.length,
+      computedPrice,
       variants: validVariantsToSend
     });
 
@@ -566,8 +626,8 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
       name: formData.name,
       description: formData.description,
       imageUrl: formData.imageUrl,
-      currentPrice: dynamicMode && validVariantsToSend.length > 0 ? validVariantsToSend[0].price : formData.price,
-      originalPrice: dynamicMode ? "0" : formData.originalPrice,
+      currentPrice: computedPrice,
+      originalPrice: dynamicMode ? computedPrice : formData.originalPrice,
       stock: dynamicMode ? "" : formData.stock,
       deliveryContent: formData.deliveryContent,
       category: formData.category || "Outros",
