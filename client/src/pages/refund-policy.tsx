@@ -5,11 +5,11 @@ import { useStore } from "@/lib/store-context";
 
 export default function RefundPolicy() {
   const { settings } = useStore();
-  const storeName = settings?.storeName || "ELITEVAULT";
+  const storeName = settings?.storeName || "GOLDNET";
 
   return (
-    <div className="min-h-screen bg-[#0f172a]">
-      <header className="sticky top-0 z-50 bg-[#0f172a]/95 backdrop-blur-md border-b border-white/5">
+    <div className="min-h-screen bg-[#1a1814]">
+      <header className="sticky top-0 z-50 bg-[#1a1814]/95 backdrop-blur-md border-b border-[#DAA520]/10">
         <div className="max-w-4xl mx-auto px-4 h-14 flex items-center gap-4">
           <Link href="/">
             <Button size="icon" variant="ghost" className="text-gray-400" data-testid="button-back">

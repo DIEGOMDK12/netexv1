@@ -87,7 +87,7 @@ export async function enviarEntrega(
         <div class="container">
           <div class="header">
             <span class="success-badge">Pagamento Confirmado</span>
-            <h1>ELITEVAULT</h1>
+            <h1>GOLDNET</h1>
           </div>
           
           <div class="content">
@@ -106,7 +106,7 @@ export async function enviarEntrega(
           
           <div class="footer">
             <p>Obrigado pela preferencia!</p>
-            <p>Equipe ELITEVAULT</p>
+            <p>Equipe GOLDNET</p>
           </div>
         </div>
       </body>
@@ -139,7 +139,7 @@ export async function sendDeliveryEmail({
   customerName,
   productName,
   deliveredContent,
-  storeName = "ELITEVAULT",
+  storeName = "GOLDNET",
 }: DeliveryEmailParams): Promise<{ success: boolean; error?: string }> {
   if (!process.env.RESEND_API_KEY) {
     console.error("[Email] RESEND_API_KEY not configured");

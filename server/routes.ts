@@ -178,7 +178,7 @@ function readSettings() {
   } catch (error) {
     console.error("[Settings] Error reading settings file:", error);
     return {
-      storeName: "ELITEVAULT",
+      storeName: "GOLDNET",
       logoUrl: "",
       themeColor: "#3B82F6",
       textColor: "#FFFFFF",
@@ -189,7 +189,7 @@ function readSettings() {
       pagseguroEmail: "",
       pagseguroSandbox: false,
       pagseguroApiUrl: "https://api.pagseguro.com",
-      supportEmail: "suporte@elitevault.com",
+      supportEmail: "suporte@goldnet.com",
       whatsappContact: "5585988007000",
       resellerWhatsapp: ""
     };
@@ -434,7 +434,7 @@ export async function registerRoutes(
         // Salvar conteúdo entregue no pedido
         if (deliveredContent.trim()) {
           const settings = readSettings();
-          const storeName = settings?.storeName || "ELITEVAULT";
+          const storeName = settings?.storeName || "GOLDNET";
           const whatsappMessage = `Olá! Pagamento confirmado. Pedido #${orderId}:\n\n${deliveredContent.trim()}`;
           const whatsappLink = order.whatsapp 
             ? generateWhatsAppLink(order.whatsapp, whatsappMessage)
@@ -497,7 +497,7 @@ export async function registerRoutes(
           const orderItems = await storage.getOrderItems(orderId);
           const productNames = orderItems.map((item: any) => item.productName || "Produto Digital").join(", ");
           const settings = readSettings();
-          const storeName = settings?.storeName || "ELITEVAULT";
+          const storeName = settings?.storeName || "GOLDNET";
 
           console.log("[/webhook] Enviando email para:", order.email);
           
@@ -895,7 +895,7 @@ export async function registerRoutes(
     const currentSettings = readSettings();
     
     const updatedSettings = {
-      storeName: storeName || currentSettings.storeName || "ELITEVAULT",
+      storeName: storeName || currentSettings.storeName || "GOLDNET",
       logoUrl: logoUrl || currentSettings.logoUrl || "",
       themeColor: themeColor || currentSettings.themeColor || "#3B82F6",
       textColor: textColor || currentSettings.textColor || "#FFFFFF",
@@ -1732,7 +1732,7 @@ export async function registerRoutes(
       const productNames = orderItems.map(item => item.productName).join(", ");
 
       // Get store name from reseller or settings
-      let storeName = "ELITEVAULT";
+      let storeName = "GOLDNET";
       if (order.resellerId) {
         const reseller = await storage.getReseller(order.resellerId);
         if (reseller?.storeName) {
@@ -2393,7 +2393,7 @@ export async function registerRoutes(
         // Atualizar pedido com conteudo entregue
         if (deliveredContent.trim()) {
           const settings = readSettings();
-          const storeName = settings?.storeName || "ELITEVAULT";
+          const storeName = settings?.storeName || "GOLDNET";
           const whatsappMessage = `Ola! Pagamento confirmado. Pedido #${orderId}:\n\n${deliveredContent.trim()}`;
           const whatsappLink = order.whatsapp 
             ? generateWhatsAppLink(order.whatsapp, whatsappMessage)
@@ -2455,7 +2455,7 @@ export async function registerRoutes(
           const orderItems = await storage.getOrderItems(orderId);
           const productNames = orderItems.map((item: any) => item.productName || "Produto Digital").join(", ");
           const settings = readSettings();
-          const storeName = settings?.storeName || "ELITEVAULT";
+          const storeName = settings?.storeName || "GOLDNET";
 
           console.log("[Webhook] Enviando email para:", order.email);
           
@@ -2579,7 +2579,7 @@ export async function registerRoutes(
 
           // Generate WhatsApp delivery link
           const settings = readSettings();
-          const storeName = settings?.storeName || "ELITEVAULT";
+          const storeName = settings?.storeName || "GOLDNET";
           const whatsappMessage = `Ola! Seu pagamento foi confirmado. Aqui esta sua entrega do pedido #${orderId} na ${storeName}:\n\n${deliveredContent.trim()}\n\nObrigado pela compra!`;
           const whatsappLink = order.whatsapp 
             ? generateWhatsAppLink(order.whatsapp, whatsappMessage)
@@ -5440,7 +5440,7 @@ export async function registerRoutes(
         orderId: vendorId!,
         amount: 10.00,
         email: vendor.email,
-        description: "Assinatura Mensal ELITEVAULT",
+        description: "Assinatura Mensal GOLDNET",
         customerName: vendor.name || vendor.email.split("@")[0],
       });
 
@@ -5591,7 +5591,7 @@ export async function registerRoutes(
         items: [
           {
             reference_id: `subscription-item-${vendorId}`,
-            name: "Assinatura Mensal ELITEVAULT",
+            name: "Assinatura Mensal GOLDNET",
             quantity: 1,
             unit_amount: amountInCents,
           },

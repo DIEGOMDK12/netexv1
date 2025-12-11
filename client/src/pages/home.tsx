@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import eliteVaultLogo from "@assets/generated_images/shield_e_gaming_logo.png";
+import goldnetLogo from "@assets/goldnet-steam-logo-1_1765418652105.png";
 import { 
   Search, 
   Bell, 
@@ -218,12 +218,12 @@ export default function Home() {
   const featuredProducts = shuffledProducts.slice(0, 8);
 
   return (
-    <div className="min-h-screen bg-[#0f172a]">
-      <header className="sticky top-0 z-50 bg-[#0f172a]/95 backdrop-blur-md border-b border-white/5">
+    <div className="min-h-screen bg-[#1a1814]">
+      <header className="sticky top-0 z-50 bg-[#1a1814]/95 backdrop-blur-md border-b border-[#DAA520]/10">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <img src={eliteVaultLogo} alt="ELITEVAULT" className="w-8 h-8 rounded-lg" />
-            <span className="text-lg font-bold text-white">ELITEVAULT</span>
+            <img src={goldnetLogo} alt="GOLDNET" className="h-8 w-auto" />
+            <span className="text-lg font-bold text-[#DAA520]">GOLDNET</span>
           </div>
           
           <div className="flex items-center gap-2">
@@ -252,7 +252,7 @@ export default function Home() {
         </div>
         
         {isSearchOpen && (
-          <div className="border-t border-white/5 px-4 py-2 bg-[#0f172a]">
+          <div className="border-t border-[#DAA520]/10 px-4 py-2 bg-[#1a1814]">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
@@ -270,7 +270,7 @@ export default function Home() {
       </header>
 
       {isMenuOpen && (
-        <div className="fixed inset-0 z-40 bg-[#0f172a]/95 backdrop-blur-md pt-14">
+        <div className="fixed inset-0 z-40 bg-[#1a1814]/95 backdrop-blur-md pt-14">
           <div className="p-4 space-y-4">
             {isLoggedIn ? (
               <>
@@ -478,7 +478,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="px-4 py-12 bg-gradient-to-b from-[#0f172a] to-[#1e293b]/50" id="como-funciona">
+      <section className="px-4 py-12 bg-gradient-to-b from-[#1a1814] to-[#252015]/50" id="como-funciona">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl font-bold text-white text-center mb-2">
             Como Funciona?
@@ -622,11 +622,11 @@ export default function Home() {
       <footer className="border-t border-white/5 py-8 px-4">
         <div className="max-w-7xl mx-auto text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <img src={eliteVaultLogo} alt="ELITEVAULT" className="w-6 h-6 rounded" />
-            <span className="font-bold text-white">ELITEVAULT</span>
+            <img src={goldnetLogo} alt="GOLDNET" className="h-6 w-auto" />
+            <span className="font-bold text-[#DAA520]">GOLDNET</span>
           </div>
           <p className="text-sm text-gray-500">
-            2024 ELITEVAULT. Todos os direitos reservados.
+            2024 GOLDNET. Todos os direitos reservados.
           </p>
         </div>
       </footer>

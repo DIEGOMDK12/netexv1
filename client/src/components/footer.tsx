@@ -6,8 +6,8 @@ import { Link } from "wouter";
 export function Footer() {
   const { settings, currentReseller } = useStore();
   
-  const storeName = currentReseller?.storeName || settings?.storeName || "ELITEVAULT";
-  const supportEmail = currentReseller?.supportEmail || (settings as any)?.supportEmail || "suporte@elitevault.com";
+  const storeName = currentReseller?.storeName || settings?.storeName || "GOLDNET";
+  const supportEmail = currentReseller?.supportEmail || (settings as any)?.supportEmail || "suporte@goldnet.com";
   const whatsappContact = currentReseller?.whatsappContact || (settings as any)?.whatsappContact || "5585988007000";
   const footerDescription = currentReseller?.footerDescription || "Produtos digitais confiáveis, entrega instantânea";
 

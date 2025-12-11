@@ -463,7 +463,7 @@ async function verifyPendingPayments() {
               orderId: order.id,
               productName: productNames,
               deliveredContent: deliveredContent.trim(),
-              storeName: "ELITEVAULT",
+              storeName: "GOLDNET",
             }).then(result => {
               if (result.success) {
                 console.log(`[Payment Verify Cron] ✓ Email sent to ${order.email}`);
