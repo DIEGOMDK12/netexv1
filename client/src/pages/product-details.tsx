@@ -10,7 +10,7 @@ import { ProductCard } from "@/components/product-card";
 import { useStore } from "@/lib/store-context";
 import { useToast } from "@/hooks/use-toast";
 import { SiPix } from "react-icons/si";
-import type { Product, Settings, Reseller, Review } from "@shared/schema";
+import type { Product, Settings, Reseller, Review, ProductVariant } from "@shared/schema";
 
 export default function ProductDetails() {
   const [, setLocation] = useLocation();
@@ -19,6 +19,7 @@ export default function ProductDetails() {
   const { toast } = useToast();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
 
   const isLoggedIn = () => {
     const vendorId = localStorage.getItem("vendor_id");
@@ -57,6 +58,12 @@ export default function ProductDetails() {
     enabled: !!product?.resellerId,
   });
 
+  // Fetch product variants for products with dynamicMode
+  const { data: variants } = useQuery<ProductVariant[]>({
+    queryKey: ["/api/products", productId, "variants"],
+    enabled: !!productId && !!product?.dynamicMode,
+  });
+
   const themeColor = "#2563eb";
   const textColor = "#FFFFFF";
 
@@ -83,10 +90,52 @@ export default function ProductDetails() {
     );
   }
 
-  const stockLines = product.stock?.split("\n").filter((line) => line.trim()) || [];
-  const hasStock = stockLines.length > 0;
+  // For products with variants (dynamicMode), check variant stock
+  const activeVariants = (variants || []).filter((v: ProductVariant) => v.active !== false);
+  const selectedVariant = selectedVariantId 
+    ? activeVariants.find((v: ProductVariant) => v.id === selectedVariantId)
+    : null;
+
+  // Calculate stock based on mode
+  let hasStock = false;
+  let stockLines: string[] = [];
+  let totalVariantStock = 0;
+  
+  if (product.dynamicMode && activeVariants.length > 0) {
+    // For variant-based products, check if any variant has stock
+    totalVariantStock = activeVariants.reduce((acc: number, v: ProductVariant) => {
+      const vLines = v.stock?.split("\n").filter((line: string) => line.trim()) || [];
+      return acc + vLines.length;
+    }, 0);
+    hasStock = totalVariantStock > 0;
+    // Show selected variant stock or total stock
+    if (selectedVariant) {
+      stockLines = selectedVariant.stock?.split("\n").filter((line: string) => line.trim()) || [];
+    } else {
+      // When no variant selected, create dummy array for count display only
+      stockLines = Array(totalVariantStock).fill("_placeholder");
+    }
+  } else {
+    stockLines = product.stock?.split("\n").filter((line) => line.trim()) || [];
+    hasStock = stockLines.length > 0;
+  }
+  
   const hasDiscount = Number(product.originalPrice) > Number(product.currentPrice);
-  const displayPrice = Number(product.currentPrice).toFixed(2);
+  
+  // For variant products, show the selected variant price or "A partir de" + lowest price
+  const displayPrice = selectedVariant 
+    ? Number(selectedVariant.price).toFixed(2)
+    : Number(product.currentPrice).toFixed(2);
+
+  // For dynamic mode products, require variant selection
+  const requiresVariantSelection = product.dynamicMode && activeVariants.length > 0;
+  // For variant products: need a variant selected AND that variant must have real stock (not placeholders)
+  const selectedVariantHasStock = selectedVariant 
+    ? (selectedVariant.stock?.split("\n").filter((line: string) => line.trim()).length || 0) > 0
+    : false;
+  const canPurchase = requiresVariantSelection 
+    ? (!!selectedVariant && selectedVariantHasStock)
+    : hasStock;
 
   const handleAddToCart = () => {
     if (!isLoggedIn()) {
@@ -97,8 +146,19 @@ export default function ProductDetails() {
       setLocation("/login");
       return;
     }
-    if (hasStock) {
-      addToCart(product);
+    if (requiresVariantSelection && !selectedVariant) {
+      toast({
+        title: "Selecione uma opcao",
+        description: "Por favor, selecione uma das opcoes disponiveis",
+      });
+      return;
+    }
+    if (canPurchase) {
+      // For variant products, pass variant info to cart
+      const productWithVariant = requiresVariantSelection && selectedVariant
+        ? { ...product, currentPrice: selectedVariant.price, variantId: selectedVariant.id, variantName: selectedVariant.name }
+        : product;
+      addToCart(productWithVariant);
       setIsCartOpen(true);
     }
   };
@@ -112,8 +172,19 @@ export default function ProductDetails() {
       setLocation("/login");
       return;
     }
-    if (hasStock) {
-      addToCartOnce(product);
+    if (requiresVariantSelection && !selectedVariant) {
+      toast({
+        title: "Selecione uma opcao",
+        description: "Por favor, selecione uma das opcoes disponiveis",
+      });
+      return;
+    }
+    if (canPurchase) {
+      // For variant products, pass variant info to cart
+      const productWithVariant = requiresVariantSelection && selectedVariant
+        ? { ...product, currentPrice: selectedVariant.price, variantId: selectedVariant.id, variantName: selectedVariant.name }
+        : product;
+      addToCartOnce(productWithVariant);
       setIsCheckoutOpen(true);
     }
   };
@@ -360,6 +431,46 @@ export default function ProductDetails() {
             </div>
 
             <div className="bg-[#1e293b] rounded-xl p-4" data-testid="card-purchase">
+              {/* Variant selector for dynamic mode products */}
+              {product.dynamicMode && activeVariants.length > 0 && (
+                <div className="mb-4">
+                  <label className="text-sm text-gray-400 mb-2 block">Selecione uma opcao:</label>
+                  <div className="grid gap-2" data-testid="variant-selector">
+                    {activeVariants.map((variant: ProductVariant) => {
+                      const variantStockCount = variant.stock?.split("\n").filter((line: string) => line.trim()).length || 0;
+                      const isSelected = selectedVariant?.id === variant.id;
+                      const isAvailable = variantStockCount > 0;
+                      
+                      return (
+                        <button
+                          key={variant.id}
+                          onClick={() => setSelectedVariantId(variant.id)}
+                          disabled={!isAvailable}
+                          className={`flex items-center justify-between p-3 rounded-lg border transition-all
+                            ${isSelected 
+                              ? 'border-blue-500 bg-blue-500/20' 
+                              : 'border-gray-600 hover:border-blue-400'
+                            }
+                            ${!isAvailable ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                          `}
+                          data-testid={`variant-option-${variant.id}`}
+                        >
+                          <div className="flex flex-col items-start">
+                            <span className="text-white font-medium text-sm">{variant.name}</span>
+                            <span className="text-xs text-gray-400">
+                              {isAvailable ? `${variantStockCount} em estoque` : 'Esgotado'}
+                            </span>
+                          </div>
+                          <span className="text-blue-400 font-bold">
+                            R$ {Number(variant.price).toFixed(2)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="mb-4">
                 {hasDiscount && (
                   <p className="text-sm line-through text-gray-500" data-testid="text-original-price">
@@ -367,6 +478,7 @@ export default function ProductDetails() {
                   </p>
                 )}
                 <p className="text-3xl font-bold text-blue-500" data-testid="text-current-price">
+                  {product.dynamicMode && activeVariants.length > 0 && !selectedVariantId && "A partir de "}
                   R$ {displayPrice}
                 </p>
               </div>
@@ -388,11 +500,11 @@ export default function ProductDetails() {
 
               <Button
                 onClick={handleBuyNow}
-                disabled={!hasStock}
+                disabled={!canPurchase}
                 className="w-full py-2 text-sm font-bold rounded-lg transition-all bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600"
                 data-testid="button-buy-now-desktop"
               >
-                COMPRAR
+                {requiresVariantSelection && !selectedVariant ? "SELECIONE UMA OPCAO" : "COMPRAR"}
               </Button>
             </div>
 

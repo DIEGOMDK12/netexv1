@@ -4363,13 +4363,15 @@ export async function registerRoutes(
       const allVariants = await storage.getProductVariants(productId);
       const activeVariants = allVariants.filter(v => v.active !== false);
       if (activeVariants.length > 0) {
-        const prices = activeVariants.map(v => parseFloat(v.price as any));
-        const minPrice = Math.min(...prices);
-        await storage.updateProduct(productId, {
-          currentPrice: minPrice.toFixed(2),
-          originalPrice: minPrice.toFixed(2),
-        });
-        console.log("[POST /api/products/:productId/variants] Updated product price to:", minPrice.toFixed(2));
+        const prices = activeVariants.map(v => parseFloat(v.price as any)).filter(p => !isNaN(p) && p > 0);
+        if (prices.length > 0) {
+          const minPrice = Math.min(...prices);
+          await storage.updateProduct(productId, {
+            currentPrice: minPrice.toFixed(2),
+            originalPrice: minPrice.toFixed(2),
+          });
+          console.log("[POST /api/products/:productId/variants] Updated product price to:", minPrice.toFixed(2));
+        }
       }
       
       res.json(variant);
@@ -4462,15 +4464,17 @@ export async function registerRoutes(
       }
 
       // CORREÇÃO: Atualizar o preço do produto com base nas variantes ativas
-      const activeVariants = resultVariants.filter(v => v.active !== false);
-      if (activeVariants.length > 0) {
-        const prices = activeVariants.map(v => parseFloat(v.price as any));
-        const minPrice = Math.min(...prices);
-        await storage.updateProduct(productId, {
-          currentPrice: minPrice.toFixed(2),
-          originalPrice: minPrice.toFixed(2),
-        });
-        console.log("[Sync] Updated product price to:", minPrice.toFixed(2));
+      const activeVariantsForPrice = resultVariants.filter(v => v.active !== false);
+      if (activeVariantsForPrice.length > 0) {
+        const prices = activeVariantsForPrice.map(v => parseFloat(v.price as any)).filter(p => !isNaN(p) && p > 0);
+        if (prices.length > 0) {
+          const minPrice = Math.min(...prices);
+          await storage.updateProduct(productId, {
+            currentPrice: minPrice.toFixed(2),
+            originalPrice: minPrice.toFixed(2),
+          });
+          console.log("[Sync] Updated product price to:", minPrice.toFixed(2));
+        }
       }
 
       console.log("[Sync] Completed. Result:", resultVariants.length, "variants");
