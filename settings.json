@@ -1,5 +1,5 @@
 {
-  "storeName": "ELITEVAULT",
+  "storeName": "GoldNet Steam",
   "logoUrl": null,
   "themeColor": "#00ff00",
   "textColor": "#ffffff",
@@ -10,7 +10,7 @@
   "pagseguroEmail": "diego.ndk99@gmail.com",
   "pagseguroSandbox": false,
   "pagseguroApiUrl": "https://api.pagseguro.com",
-  "supportEmail": "suporte@elitevault.com",
+  "supportEmail": "suporte@goldnetsteam.shop",
   "whatsappContact": "5585988007000",
   "resellerWhatsapp": ""
 }
