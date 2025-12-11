@@ -328,3 +328,18 @@ export const vendorSessions = pgTable("vendor_sessions", {
 
 export type VendorSession = typeof vendorSessions.$inferSelect;
 
+// Product variants table for dynamic mode products
+export const productVariants = pgTable("product_variants", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  productId: integer("product_id").notNull(),
+  name: text("name").notNull(),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  stock: text("stock").default(""),
+  active: boolean("active").default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type ProductVariant = typeof productVariants.$inferSelect;
+export const insertProductVariantSchema = createInsertSchema(productVariants);
+export type InsertProductVariant = z.infer<typeof insertProductVariantSchema>;
+

@@ -61,12 +61,12 @@ function ProductCardWithVariants({
     if (isDynamicMode) {
       let totalStock = 0;
       activeVariants.forEach((v) => {
-        const lines = v.stock?.split("\n").filter((line) => line.trim()) || [];
+        const lines = v.stock?.split("\n").filter((line: string) => line.trim()) || [];
         totalStock += lines.length;
       });
       return { stockCount: totalStock, variantCount: activeVariants.length };
     }
-    const stockLines = product.stock?.split('\n').filter(line => line.trim()) || [];
+    const stockLines = product.stock?.split('\n').filter((line: string) => line.trim()) || [];
     return { stockCount: stockLines.length, variantCount: 0 };
   };
 
@@ -641,7 +641,7 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
             data-testid="button-add-dynamic-product"
           >
             <Layers className="w-4 h-4" />
-            Produto Dinâmico
+            Produto Variante
           </Button>
         </div>
       </div>
@@ -1124,7 +1124,7 @@ Chave123456"
                 data-testid="button-add-first-dynamic-product"
               >
                 <Layers className="w-4 h-4" />
-                Produto Dinâmico
+                Produto Variante
               </Button>
             </div>
           </CardContent>
