@@ -1391,10 +1391,10 @@ function ProductCard({
       </div>
 
       <Badge
-        variant={stockCount > 0 ? "default" : "destructive"}
-        className={`flex-shrink-0 ${stockCount > 0 ? "bg-green-600/20 text-green-400 border-green-600/30" : ""}`}
+        variant="default"
+        className={`flex-shrink-0 ${stockCount > 0 ? "bg-green-600/20 text-green-400 border-green-600/30" : "bg-purple-600/20 text-purple-400 border-purple-600/30"}`}
       >
-        {stockCount} em estoque
+        {stockCount > 0 ? `${stockCount} em estoque` : "Produto com variante"}
       </Badge>
 
       <div className="flex items-center gap-1 flex-shrink-0">
