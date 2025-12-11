@@ -421,15 +421,7 @@ export default function ProductDetails() {
                 </div>
               </div>
 
-              <Button 
-                variant="outline" 
-                className="w-full border-gray-600 text-gray-300 hover:bg-gray-700"
-                data-testid="button-contact-seller"
-              >
-                <MessageCircle className="w-4 h-4 mr-2" />
-                Contatar Vendedor
-              </Button>
-            </div>
+              </div>
 
             <div className="bg-[#1e293b] rounded-xl p-4" data-testid="card-purchase">
               {/* Variant selector for dynamic mode products */}
