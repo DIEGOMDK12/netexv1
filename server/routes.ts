@@ -5131,27 +5131,44 @@ export async function registerRoutes(
           return res.status(404).json({ error: `Produto ${item.productId} não encontrado` });
         }
 
-        console.log(`[Vendor Approve] Checking stock for product: ${product.name}`);
+        console.log(`[Vendor Approve] Checking stock for product: ${product.name}, variantId: ${item.variantId || 'none'}`);
 
-        if (!product.stock || !product.stock.trim()) {
-          console.log(`[Vendor Approve] Product out of stock: ${product.name}`);
+        // Determine stock source: variant stock or product stock
+        let stockSource = product.stock;
+        let stockSourceType = "product";
+        let variantToUpdate: any = null;
+
+        // If order item has a variant, use variant stock instead
+        if (item.variantId) {
+          const variants = await storage.getProductVariants(item.productId);
+          const variant = variants.find(v => v.id === item.variantId);
+          if (variant) {
+            stockSource = variant.stock || "";
+            stockSourceType = "variant";
+            variantToUpdate = variant;
+            console.log(`[Vendor Approve] Using variant stock for: ${variant.name}`);
+          }
+        }
+
+        if (!stockSource || !stockSource.trim()) {
+          console.log(`[Vendor Approve] ${stockSourceType} out of stock: ${product.name}`);
           return res.status(400).json({ 
-            error: `❌ ERRO: Produto "${product.name}" está ESGOTADO. Não há mais unidades disponíveis no estoque.` 
+            error: `Produto "${product.name}" está ESGOTADO. Não há mais unidades disponíveis no estoque.` 
           });
         }
 
         // Split stock by newline and filter empty lines
-        const stockLines = product.stock.split("\n").filter((line: string) => line.trim());
+        const stockLines = stockSource.split("\n").filter((line: string) => line.trim());
         
         // For digital products: require only 1 item in stock
         if (stockLines.length < 1) {
-          console.log(`[Vendor Approve] Stock check failed: Product has ${stockLines.length} items, need 1`);
+          console.log(`[Vendor Approve] Stock check failed: ${stockSourceType} has ${stockLines.length} items, need 1`);
           return res.status(400).json({ 
-            error: `❌ ERRO: Produto "${product.name}" está ESGOTADO. Não há mais unidades disponíveis no estoque.` 
+            error: `Produto "${product.name}" está ESGOTADO. Não há mais unidades disponíveis no estoque.` 
           });
         }
         
-        console.log(`[Vendor Approve] Stock OK: Product has ${stockLines.length} items (need: 1)`);
+        console.log(`[Vendor Approve] Stock OK: ${stockSourceType} has ${stockLines.length} items (need: 1)`);
         
         // FIFO: Take FIRST item from the list
         const deliveredItem = stockLines[0];
@@ -5159,12 +5176,20 @@ export async function registerRoutes(
 
         console.log(`[Vendor Approve] FIFO - Delivering: "${deliveredItem}" | Remaining: ${stockLines.length - 1}`);
 
-        // Remove first item and update product stock
+        // Remove first item and update stock (variant or product)
         const remainingStock = stockLines.slice(1).join("\n");
         
-        await storage.updateProduct(item.productId, { 
-          stock: remainingStock,
-        });
+        if (variantToUpdate) {
+          // Update variant stock
+          await storage.updateProductVariant(item.variantId, { 
+            stock: remainingStock,
+          });
+        } else {
+          // Update product stock
+          await storage.updateProduct(item.productId, { 
+            stock: remainingStock,
+          });
+        }
 
         // Save delivered content per item for redemption
         await storage.updateOrderItem(item.id, {
