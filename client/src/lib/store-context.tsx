@@ -78,14 +78,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const addToCartOnce = (product: Product, variant?: { id: number; name: string; price: string }) => {
     setCart((prev) => {
-      const existing = prev.find((item) => 
-        item.product.id === product.id && 
-        (variant ? item.variant?.id === variant.id : !item.variant)
-      );
-      if (existing) {
-        return prev;
-      }
-      return [...prev, { product, quantity: 1, variant }];
+      // Remove any existing items for this product (regardless of variant) and add the new one
+      const filteredCart = prev.filter((item) => item.product.id !== product.id);
+      return [...filteredCart, { product, quantity: 1, variant }];
     });
   };
 

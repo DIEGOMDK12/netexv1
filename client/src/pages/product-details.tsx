@@ -155,11 +155,17 @@ export default function ProductDetails() {
       return;
     }
     if (canPurchase) {
-      // For variant products, pass variant info to cart
-      const productWithVariant = requiresVariantSelection && selectedVariant
-        ? { ...product, currentPrice: selectedVariant.price, variantId: selectedVariant.id, variantName: selectedVariant.name }
-        : product;
-      addToCart(productWithVariant);
+      // For variant products, pass variant info to cart as second parameter
+      if (requiresVariantSelection && selectedVariant) {
+        const variant = { 
+          id: Number(selectedVariant.id), 
+          name: selectedVariant.name, 
+          price: String(selectedVariant.price) 
+        };
+        addToCart(product, variant);
+      } else {
+        addToCart(product);
+      }
       setIsCartOpen(true);
     }
   };
@@ -181,11 +187,17 @@ export default function ProductDetails() {
       return;
     }
     if (canPurchase) {
-      // For variant products, pass variant info to cart
-      const productWithVariant = requiresVariantSelection && selectedVariant
-        ? { ...product, currentPrice: selectedVariant.price, variantId: selectedVariant.id, variantName: selectedVariant.name }
-        : product;
-      addToCartOnce(productWithVariant);
+      // For variant products, pass variant info to cart as second parameter
+      if (requiresVariantSelection && selectedVariant) {
+        const variant = { 
+          id: Number(selectedVariant.id), 
+          name: selectedVariant.name, 
+          price: String(selectedVariant.price) 
+        };
+        addToCartOnce(product, variant);
+      } else {
+        addToCartOnce(product);
+      }
       setIsCheckoutOpen(true);
     }
   };
