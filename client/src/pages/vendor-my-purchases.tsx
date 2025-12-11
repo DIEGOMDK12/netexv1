@@ -21,7 +21,7 @@ interface OrderItem {
   productId: number;
   productName: string;
   quantity: number;
-  unitPrice: string;
+  price: string;
   secretContent: string | null;
   productImageUrl?: string | null;
 }
@@ -252,7 +252,7 @@ export function VendorMyPurchases({ vendorEmail }: VendorMyPurchasesProps) {
                       </h4>
                       <p className="text-sm text-gray-400">Qtd: {item.quantity}</p>
                       <p className="text-sm text-blue-400 font-semibold">
-                        R$ {Number(item.unitPrice).toFixed(2)}
+                        R$ {Number(item.price).toFixed(2)}
                       </p>
                     </div>
 
