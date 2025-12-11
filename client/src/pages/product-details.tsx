@@ -94,7 +94,7 @@ export default function ProductDetails() {
   // For products with variants (dynamicMode), check variant stock
   const activeVariants = (variants || []).filter((v: ProductVariant) => v.active !== false);
   const selectedVariant = selectedVariantId 
-    ? activeVariants.find((v: ProductVariant) => v.id === selectedVariantId)
+    ? activeVariants.find((v: ProductVariant) => Number(v.id) === Number(selectedVariantId))
     : null;
 
   // Calculate stock based on mode
@@ -460,7 +460,7 @@ export default function ProductDetails() {
                         })
                         .map((variant: ProductVariant) => {
                         const variantStockCount = variant.stock?.split("\n").filter((line: string) => line.trim()).length || 0;
-                        const isSelected = selectedVariant?.id === variant.id;
+                        const isSelected = selectedVariant && Number(selectedVariant.id) === Number(variant.id);
                         
                         return (
                           <button
