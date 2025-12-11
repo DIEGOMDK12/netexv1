@@ -1489,10 +1489,28 @@ export async function registerRoutes(
       // Validate stock availability for all items
       for (const item of items) {
         const product = await storage.getProduct(item.productId);
-        if (!product || !product.stock || !product.stock.trim()) {
+        if (!product) {
           return res.status(400).json({ 
-            error: `Produto "${item.productName}" está esgotado. Não é possível criar o pedido.` 
+            error: `Produto "${item.productName}" não encontrado.` 
           });
+        }
+        
+        // If item has a variant, check variant stock instead of product stock
+        if (item.variantId) {
+          const variants = await storage.getProductVariants(item.productId);
+          const variant = variants.find(v => v.id === item.variantId);
+          if (!variant || !variant.stock || !variant.stock.trim()) {
+            return res.status(400).json({ 
+              error: `Variante "${item.variantName || item.productName}" está esgotada. Não é possível criar o pedido.` 
+            });
+          }
+        } else {
+          // No variant - check product stock
+          if (!product.stock || !product.stock.trim()) {
+            return res.status(400).json({ 
+              error: `Produto "${item.productName}" está esgotado. Não é possível criar o pedido.` 
+            });
+          }
         }
       }
 
