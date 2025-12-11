@@ -205,7 +205,24 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
 
   const createProductMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest("POST", "/api/vendor/products", data);
+      const result = await apiRequest("POST", "/api/vendor/products", data);
+      const productData = await result.json();
+      
+      // Create variants if dynamic mode
+      if (data.dynamicMode && data.variants && data.variants.length > 0 && productData.id) {
+        console.log("[createProduct] Creating variants for product", productData.id, data.variants);
+        for (const variant of data.variants) {
+          if (variant.name && variant.name.trim() && variant.price) {
+            await apiRequest("POST", `/api/products/${productData.id}/variants`, {
+              name: variant.name,
+              price: variant.price,
+              stock: variant.stock || "",
+            });
+          }
+        }
+      }
+      
+      return productData;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/vendor/products", vendorId] });
@@ -224,10 +241,33 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
 
   const updateProductMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      return apiRequest("PATCH", `/api/vendor/products/${id}`, data);
+      const result = await apiRequest("PATCH", `/api/vendor/products/${id}`, data);
+      
+      // Sync variants if dynamic mode
+      if (data.dynamicMode && data.variants && data.variants.length > 0) {
+        console.log("[updateProduct] Syncing variants for product", id, data.variants);
+        await apiRequest("POST", `/api/products/${id}/variants/sync`, {
+          variants: data.variants.map((v: any) => ({
+            id: v.id || undefined,
+            name: v.name,
+            price: v.price,
+            stock: v.stock,
+          })),
+        });
+      } else if (!data.dynamicMode) {
+        // If switching to simple mode, delete all variants
+        await apiRequest("POST", `/api/products/${id}/variants/sync`, {
+          variants: [],
+        });
+      }
+      
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/vendor/products", vendorId] });
+      if (editingProduct) {
+        queryClient.invalidateQueries({ queryKey: ["/api/products", editingProduct.id, "variants"] });
+      }
       setShowProductModal(false);
       setEditingProduct(null);
       resetProductForm();
