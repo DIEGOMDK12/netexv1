@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: nexstore
+    name: goldnet-steam
     runtime: node
     region: oregon
     plan: free
@@ -17,4 +17,12 @@ services:
         generateValue: true
       - key: RESEND_API_KEY
         sync: false
+      - key: PAGSEGURO_CLIENT_ID
+        sync: false
+      - key: PAGSEGURO_CLIENT_SECRET
+        sync: false
     healthCheckPath: /api/settings
+    disk:
+      name: uploads
+      mountPath: /opt/render/project/src/uploads
+      sizeGB: 1
