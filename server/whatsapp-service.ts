@@ -4,6 +4,9 @@ interface WhatsAppConfig {
   phoneNumberId?: string;
   accessToken?: string;
   apiVersion?: string;
+  evolutionUrl?: string;
+  evolutionKey?: string;
+  evolutionInstance?: string;
 }
 
 interface SendMessageResult {
@@ -12,28 +15,35 @@ interface SendMessageResult {
   error?: string;
 }
 
+type WhatsAppProvider = 'meta' | 'evolution' | 'none';
+
 class WhatsAppService {
   private config: WhatsAppConfig;
-  private isConfigured: boolean = false;
+  private provider: WhatsAppProvider = 'none';
 
   constructor() {
     this.config = {
       phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
       accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
       apiVersion: process.env.WHATSAPP_API_VERSION || 'v21.0',
+      evolutionUrl: process.env.EVOLUTION_API_URL,
+      evolutionKey: process.env.EVOLUTION_API_KEY,
+      evolutionInstance: process.env.EVOLUTION_INSTANCE,
     };
     
-    this.isConfigured = !!(this.config.phoneNumberId && this.config.accessToken);
-    
-    if (!this.isConfigured) {
-      console.log('[WhatsApp] Service not configured - WHATSAPP_PHONE_NUMBER_ID and WHATSAPP_ACCESS_TOKEN required');
+    if (this.config.evolutionUrl && this.config.evolutionKey && this.config.evolutionInstance) {
+      this.provider = 'evolution';
+      console.log('[WhatsApp] Evolution API configured and ready');
+    } else if (this.config.phoneNumberId && this.config.accessToken) {
+      this.provider = 'meta';
+      console.log('[WhatsApp] Meta Business API configured and ready');
     } else {
-      console.log('[WhatsApp] Service configured and ready');
+      console.log('[WhatsApp] Service not configured - set Evolution API or Meta Business API credentials');
     }
   }
 
   async sendMessage(to: string, message: string): Promise<SendMessageResult> {
-    if (!this.isConfigured) {
+    if (this.provider === 'none') {
       console.log(`[WhatsApp] Would send to ${to}: ${message}`);
       return { 
         success: false, 
@@ -44,35 +54,65 @@ class WhatsAppService {
     try {
       const formattedNumber = this.formatPhoneNumber(to);
       
-      const response = await axios.post(
-        `https://graph.facebook.com/${this.config.apiVersion}/${this.config.phoneNumberId}/messages`,
-        {
-          messaging_product: 'whatsapp',
-          to: formattedNumber,
-          type: 'text',
-          text: { body: message }
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.config.accessToken}`
-          }
-        }
-      );
-
-      console.log(`[WhatsApp] Message sent successfully to ${formattedNumber}`);
-      return {
-        success: true,
-        messageId: response.data?.messages?.[0]?.id
-      };
+      if (this.provider === 'evolution') {
+        return await this.sendViaEvolution(formattedNumber, message);
+      } else {
+        return await this.sendViaMeta(formattedNumber, message);
+      }
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error?.message || error.message;
+      const errorMessage = error.response?.data?.error?.message || error.response?.data?.message || error.message;
       console.error(`[WhatsApp] Failed to send message to ${to}:`, errorMessage);
       return {
         success: false,
         error: errorMessage
       };
     }
+  }
+
+  private async sendViaEvolution(to: string, message: string): Promise<SendMessageResult> {
+    const response = await axios.post(
+      `${this.config.evolutionUrl}/message/sendText/${this.config.evolutionInstance}`,
+      {
+        number: to,
+        text: message
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': this.config.evolutionKey!
+        }
+      }
+    );
+
+    console.log(`[WhatsApp] Message sent via Evolution API to ${to}`);
+    return {
+      success: true,
+      messageId: response.data?.key?.id || response.data?.messageId
+    };
+  }
+
+  private async sendViaMeta(to: string, message: string): Promise<SendMessageResult> {
+    const response = await axios.post(
+      `https://graph.facebook.com/${this.config.apiVersion}/${this.config.phoneNumberId}/messages`,
+      {
+        messaging_product: 'whatsapp',
+        to: to,
+        type: 'text',
+        text: { body: message }
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.config.accessToken}`
+        }
+      }
+    );
+
+    console.log(`[WhatsApp] Message sent via Meta API to ${to}`);
+    return {
+      success: true,
+      messageId: response.data?.messages?.[0]?.id
+    };
   }
 
   async sendVerificationCode(to: string, code: string): Promise<SendMessageResult> {
@@ -105,7 +145,11 @@ class WhatsAppService {
   }
 
   isAvailable(): boolean {
-    return this.isConfigured;
+    return this.provider !== 'none';
+  }
+
+  getProvider(): WhatsAppProvider {
+    return this.provider;
   }
 }
 
