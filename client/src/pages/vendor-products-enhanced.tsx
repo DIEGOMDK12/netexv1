@@ -137,14 +137,26 @@ function ProductCardWithVariants({
                   Sem variantes configuradas
                 </span>
               )}
-              <span className={`text-xs px-2 py-0.5 rounded-full ${stockCount > 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                {stockCount > 0 ? `${stockCount} em estoque` : '0 em estoque'}
-              </span>
+              {stockCount > 0 ? (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">
+                  {stockCount} em estoque
+                </span>
+              ) : (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400">
+                  Produto com variante
+                </span>
+              )}
             </>
           ) : (
-            <span className={`text-xs px-2 py-0.5 rounded-full ${stockCount > 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-              {stockCount > 0 ? `${stockCount} em estoque` : '0 em estoque'}
-            </span>
+            stockCount > 0 ? (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">
+                {stockCount} em estoque
+              </span>
+            ) : (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400">
+                Produto com variante
+              </span>
+            )
           )}
         </div>
         
