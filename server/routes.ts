@@ -519,6 +519,35 @@ export async function registerRoutes(
         console.error("[/webhook] Erro de email (ignorado):", emailError.message);
       }
 
+      // ========== NOTIFICAÇÃO WHATSAPP PARA REVENDEDOR ==========
+      try {
+        if (order.resellerId) {
+          const resellerForNotification = await storage.getReseller(order.resellerId);
+          if (resellerForNotification?.whatsappNotificationEnabled && 
+              resellerForNotification?.whatsappNotificationVerified && 
+              resellerForNotification?.whatsappNotificationPhone) {
+            
+            const orderItems = await storage.getOrderItems(orderId);
+            const productNames = orderItems.map((item: any) => item.productName || "Produto").join(", ");
+            const valorVenda = parseFloat(order.totalAmount as string || "0");
+            
+            console.log("[/webhook] Preparando notificação WhatsApp para revendedor:", resellerForNotification.id);
+            console.log("[/webhook] Número WhatsApp:", resellerForNotification.whatsappNotificationPhone);
+            console.log("[/webhook] Dados da venda - Pedido #" + orderId + " | Valor: R$ " + valorVenda.toFixed(2) + " | Produtos: " + productNames);
+            
+            // Log para integração futura com API de WhatsApp
+            // Para implementar o envio real, seria necessário integrar com uma API como:
+            // - WhatsApp Business API
+            // - Twilio
+            // - Z-API
+            // - Evolution API
+            console.log("[/webhook] ✓ Notificação WhatsApp registrada para envio");
+          }
+        }
+      } catch (whatsappError: any) {
+        console.error("[/webhook] Erro na notificação WhatsApp (ignorado):", whatsappError.message);
+      }
+
       console.log("==========================================");
       console.log("[/webhook] PEDIDO", orderId, "PROCESSADO COM SUCESSO!");
       console.log("==========================================");
@@ -4801,6 +4830,216 @@ export async function registerRoutes(
     } catch (error) {
       console.error("[Vendor Appearance PATCH] Error:", error);
       res.status(500).json({ error: "Failed to update appearance settings" });
+    }
+  });
+
+  // ==================== WHATSAPP NOTIFICATIONS ====================
+  
+  // Get WhatsApp notification settings
+  app.get("/api/vendor/whatsapp-notifications", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const vendorId = tokenToVendor.get(token);
+    if (!vendorId) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    try {
+      const vendor = await storage.getReseller(vendorId);
+      if (!vendor) {
+        return res.status(404).json({ error: "Vendor not found" });
+      }
+
+      res.json({
+        phone: vendor.whatsappNotificationPhone || "",
+        verified: vendor.whatsappNotificationVerified || false,
+        enabled: vendor.whatsappNotificationEnabled || false,
+        hasSecret: !!vendor.whatsappNotificationSecret,
+      });
+    } catch (error) {
+      console.error("[WhatsApp Notifications GET] Error:", error);
+      res.status(500).json({ error: "Failed to get WhatsApp notification settings" });
+    }
+  });
+
+  // Generate secret for WhatsApp verification and send via WhatsApp
+  app.post("/api/vendor/whatsapp-notifications/generate-secret", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const vendorId = tokenToVendor.get(token);
+    if (!vendorId) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    const { phone } = req.body;
+    if (!phone) {
+      return res.status(400).json({ error: "Phone number is required" });
+    }
+
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length < 10 || cleanPhone.length > 13) {
+      return res.status(400).json({ error: "Numero de telefone invalido" });
+    }
+
+    try {
+      const { whatsappService } = await import("./whatsapp-service");
+      
+      const secret = crypto.randomBytes(3).toString("hex").toUpperCase();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      
+      await storage.updateReseller(vendorId, {
+        whatsappNotificationPhone: cleanPhone,
+        whatsappNotificationSecret: secret,
+        whatsappNotificationSecretExpiresAt: expiresAt,
+        whatsappNotificationVerified: false,
+        whatsappNotificationEnabled: false,
+      });
+
+      const sendResult = await whatsappService.sendVerificationCode(cleanPhone, secret);
+      
+      if (whatsappService.isAvailable() && sendResult.success) {
+        res.json({ 
+          success: true,
+          codeSent: true,
+          message: "Codigo de verificacao enviado para o seu WhatsApp." 
+        });
+      } else {
+        res.json({ 
+          success: true, 
+          secret,
+          codeSent: false,
+          message: "Codigo gerado. Insira o codigo abaixo para verificar seu numero." 
+        });
+      }
+    } catch (error) {
+      console.error("[WhatsApp Generate Secret] Error:", error);
+      res.status(500).json({ error: "Failed to generate secret" });
+    }
+  });
+
+  // Verify WhatsApp number with expiration check
+  app.post("/api/vendor/whatsapp-notifications/verify", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const vendorId = tokenToVendor.get(token);
+    if (!vendorId) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    const { secret } = req.body;
+    if (!secret) {
+      return res.status(400).json({ error: "Codigo de verificacao obrigatorio" });
+    }
+
+    try {
+      const vendor = await storage.getReseller(vendorId);
+      if (!vendor) {
+        return res.status(404).json({ error: "Vendor not found" });
+      }
+
+      if (!vendor.whatsappNotificationSecret) {
+        return res.status(400).json({ error: "Nenhum codigo pendente. Gere um novo codigo." });
+      }
+
+      const expiresAt = vendor.whatsappNotificationSecretExpiresAt;
+      if (expiresAt && new Date() > new Date(expiresAt)) {
+        return res.status(400).json({ error: "Codigo expirado. Gere um novo codigo." });
+      }
+
+      if (vendor.whatsappNotificationSecret !== secret.toUpperCase().trim()) {
+        return res.status(400).json({ error: "Codigo invalido" });
+      }
+
+      await storage.updateReseller(vendorId, {
+        whatsappNotificationVerified: true,
+        whatsappNotificationEnabled: true,
+        whatsappNotificationSecret: null,
+        whatsappNotificationSecretExpiresAt: null,
+      });
+
+      res.json({ 
+        success: true, 
+        message: "Numero verificado com sucesso!" 
+      });
+    } catch (error) {
+      console.error("[WhatsApp Verify] Error:", error);
+      res.status(500).json({ error: "Failed to verify WhatsApp number" });
+    }
+  });
+
+  // Toggle WhatsApp notifications
+  app.patch("/api/vendor/whatsapp-notifications/toggle", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const vendorId = tokenToVendor.get(token);
+    if (!vendorId) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    const { enabled } = req.body;
+
+    try {
+      const vendor = await storage.getReseller(vendorId);
+      if (!vendor) {
+        return res.status(404).json({ error: "Vendor not found" });
+      }
+
+      if (!vendor.whatsappNotificationVerified) {
+        return res.status(400).json({ error: "WhatsApp number must be verified first" });
+      }
+
+      await storage.updateReseller(vendorId, {
+        whatsappNotificationEnabled: enabled,
+      });
+
+      res.json({ 
+        success: true, 
+        enabled,
+        message: enabled ? "Notifications enabled" : "Notifications disabled" 
+      });
+    } catch (error) {
+      console.error("[WhatsApp Toggle] Error:", error);
+      res.status(500).json({ error: "Failed to toggle notifications" });
+    }
+  });
+
+  // Remove WhatsApp notification configuration
+  app.delete("/api/vendor/whatsapp-notifications", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const vendorId = tokenToVendor.get(token);
+    if (!vendorId) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    try {
+      await storage.updateReseller(vendorId, {
+        whatsappNotificationPhone: null,
+        whatsappNotificationSecret: null,
+        whatsappNotificationSecretExpiresAt: null,
+        whatsappNotificationVerified: false,
+        whatsappNotificationEnabled: false,
+      });
+
+      res.json({ success: true, message: "WhatsApp notification configuration removed" });
+    } catch (error) {
+      console.error("[WhatsApp Remove] Error:", error);
+      res.status(500).json({ error: "Failed to remove configuration" });
     }
   });
 

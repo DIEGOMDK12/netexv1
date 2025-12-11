@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { Info, Wallet, User, FileCheck, Upload, CheckCircle, XCircle, Clock, AlertCircle, Banknote, ArrowDownToLine } from "lucide-react";
+import { Info, Wallet, User, FileCheck, Upload, CheckCircle, XCircle, Clock, AlertCircle, Banknote, ArrowDownToLine, MessageCircle, Phone, Shield, Copy, ExternalLink } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -32,6 +33,11 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
   const [withdrawalAmount, setWithdrawalAmount] = useState("");
   const [withdrawalPixKeyType, setWithdrawalPixKeyType] = useState("cpf");
   const [withdrawalPixHolderName, setWithdrawalPixHolderName] = useState("");
+  
+  // WhatsApp notification states
+  const [whatsappPhone, setWhatsappPhone] = useState("");
+  const [whatsappSecret, setWhatsappSecret] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
 
   const vendorToken = localStorage.getItem("vendor_token");
 
@@ -47,6 +53,152 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
       return response.json();
     },
     enabled: !!vendorToken,
+  });
+
+  // WhatsApp notification settings query
+  const { data: whatsappData, isLoading: loadingWhatsapp } = useQuery({
+    queryKey: ["/api/vendor/whatsapp-notifications"],
+    queryFn: async () => {
+      const response = await fetch("/api/vendor/whatsapp-notifications", {
+        headers: {
+          'Authorization': `Bearer ${vendorToken}`,
+        },
+      });
+      if (!response.ok) throw new Error('Erro ao buscar configuracoes WhatsApp');
+      return response.json();
+    },
+    enabled: !!vendorToken,
+  });
+
+  // Generate secret mutation
+  const generateSecretMutation = useMutation({
+    mutationFn: async (phone: string) => {
+      const response = await fetch("/api/vendor/whatsapp-notifications/generate-secret", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${vendorToken}`,
+        },
+        body: JSON.stringify({ phone }),
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Erro ao gerar codigo');
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.secret) {
+        setWhatsappSecret(data.secret);
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/vendor/whatsapp-notifications"] });
+      toast({
+        title: data.codeSent ? "Codigo enviado!" : "Codigo gerado!",
+        description: data.message || "Insira o codigo para verificar seu numero.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro",
+        description: error?.message || "Nao foi possivel gerar o codigo",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Verify WhatsApp mutation
+  const verifyWhatsappMutation = useMutation({
+    mutationFn: async (secret: string) => {
+      const response = await fetch("/api/vendor/whatsapp-notifications/verify", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${vendorToken}`,
+        },
+        body: JSON.stringify({ secret }),
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Erro ao verificar');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      setWhatsappSecret("");
+      setVerificationCode("");
+      queryClient.invalidateQueries({ queryKey: ["/api/vendor/whatsapp-notifications"] });
+      toast({
+        title: "Verificado!",
+        description: "Seu numero WhatsApp foi verificado com sucesso.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro",
+        description: error?.message || "Codigo invalido",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Toggle WhatsApp notifications mutation
+  const toggleWhatsappMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const response = await fetch("/api/vendor/whatsapp-notifications/toggle", {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${vendorToken}`,
+        },
+        body: JSON.stringify({ enabled }),
+      });
+      if (!response.ok) throw new Error('Erro ao alterar');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vendor/whatsapp-notifications"] });
+      toast({
+        title: data.enabled ? "Ativado" : "Desativado",
+        description: data.enabled ? "Voce recebera notificacoes de vendas no WhatsApp" : "Notificacoes desativadas",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro",
+        description: error?.message || "Nao foi possivel alterar",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Remove WhatsApp config mutation
+  const removeWhatsappMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/vendor/whatsapp-notifications", {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${vendorToken}`,
+        },
+      });
+      if (!response.ok) throw new Error('Erro ao remover');
+      return response.json();
+    },
+    onSuccess: () => {
+      setWhatsappPhone("");
+      setWhatsappSecret("");
+      queryClient.invalidateQueries({ queryKey: ["/api/vendor/whatsapp-notifications"] });
+      toast({
+        title: "Removido",
+        description: "Configuracao de notificacoes WhatsApp removida.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro",
+        description: error?.message || "Nao foi possivel remover",
+        variant: "destructive",
+      });
+    },
   });
 
   const saveMutation = useMutation({
@@ -903,6 +1055,222 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
           <p className="text-sm text-gray-400">Email: {vendorData?.email}</p>
           <p className="text-sm text-gray-400">Comissao: {vendorData?.commissionPercent}%</p>
           <p className="text-sm text-gray-400">Total de vendas: R$ {parseFloat(vendorData?.totalSales as any || "0").toFixed(2)}</p>
+        </CardContent>
+      </Card>
+
+      {/* WhatsApp Notifications */}
+      <Card
+        style={{
+          background: "rgba(30, 30, 30, 0.4)",
+          backdropFilter: "blur(12px)",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
+        }}
+      >
+        <CardHeader>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
+                <MessageCircle className="w-5 h-5 text-green-400" />
+              </div>
+              <div>
+                <CardTitle className="text-white">Notificacoes no WhatsApp</CardTitle>
+                <p className="text-sm text-gray-400 mt-1">Receba alertas de vendas no seu WhatsApp</p>
+              </div>
+            </div>
+            {whatsappData?.verified && (
+              <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                <CheckCircle className="w-3 h-3 mr-1" />
+                Verificado
+              </Badge>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {loadingWhatsapp ? (
+            <div className="text-center py-4">
+              <div className="animate-spin w-6 h-6 border-2 border-green-400 border-t-transparent rounded-full mx-auto"></div>
+            </div>
+          ) : whatsappData?.verified ? (
+            <>
+              {/* WhatsApp verified - show toggle and info */}
+              <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/30">
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <div className="flex items-center gap-3">
+                    <Phone className="w-5 h-5 text-green-400" />
+                    <div>
+                      <p className="text-sm text-white font-medium">Vendas no WhatsApp</p>
+                      <p className="text-xs text-gray-400">Numero: {whatsappData.phone}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-gray-400">
+                      {whatsappData.enabled ? "Ativado" : "Desativado"}
+                    </span>
+                    <Switch
+                      checked={whatsappData.enabled}
+                      onCheckedChange={(checked) => toggleWhatsappMutation.mutate(checked)}
+                      disabled={toggleWhatsappMutation.isPending}
+                      data-testid="switch-whatsapp-notifications"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30">
+                <div className="flex items-start gap-2">
+                  <Info className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-blue-300">
+                    Quando uma venda for realizada, voce recebera uma mensagem no WhatsApp com os detalhes do pedido.
+                  </p>
+                </div>
+              </div>
+              
+              <Button
+                variant="outline"
+                onClick={() => removeWhatsappMutation.mutate()}
+                disabled={removeWhatsappMutation.isPending}
+                className="w-full border-red-500/30 text-red-400"
+                data-testid="button-remove-whatsapp"
+              >
+                {removeWhatsappMutation.isPending ? "Removendo..." : "Remover Configuracao"}
+              </Button>
+            </>
+          ) : (
+            <>
+              {/* WhatsApp not configured or not verified */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-white">Seu numero de WhatsApp</Label>
+                  <Input
+                    value={whatsappPhone || whatsappData?.phone || ""}
+                    onChange={(e) => setWhatsappPhone(e.target.value)}
+                    placeholder="+55 (00) 90000-0000"
+                    style={{
+                      background: "rgba(30, 30, 40, 0.4)",
+                      backdropFilter: "blur(10px)",
+                      borderColor: "rgba(255,255,255,0.1)",
+                      color: "#FFFFFF",
+                    }}
+                    data-testid="input-whatsapp-phone"
+                  />
+                </div>
+                
+                {!whatsappSecret && !whatsappData?.hasSecret ? (
+                  <Button
+                    onClick={() => {
+                      const phone = whatsappPhone || whatsappData?.phone;
+                      if (!phone) {
+                        toast({
+                          title: "Erro",
+                          description: "Digite seu numero de WhatsApp",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      generateSecretMutation.mutate(phone);
+                    }}
+                    disabled={generateSecretMutation.isPending}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white"
+                    data-testid="button-generate-secret"
+                  >
+                    {generateSecretMutation.isPending ? "Gerando..." : "Gerar Codigo de Verificacao"}
+                  </Button>
+                ) : (
+                  <>
+                    {/* Show secret and verification instructions */}
+                    <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
+                      <div className="flex items-start gap-3">
+                        <Shield className="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" />
+                        <div className="space-y-2 flex-1">
+                          <p className="text-sm text-yellow-300 font-medium">
+                            Apos confirmar, envie o (SECRET) gerado para o numero:
+                          </p>
+                          <a
+                            href="https://wa.me/5511989905419"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 text-sm"
+                            data-testid="link-whatsapp-verification"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                            https://wa.me/5511989905419
+                          </a>
+                          
+                          {whatsappSecret && (
+                            <div className="mt-3 p-3 rounded-lg bg-black/30 border border-white/10">
+                              <p className="text-xs text-gray-400 mb-1">Seu codigo SECRET:</p>
+                              <div className="flex items-center justify-between gap-3">
+                                <code className="text-lg font-mono text-green-400 font-bold tracking-wider">
+                                  {whatsappSecret}
+                                </code>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(whatsappSecret);
+                                    toast({
+                                      title: "Copiado!",
+                                      description: "Codigo copiado para a area de transferencia",
+                                    });
+                                  }}
+                                  data-testid="button-copy-secret"
+                                >
+                                  <Copy className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Manual verification input - optional for testing */}
+                    <div className="space-y-2">
+                      <Label className="text-white text-sm">Ou digite o codigo recebido:</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={verificationCode}
+                          onChange={(e) => setVerificationCode(e.target.value.toUpperCase())}
+                          placeholder="CODIGO"
+                          maxLength={6}
+                          style={{
+                            background: "rgba(30, 30, 40, 0.4)",
+                            backdropFilter: "blur(10px)",
+                            borderColor: "rgba(255,255,255,0.1)",
+                            color: "#FFFFFF",
+                            fontFamily: "monospace",
+                            letterSpacing: "0.2em",
+                          }}
+                          data-testid="input-verification-code"
+                        />
+                        <Button
+                          onClick={() => verifyWhatsappMutation.mutate(verificationCode)}
+                          disabled={verifyWhatsappMutation.isPending || !verificationCode}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                          data-testid="button-verify-whatsapp"
+                        >
+                          {verifyWhatsappMutation.isPending ? "..." : "Verificar"}
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setWhatsappSecret("");
+                        setWhatsappPhone("");
+                        removeWhatsappMutation.mutate();
+                      }}
+                      className="w-full border-white/20 text-gray-400"
+                      data-testid="button-cancel-verification"
+                    >
+                      Cancelar
+                    </Button>
+                  </>
+                )}
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

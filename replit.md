@@ -38,6 +38,7 @@ Preferred communication style: Simple, everyday language.
 - **Email Delivery:** Resend integration for transactional emails (order delivery, notifications).
 - **Dynamic Products (Variants):** Products can have multiple pricing options (variants) with independent names, prices, and stock. The product display price shows "A partir de R$" with the lowest variant price until customer selects a specific option. Validation requires at least 1 variant with name and price for dynamic products.
 - **Premium Listings:** Products can be marked as "Anúncio Premium" which applies a 10% fee on sales. When a customer purchases a premium product, 10% is deducted as platform fee and the reseller receives the net amount (90%) in their wallet balance. This gives enhanced visibility in searches and site-wide promotions.
+- **WhatsApp Sales Notifications:** Vendors can configure their WhatsApp number in settings to receive automated notifications when sales occur. The verification flow uses a 6-character code with 10-minute expiration. When configured and verified, the system uses Meta WhatsApp Cloud API (when credentials are set via WHATSAPP_PHONE_NUMBER_ID and WHATSAPP_ACCESS_TOKEN environment variables) to send sale notifications including order details, customer email, and total amount. Falls back to logging when API is not configured.
 
 ## External Dependencies
 

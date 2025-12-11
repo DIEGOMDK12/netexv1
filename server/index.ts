@@ -122,6 +122,17 @@ async function runStartupMigrations() {
     `);
     console.log("[Migration] Added is_premium column to products table");
     
+    // Add WhatsApp notification columns to resellers table
+    await client.query(`
+      ALTER TABLE resellers 
+      ADD COLUMN IF NOT EXISTS whatsapp_notification_phone TEXT,
+      ADD COLUMN IF NOT EXISTS whatsapp_notification_secret TEXT,
+      ADD COLUMN IF NOT EXISTS whatsapp_notification_secret_expires_at TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS whatsapp_notification_verified BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS whatsapp_notification_enabled BOOLEAN DEFAULT FALSE
+    `);
+    console.log("[Migration] Added WhatsApp notification columns to resellers table");
+    
     client.release();
     console.log("[Migration] Startup migrations completed successfully");
   } catch (error: any) {

@@ -70,6 +70,28 @@ export async function triggerPurchaseWebhooks(
 ): Promise<void> {
   try {
     const { storage } = await import('./storage');
+    const { whatsappService } = await import('./whatsapp-service');
+    
+    const reseller = await storage.getReseller(resellerId);
+    if (reseller?.whatsappNotificationEnabled && reseller?.whatsappNotificationPhone && reseller?.whatsappNotificationVerified) {
+      console.log(`[WhatsApp] Sending sale notification to vendor ${resellerId}`);
+      
+      whatsappService.sendSaleNotification(reseller.whatsappNotificationPhone, {
+        orderId: orderData.orderId,
+        customerEmail: orderData.email,
+        totalAmount: orderData.totalAmount,
+        productNames: orderData.products.map(p => p.name),
+        storeName: orderData.storeName,
+      }).then(result => {
+        if (result.success) {
+          console.log(`[WhatsApp] Sale notification sent successfully to vendor ${resellerId}`);
+        } else {
+          console.log(`[WhatsApp] Sale notification logged for vendor ${resellerId}: ${result.error}`);
+        }
+      }).catch(err => {
+        console.error(`[WhatsApp] Error sending sale notification:`, err);
+      });
+    }
     
     const webhooksList = await storage.getWebhooks(resellerId);
     
