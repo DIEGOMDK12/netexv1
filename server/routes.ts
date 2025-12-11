@@ -1411,7 +1411,8 @@ export async function registerRoutes(
             ...order,
             items: items.map(item => ({
               ...item,
-              secretContent: item.deliveredContent || null,
+              // Use item's delivered content, or fall back to order's delivered content for dynamicMode products
+              secretContent: item.deliveredContent || order.deliveredContent || null,
             })),
           };
         })
