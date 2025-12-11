@@ -238,18 +238,40 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
+      console.log("[createMutation] Creating product with data:", { 
+        name: data.name, 
+        dynamicMode: data.dynamicMode, 
+        variantCount: data.variants?.length 
+      });
+      
       const result = await apiRequest("POST", "/api/vendor/products", data);
       const productData = await result.json();
       
+      console.log("[createMutation] Product created:", { id: productData.id, dynamicMode: data.dynamicMode });
+      
       // If dynamic mode, create variants
       if (data.dynamicMode && data.variants && data.variants.length > 0 && productData.id) {
+        console.log("[createMutation] Creating variants:", data.variants.length);
         for (const variant of data.variants) {
-          await apiRequest("POST", `/api/products/${productData.id}/variants`, {
-            name: variant.name,
-            price: variant.price,
-            stock: variant.stock,
-          });
+          console.log("[createMutation] Creating variant:", variant);
+          try {
+            await apiRequest("POST", `/api/products/${productData.id}/variants`, {
+              name: variant.name,
+              price: variant.price,
+              stock: variant.stock,
+            });
+            console.log("[createMutation] Variant created successfully");
+          } catch (err) {
+            console.error("[createMutation] Failed to create variant:", err);
+          }
         }
+      } else {
+        console.log("[createMutation] Skipping variants:", { 
+          dynamicMode: data.dynamicMode, 
+          hasVariants: !!data.variants, 
+          variantCount: data.variants?.length,
+          productId: productData.id
+        });
       }
       return productData;
     },
@@ -976,19 +998,27 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
                           data-testid={`input-variant-price-${index}`}
                         />
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-gray-400">Estoque</Label>
-                        <Input
+                      <div className="space-y-1 col-span-1 sm:col-span-3">
+                        <Label className="text-xs text-gray-400">Estoque (um item por linha)</Label>
+                        <textarea
                           value={variant.stock}
                           onChange={(e) => updateVariant(index, "stock", e.target.value)}
-                          placeholder="Quantidade ou código"
+                          placeholder="Cole aqui os itens de estoque, um por linha:
+código1
+código2
+código3"
+                          rows={3}
+                          className="w-full p-2 rounded-lg text-white resize-none font-mono text-sm"
                           style={{
                             background: "rgba(30, 30, 40, 0.4)",
                             borderColor: "rgba(255,255,255,0.1)",
-                            color: "#FFFFFF",
+                            border: "1px solid rgba(255,255,255,0.1)",
                           }}
                           data-testid={`input-variant-stock-${index}`}
                         />
+                        <p className="text-xs text-gray-500">
+                          {variant.stock?.split('\n').filter((l: string) => l.trim()).length || 0} item(s) em estoque
+                        </p>
                       </div>
                     </div>
                   </div>
