@@ -4300,6 +4300,15 @@ export async function registerRoutes(
     });
 
     try {
+      // Validar preço mínimo de R$ 2,00 (apenas se não for modo dinâmico)
+      if (currentPrice !== undefined && !dynamicMode) {
+        const priceValue = parseFloat(currentPrice || "0");
+        if (isNaN(priceValue) || priceValue < 2) {
+          console.error("[Update Product] Price below minimum:", priceValue);
+          return res.status(400).json({ error: "O preço mínimo é R$ 2,00" });
+        }
+      }
+
       // Auto-count stock items: count non-empty lines
       const stockItems = stock 
         ? stock.split("\n").filter((line: string) => line.trim()).length 
