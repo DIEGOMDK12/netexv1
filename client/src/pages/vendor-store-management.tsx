@@ -306,7 +306,7 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
     setExpandedCategories(new Set(categories.map((c) => c.id)));
   };
 
-  const openEditProduct = (product: Product) => {
+  const openEditProduct = async (product: Product) => {
     setEditingProduct(product);
     setProductForm({
       name: product.name,
@@ -322,6 +322,36 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
       limitPerUser: product.limitPerUser ?? false,
       isPremium: (product as any).isPremium ?? false,
     });
+    
+    // Set dynamic mode and load variants if product has dynamicMode enabled
+    const isDynamicMode = (product as any).dynamicMode === true;
+    setDynamicMode(isDynamicMode);
+    
+    if (isDynamicMode) {
+      try {
+        const token = localStorage.getItem("vendor_token");
+        const response = await fetch(`/api/products/${product.id}/variants`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (response.ok) {
+          const variantsData = await response.json();
+          setVariants(variantsData.map((v: any) => ({
+            id: v.id,
+            name: v.name,
+            price: v.price?.toString() || "",
+            stock: v.stock || "",
+          })));
+        } else {
+          setVariants([{ name: "", price: "", stock: "" }]);
+        }
+      } catch (error) {
+        console.error("Error loading variants:", error);
+        setVariants([{ name: "", price: "", stock: "" }]);
+      }
+    } else {
+      setVariants([]);
+    }
+    
     setShowProductModal(true);
   };
 
