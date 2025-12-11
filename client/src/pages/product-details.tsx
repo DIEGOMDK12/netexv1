@@ -453,10 +453,14 @@ export default function ProductDetails() {
                   
                   {isVariantDropdownOpen && (
                     <div className="mt-2 grid gap-2 border border-gray-700 rounded-lg p-2 bg-[#0f172a]" data-testid="variant-selector">
-                      {activeVariants.map((variant: ProductVariant) => {
+                      {activeVariants
+                        .filter((variant: ProductVariant) => {
+                          const stockCount = variant.stock?.split("\n").filter((line: string) => line.trim()).length || 0;
+                          return stockCount > 0;
+                        })
+                        .map((variant: ProductVariant) => {
                         const variantStockCount = variant.stock?.split("\n").filter((line: string) => line.trim()).length || 0;
                         const isSelected = selectedVariant?.id === variant.id;
-                        const isAvailable = variantStockCount > 0;
                         
                         return (
                           <button
@@ -465,20 +469,18 @@ export default function ProductDetails() {
                               setSelectedVariantId(variant.id);
                               setIsVariantDropdownOpen(false);
                             }}
-                            disabled={!isAvailable}
-                            className={`flex items-center justify-between p-3 rounded-lg border transition-all
+                            className={`flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer
                               ${isSelected 
                                 ? 'border-blue-500 bg-blue-500/20' 
                                 : 'border-gray-600 hover:border-blue-400'
                               }
-                              ${!isAvailable ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                             `}
                             data-testid={`variant-option-${variant.id}`}
                           >
                             <div className="flex flex-col items-start">
                               <span className="text-white font-medium text-sm">{variant.name}</span>
                               <span className="text-xs text-gray-400">
-                                {isAvailable ? `${variantStockCount} em estoque` : 'Esgotado'}
+                                {variantStockCount} em estoque
                               </span>
                             </div>
                             <span className="text-blue-400 font-bold">
