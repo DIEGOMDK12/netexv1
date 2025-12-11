@@ -4358,6 +4358,20 @@ export async function registerRoutes(
       });
 
       console.log("[POST /api/products/:productId/variants] Created variant:", variant.id, "for product", productId);
+      
+      // CORREÇÃO: Atualizar o preço do produto com base nas variantes ativas
+      const allVariants = await storage.getProductVariants(productId);
+      const activeVariants = allVariants.filter(v => v.active !== false);
+      if (activeVariants.length > 0) {
+        const prices = activeVariants.map(v => parseFloat(v.price as any));
+        const minPrice = Math.min(...prices);
+        await storage.updateProduct(productId, {
+          currentPrice: minPrice.toFixed(2),
+          originalPrice: minPrice.toFixed(2),
+        });
+        console.log("[POST /api/products/:productId/variants] Updated product price to:", minPrice.toFixed(2));
+      }
+      
       res.json(variant);
     } catch (error) {
       console.error("[POST /api/products/:productId/variants] Error:", error);
@@ -4445,6 +4459,18 @@ export async function registerRoutes(
           });
           resultVariants.push(created);
         }
+      }
+
+      // CORREÇÃO: Atualizar o preço do produto com base nas variantes ativas
+      const activeVariants = resultVariants.filter(v => v.active !== false);
+      if (activeVariants.length > 0) {
+        const prices = activeVariants.map(v => parseFloat(v.price as any));
+        const minPrice = Math.min(...prices);
+        await storage.updateProduct(productId, {
+          currentPrice: minPrice.toFixed(2),
+          originalPrice: minPrice.toFixed(2),
+        });
+        console.log("[Sync] Updated product price to:", minPrice.toFixed(2));
       }
 
       console.log("[Sync] Completed. Result:", resultVariants.length, "variants");
