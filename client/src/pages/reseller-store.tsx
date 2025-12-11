@@ -392,7 +392,8 @@ export default function ResellerStore() {
                 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                   {productsWithDiscount.slice(0, 5).map((product) => {
-                    const hasStock = product.stock && product.stock.trim();
+                    const isDynamicMode = (product as any).dynamicMode === true;
+                    const hasStock = isDynamicMode || (product.stock && product.stock.trim());
                     const discountPercent = Math.round(
                       ((Number(product.originalPrice) - Number(product.currentPrice)) / Number(product.originalPrice)) * 100
                     );
@@ -502,7 +503,8 @@ export default function ResellerStore() {
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                   {filteredProducts.map((product) => {
-                    const hasStock = product.stock && product.stock.trim();
+                    const isDynamicMode = (product as any).dynamicMode === true;
+                    const hasStock = isDynamicMode || (product.stock && product.stock.trim());
                     const hasDiscount = Number(product.originalPrice) > Number(product.currentPrice);
                     const discountPercent = hasDiscount
                       ? Math.round(((Number(product.originalPrice) - Number(product.currentPrice)) / Number(product.originalPrice)) * 100)

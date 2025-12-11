@@ -635,8 +635,9 @@ export default function Home() {
 }
 
 function ProductCardMini({ product, stats }: { product: ProductWithSeller; stats?: { averageRating: number; totalReviews: number } }) {
+  const isDynamicMode = (product as any).dynamicMode === true;
   const stockLines = product.stock?.split("\n").filter((line) => line.trim()) || [];
-  const hasStock = stockLines.length > 0;
+  const hasStock = isDynamicMode || stockLines.length > 0;
   const sellerName = product.seller?.storeName || product.seller?.name || "Vendedor";
   const sellerInitial = sellerName.charAt(0).toUpperCase();
   const [, setLocation] = useLocation();
