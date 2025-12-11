@@ -1486,13 +1486,19 @@ export async function registerRoutes(
       const firstProduct = await storage.getProduct(items[0].productId);
       const resellerId = firstProduct?.resellerId || null;
 
-      // Validate stock availability for all items
+      // Validate stock availability for all items (skip for dynamicMode products - manual delivery)
       for (const item of items) {
         const product = await storage.getProduct(item.productId);
         if (!product) {
           return res.status(400).json({ 
             error: `Produto "${item.productName}" não encontrado.` 
           });
+        }
+        
+        // Skip stock validation for dynamicMode products (manual delivery)
+        if (product.dynamicMode) {
+          console.log(`[POST /api/orders] Skipping stock validation for dynamicMode product: ${product.name}`);
+          continue;
         }
         
         // If item has a variant, check variant stock instead of product stock
@@ -5131,7 +5137,15 @@ export async function registerRoutes(
           return res.status(404).json({ error: `Produto ${item.productId} não encontrado` });
         }
 
-        console.log(`[Vendor Approve] Checking stock for product: ${product.name}, variantId: ${item.variantId || 'none'}`);
+        console.log(`[Vendor Approve] Checking stock for product: ${product.name}, variantId: ${item.variantId || 'none'}, dynamicMode: ${product.dynamicMode}`);
+
+        // For dynamicMode products (manual delivery), skip stock validation
+        // Vendor will provide content manually after approval
+        if (product.dynamicMode) {
+          console.log(`[Vendor Approve] DynamicMode product - skipping stock validation, manual delivery required`);
+          deliveredContent += `[Entrega Manual - ${product.name}]\n`;
+          continue;
+        }
 
         // Determine stock source: variant stock or product stock
         let stockSource = product.stock;
@@ -5179,7 +5193,7 @@ export async function registerRoutes(
         // Remove first item and update stock (variant or product)
         const remainingStock = stockLines.slice(1).join("\n");
         
-        if (variantToUpdate) {
+        if (variantToUpdate && item.variantId) {
           // Update variant stock
           await storage.updateProductVariant(item.variantId, { 
             stock: remainingStock,
