@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { 
   Plus, Trash2, Edit2, Loader2, Upload, ChevronDown, ChevronUp,
-  GripVertical, FolderOpen, Eye, EyeOff, Package, X, Image, Star
+  GripVertical, FolderOpen, Eye, EyeOff, Package, X, Image, Star, Layers, Tag
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,6 +69,8 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showDeleteProductConfirm, setShowDeleteProductConfirm] = useState<number | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [dynamicMode, setDynamicMode] = useState(false);
+  const [variants, setVariants] = useState<Array<{ id?: number; name: string; price: string; stock: string }>>([]);
 
   const [productForm, setProductForm] = useState({
     name: "",
@@ -269,6 +271,8 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
       limitPerUser: false,
       isPremium: false,
     });
+    setDynamicMode(false);
+    setVariants([]);
   };
 
   // Auto-expand "SEM CATEGORIA" section when there are uncategorized products
@@ -321,7 +325,7 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
     setShowProductModal(true);
   };
 
-  const openNewProduct = (categoryId?: number) => {
+  const openNewProduct = (categoryId?: number, isDynamic: boolean = false) => {
     if (!isVerified) {
       toast({
         title: "Verificação necessária",
@@ -332,34 +336,59 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
     }
     setEditingProduct(null);
     resetProductForm();
+    setDynamicMode(isDynamic);
+    if (isDynamic) {
+      setVariants([{ name: "", price: "", stock: "" }]);
+    }
     if (categoryId) {
       setProductForm((prev) => ({ ...prev, categoryId: categoryId.toString() }));
     }
     setShowProductModal(true);
   };
 
-  const handleSaveProduct = () => {
-    if (!productForm.name.trim() || !productForm.currentPrice || !productForm.originalPrice) {
-      toast({ 
-        title: "Campos obrigatórios", 
-        description: "Nome, preço e preço original são obrigatórios",
-        variant: "destructive" 
-      });
-      return;
+  const handleSaveProduct = async () => {
+    // Validação diferenciada para modo dinâmico
+    if (dynamicMode) {
+      if (!productForm.name.trim()) {
+        toast({ 
+          title: "Campo obrigatório", 
+          description: "Nome do produto é obrigatório",
+          variant: "destructive" 
+        });
+        return;
+      }
+      const validVariants = variants.filter(v => v.name && v.name.trim() && v.price && v.price.trim());
+      if (validVariants.length === 0) {
+        toast({ 
+          title: "Variante obrigatória", 
+          description: "Adicione pelo menos uma variante com nome e preço",
+          variant: "destructive" 
+        });
+        return;
+      }
+    } else {
+      if (!productForm.name.trim() || !productForm.currentPrice || !productForm.originalPrice) {
+        toast({ 
+          title: "Campos obrigatórios", 
+          description: "Nome, preço e preço original são obrigatórios",
+          variant: "destructive" 
+        });
+        return;
+      }
     }
 
     const slug = productForm.slug || productForm.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 
     const selectedCat = marketplaceCategories.find(c => c.id === parseInt(productForm.categoryId));
     
-    const data = {
+    const data: any = {
       name: productForm.name,
       slug,
       description: productForm.description,
       imageUrl: productForm.imageUrl || "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400",
-      currentPrice: productForm.currentPrice,
-      originalPrice: productForm.originalPrice,
-      stock: productForm.stock,
+      currentPrice: dynamicMode ? "0" : productForm.currentPrice,
+      originalPrice: dynamicMode ? "0" : productForm.originalPrice,
+      stock: dynamicMode ? "" : productForm.stock,
       category: selectedCat?.name || "Outros",
       categoryId: productForm.categoryId ? parseInt(productForm.categoryId) : null,
       subcategory: productForm.subcategory || null,
@@ -367,6 +396,8 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
       limitPerUser: productForm.limitPerUser,
       isPremium: productForm.isPremium,
       resellerId: vendorId,
+      dynamicMode: dynamicMode,
+      variants: dynamicMode ? variants : [],
     };
 
     if (editingProduct) {
@@ -374,6 +405,20 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
     } else {
       createProductMutation.mutate(data);
     }
+  };
+
+  const addVariant = () => {
+    setVariants([...variants, { name: "", price: "", stock: "" }]);
+  };
+
+  const updateVariant = (index: number, field: string, value: string) => {
+    const newVariants = [...variants];
+    newVariants[index] = { ...newVariants[index], [field]: value };
+    setVariants(newVariants);
+  };
+
+  const removeVariant = (index: number) => {
+    setVariants(variants.filter((_, i) => i !== index));
   };
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -430,18 +475,41 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
               <span>
                 <Button
                   size="sm"
-                  onClick={() => openNewProduct()}
-                  className="whitespace-nowrap w-full sm:w-auto"
+                  onClick={() => openNewProduct(undefined, false)}
+                  className="whitespace-nowrap w-full sm:w-auto flex items-center gap-1"
+                  variant="outline"
+                  disabled={!isVerified}
+                  data-testid="button-new-simple-product"
+                >
+                  <Tag className="w-4 h-4" />
+                  <span>Produto Simples</span>
+                </Button>
+              </span>
+            </TooltipTrigger>
+            {!isVerified && (
+              <TooltipContent>
+                <p>Você precisa ser verificado para adicionar produtos</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <Button
+                  size="sm"
+                  onClick={() => openNewProduct(undefined, true)}
+                  className="whitespace-nowrap w-full sm:w-auto flex items-center gap-1"
                   style={{
                     background: isVerified 
-                      ? "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)"
+                      ? "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)"
                       : "#4b5563",
+                    color: "#FFFFFF",
                   }}
                   disabled={!isVerified}
-                  data-testid="button-new-product"
+                  data-testid="button-new-variant-product"
                 >
-                  <Plus className="w-4 h-4 mr-1 flex-shrink-0" />
-                  <span>Novo Produto</span>
+                  <Layers className="w-4 h-4" />
+                  <span>Produto Variante</span>
                 </Button>
               </span>
             </TooltipTrigger>
@@ -543,22 +611,45 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
                 : "Sua conta precisa ser verificada para adicionar produtos"
               }
             </p>
-            <div className="flex justify-center gap-3">
+            <div className="flex flex-col sm:flex-row justify-center gap-3">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span>
                     <Button
-                      onClick={() => openNewProduct()}
+                      onClick={() => openNewProduct(undefined, false)}
+                      variant="outline"
+                      disabled={!isVerified}
+                      data-testid="button-first-simple-product"
+                      className="flex items-center gap-1"
+                    >
+                      <Tag className="w-4 h-4" />
+                      Produto Simples
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {!isVerified && (
+                  <TooltipContent>
+                    <p>Você precisa ser verificado para adicionar produtos</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      onClick={() => openNewProduct(undefined, true)}
                       style={{
                         background: isVerified 
-                          ? "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)"
+                          ? "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)"
                           : "#4b5563",
+                        color: "#FFFFFF",
                       }}
                       disabled={!isVerified}
-                      data-testid="button-first-product"
+                      data-testid="button-first-variant-product"
+                      className="flex items-center gap-1"
                     >
-                      <Plus className="w-4 h-4 mr-1" />
-                      Criar Produto
+                      <Layers className="w-4 h-4" />
+                      Produto Variante
                     </Button>
                   </span>
                 </TooltipTrigger>
@@ -577,10 +668,40 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
         <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingProduct ? "Editar Produto" : "Novo Produto"}
+              {editingProduct ? "Editar Produto" : (dynamicMode ? "Novo Produto Variante" : "Novo Produto Simples")}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <div 
+              className="flex items-center gap-3 p-3 rounded-lg"
+              style={{ 
+                background: dynamicMode 
+                  ? "linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(59, 130, 246, 0.15))"
+                  : "rgba(34, 197, 94, 0.1)",
+                border: dynamicMode 
+                  ? "1px solid rgba(139, 92, 246, 0.3)"
+                  : "1px solid rgba(34, 197, 94, 0.3)",
+              }}
+            >
+              {dynamicMode ? (
+                <>
+                  <Layers className="w-5 h-5 text-purple-400" />
+                  <div>
+                    <span className="text-white font-medium text-sm">Produto com Variantes</span>
+                    <p className="text-xs text-gray-400">Preço e estoque definidos por variante</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Tag className="w-5 h-5 text-green-400" />
+                  <div>
+                    <span className="text-white font-medium text-sm">Produto Simples</span>
+                    <p className="text-xs text-gray-400">Preço e estoque únicos</p>
+                  </div>
+                </>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-gray-300">Nome do Produto *</Label>
@@ -604,32 +725,34 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-gray-300">Preço Atual (R$) *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={productForm.currentPrice}
-                  onChange={(e) => setProductForm((prev) => ({ ...prev, currentPrice: e.target.value }))}
-                  placeholder="29.90"
-                  className="bg-gray-800 border-gray-600 text-white"
-                  data-testid="input-product-price"
-                />
+            {!dynamicMode && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-gray-300">Preço Atual (R$) *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={productForm.currentPrice}
+                    onChange={(e) => setProductForm((prev) => ({ ...prev, currentPrice: e.target.value }))}
+                    placeholder="29.90"
+                    className="bg-gray-800 border-gray-600 text-white"
+                    data-testid="input-product-price"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-gray-300">Preço Original (R$) *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={productForm.originalPrice}
+                    onChange={(e) => setProductForm((prev) => ({ ...prev, originalPrice: e.target.value }))}
+                    placeholder="49.90"
+                    className="bg-gray-800 border-gray-600 text-white"
+                    data-testid="input-product-original-price"
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label className="text-gray-300">Preço Original (R$) *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={productForm.originalPrice}
-                  onChange={(e) => setProductForm((prev) => ({ ...prev, originalPrice: e.target.value }))}
-                  placeholder="49.90"
-                  className="bg-gray-800 border-gray-600 text-white"
-                  data-testid="input-product-original-price"
-                />
-              </div>
-            </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -753,45 +876,127 @@ export function VendorStoreManagement({ vendorId, verificationStatus }: VendorSt
               )}
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-gray-300">
-                  Estoque de Keys / Licenças
-                </Label>
-                <div className="flex items-center gap-2">
-                  <Badge 
-                    variant={stockCount > 0 ? "default" : "destructive"}
-                    className={stockCount > 0 ? "bg-green-600" : ""}
+            {dynamicMode ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-gray-300 flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-purple-400" />
+                    Variantes do Produto
+                  </Label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={addVariant}
+                    variant="outline"
+                    className="border-purple-500 text-purple-400"
+                    data-testid="button-add-variant"
                   >
-                    Estoque: {stockCount} {stockCount === 1 ? "item" : "itens"}
-                  </Badge>
-                  {productForm.stock && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-400 hover:text-red-300"
-                      onClick={() => setProductForm((prev) => ({ ...prev, stock: "" }))}
-                      data-testid="button-clear-stock"
+                    <Plus className="w-4 h-4 mr-1" />
+                    Adicionar Variante
+                  </Button>
+                </div>
+                <div className="space-y-3">
+                  {variants.map((variant, index) => (
+                    <div 
+                      key={index} 
+                      className="p-3 rounded-lg space-y-3"
+                      style={{ backgroundColor: "#1f2937", border: "1px solid #374151" }}
                     >
-                      Limpar
-                    </Button>
-                  )}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-purple-300 font-medium">Variante {index + 1}</span>
+                        {variants.length > 1 && (
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="w-6 h-6 text-red-400"
+                            onClick={() => removeVariant(index)}
+                            data-testid={`button-remove-variant-${index}`}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <Input
+                          value={variant.name}
+                          onChange={(e) => updateVariant(index, "name", e.target.value)}
+                          placeholder="Nome (ex: 30 dias)"
+                          className="bg-gray-800 border-gray-600 text-white"
+                          data-testid={`input-variant-name-${index}`}
+                        />
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={variant.price}
+                          onChange={(e) => updateVariant(index, "price", e.target.value)}
+                          placeholder="Preço (R$)"
+                          className="bg-gray-800 border-gray-600 text-white"
+                          data-testid={`input-variant-price-${index}`}
+                        />
+                        <Textarea
+                          value={variant.stock}
+                          onChange={(e) => updateVariant(index, "stock", e.target.value)}
+                          placeholder="Keys (uma por linha)"
+                          className="bg-gray-800 border-gray-600 text-white font-mono text-xs resize-none"
+                          rows={2}
+                          data-testid={`textarea-variant-stock-${index}`}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <span>Estoque:</span>
+                        <Badge 
+                          variant="outline" 
+                          className={`text-xs ${variant.stock?.split("\n").filter(l => l.trim()).length > 0 ? "text-green-400 border-green-600" : "text-gray-400 border-gray-600"}`}
+                        >
+                          {variant.stock?.split("\n").filter(l => l.trim()).length || 0} itens
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <Textarea
-                value={productForm.stock}
-                onChange={(e) => setProductForm((prev) => ({ ...prev, stock: e.target.value }))}
-                placeholder={"Cole suas keys/licenças aqui (uma por linha):\n\nemail1@gmail.com:senha123\nemail2@gmail.com:senha456\nABC123-DEF456-GHI789\n..."}
-                className="bg-gray-800 border-gray-600 text-white font-mono text-sm resize-none"
-                rows={8}
-                data-testid="textarea-product-stock"
-              />
-              <p className="text-xs text-gray-500">
-                Cada linha representa um item de estoque. Quando uma venda ocorre, 
-                o primeiro item disponível é enviado ao cliente automaticamente.
-              </p>
-            </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-gray-300">
+                    Estoque de Keys / Licenças
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Badge 
+                      variant={stockCount > 0 ? "default" : "destructive"}
+                      className={stockCount > 0 ? "bg-green-600" : ""}
+                    >
+                      Estoque: {stockCount} {stockCount === 1 ? "item" : "itens"}
+                    </Badge>
+                    {productForm.stock && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-400 hover:text-red-300"
+                        onClick={() => setProductForm((prev) => ({ ...prev, stock: "" }))}
+                        data-testid="button-clear-stock"
+                      >
+                        Limpar
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <Textarea
+                  value={productForm.stock}
+                  onChange={(e) => setProductForm((prev) => ({ ...prev, stock: e.target.value }))}
+                  placeholder={"Cole suas keys/licenças aqui (uma por linha):\n\nemail1@gmail.com:senha123\nemail2@gmail.com:senha456\nABC123-DEF456-GHI789\n..."}
+                  className="bg-gray-800 border-gray-600 text-white font-mono text-sm resize-none"
+                  rows={8}
+                  data-testid="textarea-product-stock"
+                />
+                <p className="text-xs text-gray-500">
+                  Cada linha representa um item de estoque. Quando uma venda ocorre, 
+                  o primeiro item disponível é enviado ao cliente automaticamente.
+                </p>
+              </div>
+            )}
 
             <div className="flex flex-col sm:flex-row gap-4 pt-2">
               <div className="flex items-center gap-3 flex-1">
