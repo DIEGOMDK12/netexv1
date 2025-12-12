@@ -443,7 +443,8 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
             <>
               <div className="space-y-3">
                 {cart.map((item) => {
-                  const itemPrice = item.variant ? Number(item.variant.price) : Number(item.product.currentPrice);
+                  const rawPrice = item.variant ? item.variant.price : item.product.currentPrice;
+                  const itemPrice = parseFloat(String(rawPrice)) || 0;
                   const itemKey = item.variant ? `${item.product.id}-${item.variant.id}` : `${item.product.id}`;
                   return (
                     <div

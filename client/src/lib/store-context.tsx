@@ -113,7 +113,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const cartTotal = cart.reduce(
     (sum, item) => {
-      const price = item.variant ? Number(item.variant.price) : Number(item.product.currentPrice);
+      const rawPrice = item.variant ? item.variant.price : item.product.currentPrice;
+      const price = parseFloat(String(rawPrice)) || 0;
       return sum + price * item.quantity;
     },
     0
