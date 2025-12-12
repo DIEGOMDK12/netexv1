@@ -443,10 +443,10 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
         }
       }
     } else {
-      if (!formData.name || !formData.price || !formData.originalPrice) {
+      if (!formData.name || !formData.price) {
         toast({
           title: "Campos obrigatórios",
-          description: "Nome, preço e preço original são necessários",
+          description: "Nome e preço são necessários",
           variant: "destructive",
         });
         return;
@@ -500,7 +500,7 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
       description: formData.description,
       imageUrl: formData.imageUrl || "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400",
       currentPrice: computedPrice,
-      originalPrice: dynamicMode ? computedPrice : formData.originalPrice,
+      originalPrice: computedPrice,
       stock: dynamicMode ? "" : formData.stock,
       deliveryContent: formData.deliveryContent,
       category: formData.category || "Outros",
@@ -601,10 +601,10 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
         }
       }
     } else {
-      if (!formData.name || !formData.price || !formData.originalPrice) {
+      if (!formData.name || !formData.price) {
         toast({
           title: "Campos obrigatórios",
-          description: "Nome, preço e preço original são necessários",
+          description: "Nome e preço são necessários",
           variant: "destructive",
         });
         return;
@@ -658,7 +658,7 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
       description: formData.description,
       imageUrl: formData.imageUrl,
       currentPrice: computedPrice,
-      originalPrice: dynamicMode ? computedPrice : formData.originalPrice,
+      originalPrice: computedPrice,
       stock: dynamicMode ? "" : formData.stock,
       deliveryContent: formData.deliveryContent,
       category: formData.category || "Outros",
@@ -948,25 +948,6 @@ export function VendorProductsEnhanced({ vendorId }: { vendorId: number }) {
               </div>
             </div>
 
-            {!dynamicMode && (
-              <div className="space-y-2">
-                <Label className="text-white">Preço Original (R$) *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={formData.originalPrice}
-                  onChange={(e) => setFormData({ ...formData, originalPrice: e.target.value })}
-                  placeholder="199.90"
-                  style={{
-                    background: "rgba(30, 30, 40, 0.4)",
-                    backdropFilter: "blur(10px)",
-                    borderColor: "rgba(255,255,255,0.1)",
-                    color: "#FFFFFF",
-                  }}
-                  data-testid="input-product-original-price"
-                />
-              </div>
-            )}
 
             <div className="space-y-2">
               <Label className="text-white">Descrição</Label>
