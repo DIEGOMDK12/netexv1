@@ -1113,15 +1113,26 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
                 </div>
               </div>
               
-              <Button
-                variant="outline"
-                onClick={() => removeDiscordMutation.mutate()}
-                disabled={removeDiscordMutation.isPending}
-                className="w-full border-red-500/30 text-red-400"
-                data-testid="button-remove-discord"
-              >
-                {removeDiscordMutation.isPending ? "Removendo..." : "Remover Configuracao"}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => testDiscordMutation.mutate()}
+                  disabled={testDiscordMutation.isPending || !discordData?.enabled}
+                  className="flex-1 border-indigo-500/30 text-indigo-400"
+                  data-testid="button-test-discord"
+                >
+                  {testDiscordMutation.isPending ? "Enviando..." : "Testar Notificacao"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => removeDiscordMutation.mutate()}
+                  disabled={removeDiscordMutation.isPending}
+                  className="flex-1 border-red-500/30 text-red-400"
+                  data-testid="button-remove-discord"
+                >
+                  {removeDiscordMutation.isPending ? "Removendo..." : "Remover"}
+                </Button>
+              </div>
             </>
           ) : (
             <>
