@@ -157,11 +157,14 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
   
   console.log("[CheckoutModal] Debug cart state:", {
     cartLength: cart.length,
+    cartTotal: cartTotal,
+    finalTotal: finalTotal,
     firstProduct: cart.length > 0 ? {
       id: cart[0].product.id,
       name: cart[0].product.name,
+      currentPrice: cart[0].product.currentPrice,
+      variant: cart[0].variant,
       resellerId: cart[0].product.resellerId,
-      allKeys: Object.keys(cart[0].product)
     } : null,
     detectedResellerId: resellerId
   });
@@ -565,18 +568,18 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
               >
                 <div className="flex justify-between text-sm">
                   <span>Subtotal:</span>
-                  <span>R$ {cartTotal.toFixed(2)}</span>
+                  <span>R$ {(cartTotal || 0).toFixed(2)}</span>
                 </div>
                 {discount > 0 && (
                   <div className="flex justify-between text-sm text-green-400">
                     <span>Desconto:</span>
-                    <span>-R$ {discount.toFixed(2)}</span>
+                    <span>-R$ {(discount || 0).toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between font-bold text-lg pt-2 border-t" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
                   <span>Total:</span>
                   <span style={{ color: themeColor || "#3B82F6" }}>
-                    R$ {finalTotal.toFixed(2)}
+                    R$ {(finalTotal || 0).toFixed(2)}
                   </span>
                 </div>
               </div>
