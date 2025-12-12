@@ -5174,6 +5174,52 @@ export async function registerRoutes(
     }
   });
 
+  // Test Discord notification
+  app.post("/api/vendor/discord-notifications/test", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const vendorId = tokenToVendor.get(token);
+    if (!vendorId) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    try {
+      const vendor = await storage.getReseller(vendorId);
+      if (!vendor) {
+        return res.status(404).json({ error: "Vendor not found" });
+      }
+
+      if (!vendor.discordWebhookUrl) {
+        return res.status(400).json({ error: "Discord webhook not configured" });
+      }
+
+      const axios = (await import('axios')).default;
+      const embed = {
+        title: 'Teste de Notificacao - GoldNet Steam',
+        color: 0x5865F2,
+        description: 'Esta e uma mensagem de teste para verificar se as notificacoes do Discord estao funcionando corretamente.',
+        fields: [
+          { name: 'Loja', value: vendor.storeName || vendor.name, inline: true },
+          { name: 'Status', value: 'Configurado', inline: true },
+          { name: 'Data', value: new Date().toLocaleString('pt-BR'), inline: true },
+        ],
+        timestamp: new Date().toISOString(),
+        footer: { text: 'Sistema de Notificacoes GoldNet' }
+      };
+
+      await axios.post(vendor.discordWebhookUrl, { embeds: [embed] });
+      
+      console.log(`[Discord Test] Test notification sent successfully for vendor ${vendorId}`);
+      res.json({ success: true, message: "Notificacao de teste enviada com sucesso!" });
+    } catch (error: any) {
+      console.error("[Discord Test] Error:", error.message);
+      res.status(500).json({ error: "Falha ao enviar notificacao de teste: " + error.message });
+    }
+  });
+
   // ==================== WEBHOOKS ====================
   
   // Get vendor webhooks
