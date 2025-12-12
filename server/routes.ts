@@ -2152,9 +2152,9 @@ export async function registerRoutes(
   // POST /api/pagamento/criar
   app.post("/api/pagamento/criar", async (req, res) => {
     try {
-      const { valor, id_produto, id_revendedor, email, customerName, customerCpf, whatsapp, orderId: existingOrderId } = req.body;
+      const { valor, id_produto, id_revendedor, email, customerName, customerCpf, whatsapp, orderId: existingOrderId, variantId } = req.body;
 
-      console.log("[AbacatePay] /api/pagamento/criar - Request:", { valor, id_produto, id_revendedor, email, existingOrderId });
+      console.log("[AbacatePay] /api/pagamento/criar - Request:", { valor, id_produto, id_revendedor, email, existingOrderId, variantId });
 
       if (!valor || !id_produto) {
         return res.status(400).json({ error: "Campos obrigatórios: valor, id_produto" });
@@ -2169,10 +2169,41 @@ export async function registerRoutes(
       // Validar estoque apenas se for um novo pedido (não existente)
       // Se já existe um orderId, o estoque já foi validado na criação do pedido
       // TODOS os produtos precisam ter estoque cadastrado para entrega automática
-      console.log(`[AbacatePay] Produto ${product.id} - Estoque: "${product.stock}" (length: ${product.stock?.length || 0}, trimmed: "${product.stock?.trim()}")`);
-      if (!existingOrderId && (!product.stock || !product.stock.trim())) {
-        console.log(`[AbacatePay] ERRO: Produto ${product.id} sem estoque disponível`);
-        return res.status(400).json({ error: "Produto sem estoque disponível" });
+      if (!existingOrderId) {
+        // Verificar se produto tem variantes
+        const variants = await storage.getProductVariants(parseInt(id_produto));
+        const activeVariants = variants.filter(v => v.active !== false);
+        
+        if (activeVariants.length > 0) {
+          // Produto tem variantes - verificar estoque da variante selecionada
+          if (variantId) {
+            const selectedVariant = variants.find(v => v.id === parseInt(variantId));
+            if (!selectedVariant) {
+              console.log(`[AbacatePay] ERRO: Variante ${variantId} não encontrada`);
+              return res.status(404).json({ error: "Variante não encontrada" });
+            }
+            if (!selectedVariant.stock || !selectedVariant.stock.trim()) {
+              console.log(`[AbacatePay] ERRO: Variante ${selectedVariant.name} sem estoque`);
+              return res.status(400).json({ error: `Variante "${selectedVariant.name}" sem estoque disponível` });
+            }
+            console.log(`[AbacatePay] Variante ${selectedVariant.name} - Estoque OK`);
+          } else {
+            // Produto tem variantes mas nenhuma foi selecionada - verificar se alguma tem estoque
+            const variantWithStock = activeVariants.find(v => v.stock && v.stock.trim());
+            if (!variantWithStock) {
+              console.log(`[AbacatePay] ERRO: Nenhuma variante com estoque disponível`);
+              return res.status(400).json({ error: "Nenhuma variante com estoque disponível" });
+            }
+            console.log(`[AbacatePay] Produto tem variantes com estoque disponível`);
+          }
+        } else {
+          // Produto não tem variantes - verificar estoque do produto
+          console.log(`[AbacatePay] Produto ${product.id} - Estoque: "${product.stock}" (length: ${product.stock?.length || 0})`);
+          if (!product.stock || !product.stock.trim()) {
+            console.log(`[AbacatePay] ERRO: Produto ${product.id} sem estoque disponível`);
+            return res.status(400).json({ error: "Produto sem estoque disponível" });
+          }
+        }
       }
 
       // Determinar revendedor (do produto ou do request)

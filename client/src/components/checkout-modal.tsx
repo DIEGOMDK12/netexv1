@@ -323,6 +323,9 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
           // Get the first product from cart for the payment
           const firstProduct = cart[0]?.product;
           
+          // Get variant info from cart if available
+          const firstCartItem = cart[0];
+          
           const pixResponse = await apiRequest("POST", "/api/pagamento/criar", {
             id_produto: firstProduct?.id,
             valor: finalTotal.toFixed(2),
@@ -331,6 +334,7 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
             customerName: customerName.trim() || email.split("@")[0],
             id_revendedor: resellerId || undefined,
             orderId: data.id, // Pass existing order ID to avoid duplicate creation
+            variantId: firstCartItem?.variant?.id || undefined, // Include variant ID for stock validation
           });
           const pixData = await pixResponse.json();
           
