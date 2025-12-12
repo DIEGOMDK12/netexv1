@@ -519,6 +519,47 @@ export async function registerRoutes(
         console.error("[/webhook] Erro de email (ignorado):", emailError.message);
       }
 
+      // ========== NOTIFICAÇÃO DISCORD PARA REVENDEDOR ==========
+      try {
+        if (order.resellerId) {
+          const resellerForDiscord = await storage.getReseller(order.resellerId);
+          if (resellerForDiscord?.discordNotificationEnabled && resellerForDiscord?.discordWebhookUrl) {
+            const orderItems = await storage.getOrderItems(orderId);
+            const productNames = orderItems.map((item: any) => item.productName || "Produto").join(", ");
+            const valorVenda = parseFloat(order.totalAmount as string || "0");
+            const quantidade = orderItems.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
+            
+            console.log("[/webhook] Enviando notificação Discord para revendedor:", resellerForDiscord.id);
+            
+            const axios = (await import('axios')).default;
+            const embed = {
+              title: 'Nova Venda!',
+              color: 0x00ff00,
+              fields: [
+                { name: 'Pedido', value: `#${orderId}`, inline: true },
+                { name: 'Produto', value: productNames, inline: true },
+                { name: 'Quantidade', value: String(quantidade), inline: true },
+                { name: 'Valor Total', value: `R$ ${valorVenda.toFixed(2)}`, inline: true },
+                { name: 'Comprador', value: order.customerName || order.email || 'Cliente', inline: true },
+                { name: 'Status', value: 'Pago', inline: true },
+              ],
+              timestamp: new Date().toISOString(),
+              footer: { text: resellerForDiscord.storeName || 'GOLDNET' }
+            };
+            
+            axios.post(resellerForDiscord.discordWebhookUrl, { embeds: [embed] })
+              .then(() => {
+                console.log("[/webhook] ✓ Notificação Discord enviada com sucesso para revendedor:", resellerForDiscord.id);
+              })
+              .catch((err: any) => {
+                console.error("[/webhook] Erro ao enviar Discord (ignorado):", err.message);
+              });
+          }
+        }
+      } catch (discordError: any) {
+        console.error("[/webhook] Erro na notificação Discord (ignorado):", discordError.message);
+      }
+
       // ========== NOTIFICAÇÃO WHATSAPP PARA REVENDEDOR ==========
       try {
         if (order.resellerId) {
