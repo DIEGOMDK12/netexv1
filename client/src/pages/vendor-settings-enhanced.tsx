@@ -160,6 +160,36 @@ export function VendorSettingsEnhanced({ vendorId, vendorData }: { vendorId: num
     },
   });
 
+  // Test Discord notification mutation
+  const testDiscordMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/vendor/discord-notifications/test", {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${vendorToken}`,
+        },
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Erro ao enviar teste');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Teste enviado!",
+        description: "Verifique seu Discord para confirmar o recebimento.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro no teste",
+        description: error?.message || "Nao foi possivel enviar a notificacao de teste",
+        variant: "destructive",
+      });
+    },
+  });
+
   const saveMutation = useMutation({
     mutationFn: async (data: any) => {
       const response = await fetch(`/api/vendor/settings/${vendorId}`, {
