@@ -133,6 +133,13 @@ async function runStartupMigrations() {
     `);
     console.log("[Migration] Added WhatsApp notification columns to resellers table");
     
+    // Add Discord webhook URL column to resellers table
+    await client.query(`
+      ALTER TABLE resellers 
+      ADD COLUMN IF NOT EXISTS discord_webhook_url TEXT
+    `);
+    console.log("[Migration] Added discord_webhook_url column to resellers table");
+    
     client.release();
     console.log("[Migration] Startup migrations completed successfully");
   } catch (error: any) {
