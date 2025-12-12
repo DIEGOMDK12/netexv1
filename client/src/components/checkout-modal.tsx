@@ -470,16 +470,22 @@ export function CheckoutModal({ open, onClose, themeColor, textColor }: Checkout
                         )}
                       </div>
 
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 overflow-hidden">
                         <h4
-                          className="font-medium text-sm truncate"
+                          className="font-medium text-sm truncate block"
                           style={{ color: textColor || "#FFFFFF" }}
+                          title={item.product.name}
                         >
                           {item.product.name}
-                          {item.variant && (
-                            <span className="text-gray-400 ml-1">- {item.variant.name}</span>
-                          )}
                         </h4>
+                        {item.variant && (
+                          <p 
+                            className="text-xs text-gray-400 truncate block"
+                            title={item.variant.name}
+                          >
+                            {item.variant.name}
+                          </p>
+                        )}
                         <p
                           className="text-sm font-semibold mt-1"
                           style={{ color: themeColor || "#a855f7" }}
