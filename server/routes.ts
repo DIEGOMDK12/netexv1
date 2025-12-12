@@ -2166,8 +2166,9 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Produto não encontrado" });
       }
 
-      // Validar estoque
-      if (!product.stock || !product.stock.trim()) {
+      // Validar estoque apenas se for um novo pedido (não existente)
+      // Se já existe um orderId, o estoque já foi validado na criação do pedido
+      if (!existingOrderId && (!product.stock || !product.stock.trim())) {
         return res.status(400).json({ error: "Produto sem estoque disponível" });
       }
 
