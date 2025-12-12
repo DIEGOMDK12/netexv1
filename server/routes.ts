@@ -2169,7 +2169,9 @@ export async function registerRoutes(
       // Validar estoque apenas se for um novo pedido (não existente)
       // Se já existe um orderId, o estoque já foi validado na criação do pedido
       // TODOS os produtos precisam ter estoque cadastrado para entrega automática
+      console.log(`[AbacatePay] Produto ${product.id} - Estoque: "${product.stock}" (length: ${product.stock?.length || 0}, trimmed: "${product.stock?.trim()}")`);
       if (!existingOrderId && (!product.stock || !product.stock.trim())) {
+        console.log(`[AbacatePay] ERRO: Produto ${product.id} sem estoque disponível`);
         return res.status(400).json({ error: "Produto sem estoque disponível" });
       }
 
