@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Check, MessageCircle, Trash2 } from "lucide-react";
+import { Loader2, MessageCircle, Trash2, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState } from "react";
@@ -11,7 +11,7 @@ import { SellerOrderChat } from "@/components/SellerOrderChat";
 
 export function VendorOrdersEnhanced({ vendorId }: { vendorId: number }) {
   const { toast } = useToast();
-  const [approvingId, setApprovingId] = useState<number | null>(null);
+  const [resendingId, setResendingId] = useState<number | null>(null);
 
   const { data: orders = [], isLoading, refetch } = useQuery<any[]>({
     queryKey: ["/api/vendor/orders", vendorId],
@@ -29,58 +29,59 @@ export function VendorOrdersEnhanced({ vendorId }: { vendorId: number }) {
     refetchInterval: 10000, // Polling a cada 10s
   });
 
-  const handleApprovePayment = async (orderId: number) => {
-    setApprovingId(orderId);
+  const handleResendOrder = async (orderId: number) => {
+    setResendingId(orderId);
     try {
-      const response = await apiRequest("POST", `/api/vendor/orders/${orderId}/approve`, {});
+      const vendorToken = localStorage.getItem("vendor_token");
+      if (!vendorToken) {
+        throw new Error("Token não encontrado. Faça login novamente.");
+      }
+
+      const response = await fetch(`/api/orders/${orderId}/resend-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${vendorToken}`
+        },
+        credentials: "include"
+      });
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Erro ao aprovar pedido");
+        throw new Error(errorData.error || "Erro ao reenviar pedido");
       }
       
-      const data = await response.json();
-      
-      // Encontrar o pedido para abrir WhatsApp automaticamente
       const order = orders.find((o: any) => o.id === orderId);
       
       toast({
-        title: "Pedido Aprovado!",
-        description: "Abrindo WhatsApp para enviar o produto ao cliente...",
+        title: "Pedido Reenviado!",
+        description: "O produto foi reenviado para o cliente.",
       });
 
-      // Atualizar a lista de pedidos
-      refetch();
-      queryClient.invalidateQueries({ queryKey: ["/api/vendor/orders", vendorId] });
-      
-      // Invalidate stats so dashboard updates immediately with new revenue
-      queryClient.invalidateQueries({ queryKey: ["/api/vendor/stats"] });
-      
-      // Abrir WhatsApp automaticamente com o produto entregue
-      if (order?.whatsapp && data.deliveredContent) {
+      // Abrir WhatsApp automaticamente
+      if (order?.whatsapp && order?.deliveredContent) {
         const phone = order.whatsapp.replace(/\D/g, "");
         const formattedPhone = phone.startsWith("55") ? phone : `55${phone}`;
-        const contentLines = data.deliveredContent.split("\n").filter((l: string) => l.trim()).slice(0, 5);
+        const contentLines = order.deliveredContent.split("\n").filter((l: string) => l.trim()).slice(0, 5);
         const contentPreview = contentLines.join("\n");
         
         const message = encodeURIComponent(
-          `Ola! Seu pedido #${orderId} foi aprovado!\n\nSeu produto:\n${contentPreview}\n\nObrigado pela compra!`
+          `Ola! Reenviando seu pedido #${orderId}!\n\nSeu produto:\n${contentPreview}\n\nObrigado pela compra!`
         );
         
-        // Pequeno delay para garantir que o toast apareça
         setTimeout(() => {
           window.open(`https://wa.me/+${formattedPhone}?text=${message}`, "_blank");
         }, 500);
       }
     } catch (error: any) {
-      console.error("[Approve Payment] Error:", error);
+      console.error("[Resend Order] Error:", error);
       toast({
-        title: "Erro ao aprovar",
+        title: "Erro ao reenviar",
         description: error.message || "Tente novamente",
         variant: "destructive",
       });
     } finally {
-      setApprovingId(null);
+      setResendingId(null);
     }
   };
 
@@ -319,47 +320,48 @@ export function VendorOrdersEnhanced({ vendorId }: { vendorId: number }) {
                       </div>
                     )}
                     {order.status === "pending" && (
-                      <Button
-                        onClick={() => handleApprovePayment(order.id!)}
-                        disabled={approvingId === order.id}
-                        className="w-full bg-green-600 hover:bg-green-700 text-white text-sm"
-                        data-testid={`button-approve-order-${order.id}`}
-                      >
-                        {approvingId === order.id ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Aprovando Pagamento...
-                          </>
-                        ) : (
-                          <>
-                            <Check className="w-4 h-4 mr-2" />
-                            ✅ Aprovar Pagamento
-                          </>
-                        )}
-                      </Button>
+                      <div className="p-2 bg-yellow-500/20 rounded-md border border-yellow-500/30">
+                        <p className="text-xs text-yellow-400 text-center">
+                          Aguardando confirmacao automatica do pagamento via Abacate Pay
+                        </p>
+                      </div>
                     )}
-                    {order.status === "paid" && order.whatsapp && (
+                    {order.status === "paid" && (
                       <div className="space-y-2">
                         <div className="p-2 bg-green-500/20 rounded-md border border-green-500/30">
                           <p className="text-xs text-green-400 font-medium text-center">
-                            Produto pronto para entrega!
+                            Pagamento confirmado! Produto entregue automaticamente.
                           </p>
                         </div>
                         <Button
-                          onClick={() => handleOpenWhatsApp(order)}
-                          className="w-full bg-green-600 hover:bg-green-700 text-white text-sm animate-pulse"
-                          data-testid={`button-whatsapp-order-${order.id}`}
+                          onClick={() => handleResendOrder(order.id!)}
+                          disabled={resendingId === order.id}
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm"
+                          data-testid={`button-resend-order-${order.id}`}
                         >
-                          <MessageCircle className="w-4 h-4 mr-2" />
-                          Enviar Produto no WhatsApp
+                          {resendingId === order.id ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Reenviando...
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="w-4 h-4 mr-2" />
+                              Reenviar Pedido
+                            </>
+                          )}
                         </Button>
-                      </div>
-                    )}
-                    {order.status === "paid" && !order.whatsapp && (
-                      <div className="p-2 bg-yellow-500/20 rounded-md border border-yellow-500/30">
-                        <p className="text-xs text-yellow-400">
-                          Cliente nao informou WhatsApp. Produto entregue via email.
-                        </p>
+                        {order.whatsapp && (
+                          <Button
+                            onClick={() => handleOpenWhatsApp(order)}
+                            variant="outline"
+                            className="w-full text-sm"
+                            data-testid={`button-whatsapp-order-${order.id}`}
+                          >
+                            <MessageCircle className="w-4 h-4 mr-2" />
+                            Abrir WhatsApp
+                          </Button>
+                        )}
                       </div>
                     )}
                     
