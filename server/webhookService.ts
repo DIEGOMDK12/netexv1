@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { discordService } from './discord-service';
 
 interface WebhookPayload {
   event: string;
@@ -90,6 +91,26 @@ export async function triggerPurchaseWebhooks(
         }
       }).catch(err => {
         console.error(`[WhatsApp] Error sending sale notification:`, err);
+      });
+    }
+
+    if (discordService.isReady()) {
+      console.log(`[Discord] Sending sale notification for order ${orderData.orderId}`);
+      discordService.sendSaleNotification({
+        orderId: orderData.orderId,
+        productName: orderData.products.map(p => p.name).join(', '),
+        quantity: orderData.products.reduce((sum, p) => sum + p.quantity, 0),
+        totalAmount: orderData.totalAmount,
+        buyerName: orderData.customerName || orderData.email,
+        status: 'Pago',
+      }).then(result => {
+        if (result.success) {
+          console.log(`[Discord] Sale notification sent successfully`);
+        } else {
+          console.log(`[Discord] Failed to send notification: ${result.error}`);
+        }
+      }).catch(err => {
+        console.error(`[Discord] Error sending sale notification:`, err);
       });
     }
     
