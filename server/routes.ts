@@ -2168,8 +2168,8 @@ export async function registerRoutes(
 
       // Validar estoque apenas se for um novo pedido (não existente)
       // Se já existe um orderId, o estoque já foi validado na criação do pedido
-      // Produtos em modo dinâmico (dynamicMode) não precisam de estoque pré-cadastrado
-      if (!existingOrderId && !product.dynamicMode && (!product.stock || !product.stock.trim())) {
+      // TODOS os produtos precisam ter estoque cadastrado para entrega automática
+      if (!existingOrderId && (!product.stock || !product.stock.trim())) {
         return res.status(400).json({ error: "Produto sem estoque disponível" });
       }
 
