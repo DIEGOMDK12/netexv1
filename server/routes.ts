@@ -5043,6 +5043,137 @@ export async function registerRoutes(
     }
   });
 
+  // ==================== DISCORD NOTIFICATIONS ====================
+  
+  // Get Discord notification settings
+  app.get("/api/vendor/discord-notifications", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const vendorId = tokenToVendor.get(token);
+    if (!vendorId) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    try {
+      const vendor = await storage.getReseller(vendorId);
+      if (!vendor) {
+        return res.status(404).json({ error: "Vendor not found" });
+      }
+
+      res.json({
+        configured: !!vendor.discordWebhookUrl,
+        enabled: vendor.discordNotificationEnabled || false,
+      });
+    } catch (error) {
+      console.error("[Discord Notifications GET] Error:", error);
+      res.status(500).json({ error: "Failed to get Discord notification settings" });
+    }
+  });
+
+  // Save Discord webhook
+  app.post("/api/vendor/discord-notifications", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const vendorId = tokenToVendor.get(token);
+    if (!vendorId) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    const { webhookUrl } = req.body;
+    if (!webhookUrl) {
+      return res.status(400).json({ error: "Webhook URL is required" });
+    }
+
+    if (!webhookUrl.startsWith("https://discord.com/api/webhooks/")) {
+      return res.status(400).json({ error: "URL de webhook invalida" });
+    }
+
+    try {
+      await storage.updateReseller(vendorId, {
+        discordWebhookUrl: webhookUrl,
+        discordNotificationEnabled: true,
+      });
+
+      res.json({ 
+        success: true, 
+        message: "Discord webhook saved successfully" 
+      });
+    } catch (error) {
+      console.error("[Discord Save Webhook] Error:", error);
+      res.status(500).json({ error: "Failed to save webhook" });
+    }
+  });
+
+  // Toggle Discord notifications
+  app.patch("/api/vendor/discord-notifications/toggle", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const vendorId = tokenToVendor.get(token);
+    if (!vendorId) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    const { enabled } = req.body;
+
+    try {
+      const vendor = await storage.getReseller(vendorId);
+      if (!vendor) {
+        return res.status(404).json({ error: "Vendor not found" });
+      }
+
+      if (!vendor.discordWebhookUrl) {
+        return res.status(400).json({ error: "Discord webhook must be configured first" });
+      }
+
+      await storage.updateReseller(vendorId, {
+        discordNotificationEnabled: enabled,
+      });
+
+      res.json({ 
+        success: true, 
+        enabled,
+        message: enabled ? "Notifications enabled" : "Notifications disabled" 
+      });
+    } catch (error) {
+      console.error("[Discord Toggle] Error:", error);
+      res.status(500).json({ error: "Failed to toggle notifications" });
+    }
+  });
+
+  // Remove Discord notification configuration
+  app.delete("/api/vendor/discord-notifications", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const vendorId = tokenToVendor.get(token);
+    if (!vendorId) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    try {
+      await storage.updateReseller(vendorId, {
+        discordWebhookUrl: null,
+        discordNotificationEnabled: false,
+      });
+
+      res.json({ success: true, message: "Discord notification configuration removed" });
+    } catch (error) {
+      console.error("[Discord Remove] Error:", error);
+      res.status(500).json({ error: "Failed to remove configuration" });
+    }
+  });
+
   // ==================== WEBHOOKS ====================
   
   // Get vendor webhooks

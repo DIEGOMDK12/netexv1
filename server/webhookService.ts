@@ -94,7 +94,32 @@ export async function triggerPurchaseWebhooks(
       });
     }
 
-    if (discordService.isReady()) {
+    if (reseller?.discordNotificationEnabled && reseller?.discordWebhookUrl) {
+      console.log(`[Discord] Sending sale notification to vendor ${resellerId}`);
+      const axios = (await import('axios')).default;
+      const embed = {
+        title: 'Nova Venda!',
+        color: 0x00ff00,
+        fields: [
+          { name: 'Pedido', value: `#${orderData.orderId}`, inline: true },
+          { name: 'Produto', value: orderData.products.map(p => p.name).join(', '), inline: true },
+          { name: 'Quantidade', value: String(orderData.products.reduce((sum, p) => sum + p.quantity, 0)), inline: true },
+          { name: 'Valor Total', value: `R$ ${orderData.totalAmount}`, inline: true },
+          { name: 'Comprador', value: orderData.customerName || orderData.email, inline: true },
+          { name: 'Status', value: 'Pago', inline: true },
+        ],
+        timestamp: new Date().toISOString(),
+        footer: { text: orderData.storeName }
+      };
+      
+      axios.post(reseller.discordWebhookUrl, { embeds: [embed] })
+        .then(() => {
+          console.log(`[Discord] Sale notification sent successfully to vendor ${resellerId}`);
+        })
+        .catch((err: any) => {
+          console.error(`[Discord] Error sending sale notification to vendor ${resellerId}:`, err.message);
+        });
+    } else if (discordService.isReady()) {
       console.log(`[Discord] Sending sale notification for order ${orderData.orderId}`);
       discordService.sendSaleNotification({
         orderId: orderData.orderId,

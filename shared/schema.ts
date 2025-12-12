@@ -99,6 +99,9 @@ export const resellers = pgTable("resellers", {
   whatsappNotificationSecretExpiresAt: timestamp("whatsapp_notification_secret_expires_at"),
   whatsappNotificationVerified: boolean("whatsapp_notification_verified").default(false),
   whatsappNotificationEnabled: boolean("whatsapp_notification_enabled").default(false),
+  // Discord notification fields
+  discordWebhookUrl: text("discord_webhook_url"),
+  discordNotificationEnabled: boolean("discord_notification_enabled").default(false),
 });
 
 // Webhooks table for purchase notifications
