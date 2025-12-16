@@ -21,6 +21,8 @@ services:
         sync: false
       - key: PAGSEGURO_CLIENT_SECRET
         sync: false
+      - key: ADMIN_DISCORD_WEBHOOK_URL
+        sync: false
     healthCheckPath: /api/settings
     disk:
       name: uploads
