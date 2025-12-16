@@ -1640,18 +1640,29 @@ export async function registerRoutes(
 
         console.log("[POST /api/orders] Order items created");
 
-        // Send Discord notification for new customer
-        const firstProductName = items[0]?.productName || 'Produto';
-        discordService.sendNewCustomerNotification({
-          orderId: order.id,
-          customerName: customerName || '',
-          email: email,
-          whatsapp: whatsapp || '',
-          totalAmount: totalAmount || '0',
-          productName: firstProductName,
-        }).catch((err) => {
-          console.error('[POST /api/orders] Failed to send Discord notification:', err);
-        });
+        // Check if this is a NEW customer (first order with this email)
+        const allOrders = await storage.getOrders();
+        const previousOrders = allOrders.filter(o => 
+          o.email.toLowerCase() === email.toLowerCase() && o.id !== order.id
+        );
+        
+        if (previousOrders.length === 0) {
+          // First time customer - send Discord notification
+          const firstProductName = items[0]?.productName || 'Produto';
+          discordService.sendNewCustomerNotification({
+            orderId: order.id,
+            customerName: customerName || '',
+            email: email,
+            whatsapp: whatsapp || '',
+            totalAmount: totalAmount || '0',
+            productName: firstProductName,
+          }).catch((err) => {
+            console.error('[POST /api/orders] Failed to send Discord notification:', err);
+          });
+          console.log("[POST /api/orders] New customer notification sent for:", email);
+        } else {
+          console.log("[POST /api/orders] Returning customer, skipping notification:", email);
+        }
 
         res.json({
           id: order.id,
