@@ -3411,7 +3411,13 @@ export async function registerRoutes(
 
     try {
       const settings = readSettings();
-      const webhookConfigured = !!process.env.ADMIN_DISCORD_WEBHOOK_URL;
+      const webhookConfigured = !!settings.adminDiscordWebhookUrl || !!process.env.ADMIN_DISCORD_WEBHOOK_URL;
+      
+      // Update discordService with current webhook URL from settings
+      if (settings.adminDiscordWebhookUrl) {
+        discordService.setAdminWebhookUrl(settings.adminDiscordWebhookUrl);
+      }
+      
       res.json({
         configured: webhookConfigured,
         enabled: settings.adminDiscordNotificationEnabled ?? true,
@@ -3421,6 +3427,61 @@ export async function registerRoutes(
     } catch (error) {
       console.error("[Admin Discord GET] Error:", error);
       res.status(500).json({ error: "Failed to get Discord settings" });
+    }
+  });
+
+  // Save admin Discord webhook
+  app.post("/api/admin/discord-notifications", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!isAuthenticated(token)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { webhookUrl } = req.body;
+    if (!webhookUrl) {
+      return res.status(400).json({ error: "Webhook URL is required" });
+    }
+
+    if (!webhookUrl.startsWith("https://discord.com/api/webhooks/")) {
+      return res.status(400).json({ error: "URL de webhook invalida" });
+    }
+
+    try {
+      const settings = readSettings();
+      settings.adminDiscordWebhookUrl = webhookUrl;
+      settings.adminDiscordNotificationEnabled = true;
+      writeSettings(settings);
+      
+      // Update discordService with the new webhook URL
+      discordService.setAdminWebhookUrl(webhookUrl);
+      
+      res.json({ success: true, message: "Webhook salvo com sucesso!" });
+    } catch (error) {
+      console.error("[Admin Discord Save] Error:", error);
+      res.status(500).json({ error: "Falha ao salvar webhook" });
+    }
+  });
+
+  // Remove admin Discord webhook
+  app.delete("/api/admin/discord-notifications", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!isAuthenticated(token)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const settings = readSettings();
+      delete settings.adminDiscordWebhookUrl;
+      settings.adminDiscordNotificationEnabled = false;
+      writeSettings(settings);
+      
+      // Clear webhook URL from discordService
+      discordService.setAdminWebhookUrl(undefined);
+      
+      res.json({ success: true, message: "Webhook removido com sucesso!" });
+    } catch (error) {
+      console.error("[Admin Discord Remove] Error:", error);
+      res.status(500).json({ error: "Falha ao remover webhook" });
     }
   });
 
@@ -3457,6 +3518,12 @@ export async function registerRoutes(
     }
 
     try {
+      // Ensure we have the latest webhook URL from settings
+      const settings = readSettings();
+      if (settings.adminDiscordWebhookUrl) {
+        discordService.setAdminWebhookUrl(settings.adminDiscordWebhookUrl);
+      }
+      
       const result = await discordService.sendAdminMessage('Teste de notificacao do painel admin!', [{
         title: 'Teste de Notificacao',
         color: 0x5865f2,

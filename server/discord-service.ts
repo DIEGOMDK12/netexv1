@@ -45,6 +45,19 @@ class DiscordService {
     }
   }
 
+  setAdminWebhookUrl(url: string | undefined) {
+    this.adminWebhookUrl = url;
+    this.isAdminConfigured = !!url;
+  }
+
+  getAdminWebhookUrl(): string | undefined {
+    return this.adminWebhookUrl;
+  }
+
+  isAdminReady(): boolean {
+    return this.isAdminConfigured;
+  }
+
   async sendMessage(content: string, embeds?: DiscordEmbed[]): Promise<SendNotificationResult> {
     if (!this.isConfigured) {
       console.log(`[Discord] Would send: ${content}`);
