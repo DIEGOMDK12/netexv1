@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, Bell, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { SiDiscord } from "react-icons/si";
 import type { Settings } from "@shared/schema";
 
 export default function AdminSettings() {
@@ -255,6 +257,9 @@ export default function AdminSettings() {
         </div>
       </div>
 
+      {/* Discord Notifications */}
+      <DiscordNotificationsSection />
+
       {/* Save Button */}
       <Button
         onClick={() => updateMutation.mutate(formData)}
@@ -268,6 +273,158 @@ export default function AdminSettings() {
         )}
         Salvar Configurações
       </Button>
+    </div>
+  );
+}
+
+function DiscordNotificationsSection() {
+  const { toast } = useToast();
+  const [testLoading, setTestLoading] = useState(false);
+
+  const { data: discordSettings, isLoading } = useQuery<{
+    configured: boolean;
+    enabled: boolean;
+    newCustomerEnabled: boolean;
+    paidOrderEnabled: boolean;
+  }>({
+    queryKey: ["/api/admin/discord-notifications"],
+    queryFn: async () => {
+      const token = localStorage.getItem("admin_token");
+      const response = await fetch("/api/admin/discord-notifications", {
+        headers: { "Authorization": `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("Erro ao carregar");
+      return response.json();
+    },
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: async ({ field, enabled }: { field: string; enabled: boolean }) => {
+      const token = localStorage.getItem("admin_token");
+      const response = await fetch("/api/admin/discord-notifications/toggle", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({ field, enabled }),
+      });
+      if (!response.ok) throw new Error("Erro ao atualizar");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/discord-notifications"] });
+      toast({ title: "Configuracao atualizada!" });
+    },
+    onError: () => {
+      toast({ title: "Erro ao atualizar", variant: "destructive" });
+    },
+  });
+
+  const testWebhook = async () => {
+    setTestLoading(true);
+    try {
+      const token = localStorage.getItem("admin_token");
+      const response = await fetch("/api/admin/discord-notifications/test", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (response.ok) {
+        toast({ title: "Teste enviado!", description: "Verifique seu Discord" });
+      } else {
+        toast({ title: "Erro", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erro ao testar", variant: "destructive" });
+    } finally {
+      setTestLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="p-6 rounded-lg border" style={{ backgroundColor: "#1E1E1E", borderColor: "rgba(255,255,255,0.1)" }}>
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="p-6 rounded-lg border"
+      style={{ backgroundColor: "#1E1E1E", borderColor: "rgba(88,101,242,0.3)" }}
+    >
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+          <SiDiscord className="w-5 h-5 text-indigo-400" />
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-white">Notificacoes Discord</h3>
+          <p className="text-xs text-indigo-400">
+            {discordSettings?.configured ? "Webhook configurado" : "Webhook nao configurado"}
+          </p>
+        </div>
+      </div>
+
+      {discordSettings?.configured ? (
+        <div className="space-y-4">
+          <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-3">
+            <p className="text-sm text-indigo-300">
+              Receba notificacoes no Discord quando novos clientes se cadastrarem ou compras forem aprovadas.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 rounded-lg" style={{ backgroundColor: "#242424" }}>
+              <div>
+                <p className="text-white text-sm font-medium">Novo Cliente</p>
+                <p className="text-gray-400 text-xs">Notificar quando um cliente novo fizer pedido</p>
+              </div>
+              <Switch
+                checked={discordSettings.newCustomerEnabled}
+                onCheckedChange={(checked) => toggleMutation.mutate({ field: 'newCustomer', enabled: checked })}
+                data-testid="switch-discord-new-customer"
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-3 rounded-lg" style={{ backgroundColor: "#242424" }}>
+              <div>
+                <p className="text-white text-sm font-medium">Compra Paga</p>
+                <p className="text-gray-400 text-xs">Notificar quando um pedido for aprovado</p>
+              </div>
+              <Switch
+                checked={discordSettings.paidOrderEnabled}
+                onCheckedChange={(checked) => toggleMutation.mutate({ field: 'paidOrder', enabled: checked })}
+                data-testid="switch-discord-paid-order"
+              />
+            </div>
+          </div>
+
+          <Button
+            onClick={testWebhook}
+            disabled={testLoading}
+            variant="outline"
+            className="w-full border-indigo-500/30 text-indigo-400"
+            data-testid="button-test-discord"
+          >
+            {testLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            ) : (
+              <Send className="w-4 h-4 mr-2" />
+            )}
+            Testar Notificacao
+          </Button>
+        </div>
+      ) : (
+        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
+          <p className="text-sm text-yellow-300">
+            Webhook do Discord nao configurado. Configure a variavel ADMIN_DISCORD_WEBHOOK_URL para ativar as notificacoes.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

@@ -192,7 +192,10 @@ function readSettings() {
       pagseguroApiUrl: "https://api.pagseguro.com",
       supportEmail: "suporte@goldnet.com",
       whatsappContact: "5585988007000",
-      resellerWhatsapp: ""
+      resellerWhatsapp: "",
+      adminDiscordNotificationEnabled: true,
+      adminDiscordNewCustomerEnabled: true,
+      adminDiscordPaidOrderEnabled: true
     };
   }
 }
@@ -1137,16 +1140,19 @@ export async function registerRoutes(
       console.log(`[POST /api/admin/orders/:id/approve] ✓ Order ${orderId} approved successfully`);
 
       // Send Discord notification for paid purchase (admin only)
-      const productNames = orderItems.map((item: any) => item.productName || "Produto").join(", ");
-      discordService.sendPaidPurchaseNotification({
-        orderId: order.id,
-        customerName: order.customerName || '',
-        email: order.email,
-        totalAmount: order.totalAmount?.toString() || '0',
-        productName: productNames,
-      }).catch((err) => {
-        console.error('[POST /api/admin/orders/:id/approve] Failed to send Discord notification:', err);
-      });
+      const adminSettingsForNotif = readSettings();
+      if (adminSettingsForNotif.adminDiscordPaidOrderEnabled !== false) {
+        const productNames = orderItems.map((item: any) => item.productName || "Produto").join(", ");
+        discordService.sendPaidPurchaseNotification({
+          orderId: order.id,
+          customerName: order.customerName || '',
+          email: order.email,
+          totalAmount: order.totalAmount?.toString() || '0',
+          productName: productNames,
+        }).catch((err) => {
+          console.error('[POST /api/admin/orders/:id/approve] Failed to send Discord notification:', err);
+        });
+      }
 
       res.json({
         success: true,
@@ -1641,27 +1647,30 @@ export async function registerRoutes(
         console.log("[POST /api/orders] Order items created");
 
         // Check if this is a NEW customer (first order with this email)
-        const allOrders = await storage.getOrders();
-        const previousOrders = allOrders.filter(o => 
-          o.email.toLowerCase() === email.toLowerCase() && o.id !== order.id
-        );
-        
-        if (previousOrders.length === 0) {
-          // First time customer - send Discord notification
-          const firstProductName = items[0]?.productName || 'Produto';
-          discordService.sendNewCustomerNotification({
-            orderId: order.id,
-            customerName: customerName || '',
-            email: email,
-            whatsapp: whatsapp || '',
-            totalAmount: totalAmount || '0',
-            productName: firstProductName,
-          }).catch((err) => {
-            console.error('[POST /api/orders] Failed to send Discord notification:', err);
-          });
-          console.log("[POST /api/orders] New customer notification sent for:", email);
-        } else {
-          console.log("[POST /api/orders] Returning customer, skipping notification:", email);
+        const adminSettings = readSettings();
+        if (adminSettings.adminDiscordNewCustomerEnabled !== false) {
+          const allOrders = await storage.getOrders();
+          const previousOrders = allOrders.filter(o => 
+            o.email.toLowerCase() === email.toLowerCase() && o.id !== order.id
+          );
+          
+          if (previousOrders.length === 0) {
+            // First time customer - send Discord notification
+            const firstProductName = items[0]?.productName || 'Produto';
+            discordService.sendNewCustomerNotification({
+              orderId: order.id,
+              customerName: customerName || '',
+              email: email,
+              whatsapp: whatsapp || '',
+              totalAmount: totalAmount || '0',
+              productName: firstProductName,
+            }).catch((err) => {
+              console.error('[POST /api/orders] Failed to send Discord notification:', err);
+            });
+            console.log("[POST /api/orders] New customer notification sent for:", email);
+          } else {
+            console.log("[POST /api/orders] Returning customer, skipping notification:", email);
+          }
         }
 
         res.json({
@@ -3390,6 +3399,82 @@ export async function registerRoutes(
     } catch (error) {
       console.error("[PUT /api/admin/settings] Error:", error);
       res.status(500).json({ error: "Failed to update settings" });
+    }
+  });
+
+  // ============== ADMIN DISCORD NOTIFICATIONS ==============
+  app.get("/api/admin/discord-notifications", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!isAuthenticated(token)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const settings = readSettings();
+      const webhookConfigured = !!process.env.ADMIN_DISCORD_WEBHOOK_URL;
+      res.json({
+        configured: webhookConfigured,
+        enabled: settings.adminDiscordNotificationEnabled ?? true,
+        newCustomerEnabled: settings.adminDiscordNewCustomerEnabled ?? true,
+        paidOrderEnabled: settings.adminDiscordPaidOrderEnabled ?? true,
+      });
+    } catch (error) {
+      console.error("[Admin Discord GET] Error:", error);
+      res.status(500).json({ error: "Failed to get Discord settings" });
+    }
+  });
+
+  app.patch("/api/admin/discord-notifications/toggle", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!isAuthenticated(token)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const { field, enabled } = req.body;
+      const settings = readSettings();
+      
+      if (field === 'newCustomer') {
+        settings.adminDiscordNewCustomerEnabled = enabled;
+      } else if (field === 'paidOrder') {
+        settings.adminDiscordPaidOrderEnabled = enabled;
+      } else {
+        settings.adminDiscordNotificationEnabled = enabled;
+      }
+      
+      writeSettings(settings);
+      res.json({ success: true, enabled });
+    } catch (error) {
+      console.error("[Admin Discord Toggle] Error:", error);
+      res.status(500).json({ error: "Failed to toggle notifications" });
+    }
+  });
+
+  app.post("/api/admin/discord-notifications/test", async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!isAuthenticated(token)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const result = await discordService.sendAdminMessage('Teste de notificacao do painel admin!', [{
+        title: 'Teste de Notificacao',
+        color: 0x5865f2,
+        fields: [
+          { name: 'Status', value: 'Webhook funcionando corretamente!', inline: false },
+        ],
+        timestamp: new Date().toISOString(),
+        footer: { text: 'GOLDNET Marketplace - Admin' }
+      }]);
+      
+      if (result.success) {
+        res.json({ success: true, message: "Notificacao de teste enviada!" });
+      } else {
+        res.status(400).json({ error: result.error || "Falha ao enviar notificacao" });
+      }
+    } catch (error) {
+      console.error("[Admin Discord Test] Error:", error);
+      res.status(500).json({ error: "Falha ao testar webhook" });
     }
   });
 
