@@ -53,5 +53,4 @@ PORT = "5000"
 [userenv.shared]
 EXTERNAL_DATABASE_URL = "postgresql://neondb_owner:npg_1IgpMGCtY0Si@ep-tiny-moon-a4jlkfwj-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
 RESEND_API_KEY = "re_hFSoC2M3_5uphFppdgdoR2ZzpGxUvNTDm"
-ADMIN_DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1450485023554801756/kZYFlEU7CtZ6KLVfCBNWwx-9qslOi7uozoPJ9aCdvRwPLw5VHacbjmI2-RK8c12a3eAr"
-ADMIN_DISCORD_NEW_CUSTOMER_WEBHOOK_URL = "https://discord.com/api/webhooks/1448962413943586950/1o0J5pLNjXJ_3zBm6R3vQ5hKnvEyF00WKHtjVXMErAKAgoDMr_15RpNMZjrm8a4G-AfG"
+ADMIN_DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1448962413943586950/1o0J5pLNjXJ_3zBm6R3vQ5hKnvEyF00WKHtjVXMErAKAgoDMr_15RpNMZjrm8a4G-AfG"

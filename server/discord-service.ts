@@ -111,6 +111,30 @@ class DiscordService {
     return this.sendAdminMessage('', [embed]);
   }
 
+  async sendPaidPurchaseNotification(orderDetails: {
+    orderId: number;
+    customerName: string;
+    email: string;
+    totalAmount: string;
+    productName: string;
+  }): Promise<SendNotificationResult> {
+    const embed: DiscordEmbed = {
+      title: 'Compra Paga',
+      color: 0x00ff00,
+      fields: [
+        { name: 'Pedido', value: `#${orderDetails.orderId}`, inline: true },
+        { name: 'Cliente', value: orderDetails.customerName || 'N/A', inline: true },
+        { name: 'Email', value: orderDetails.email, inline: true },
+        { name: 'Produto', value: orderDetails.productName, inline: true },
+        { name: 'Valor', value: `R$ ${orderDetails.totalAmount}`, inline: true },
+      ],
+      timestamp: new Date().toISOString(),
+      footer: { text: 'GOLDNET Marketplace' }
+    };
+
+    return this.sendAdminMessage('', [embed]);
+  }
+
   async sendSaleNotification(orderDetails: {
     orderId: number;
     productName: string;
