@@ -22,16 +22,26 @@ interface SendNotificationResult {
 
 class DiscordService {
   private webhookUrl: string | undefined;
+  private adminWebhookUrl: string | undefined;
   private isConfigured: boolean = false;
+  private isAdminConfigured: boolean = false;
 
   constructor() {
     this.webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+    this.adminWebhookUrl = process.env.ADMIN_DISCORD_WEBHOOK_URL;
     this.isConfigured = !!this.webhookUrl;
+    this.isAdminConfigured = !!this.adminWebhookUrl;
     
     if (this.isConfigured) {
       console.log('[Discord] Webhook configured and ready');
     } else {
       console.log('[Discord] Service not configured - set DISCORD_WEBHOOK_URL');
+    }
+    
+    if (this.isAdminConfigured) {
+      console.log('[Discord] Admin webhook configured and ready');
+    } else {
+      console.log('[Discord] Admin webhook not configured - set ADMIN_DISCORD_WEBHOOK_URL');
     }
   }
 
@@ -53,6 +63,52 @@ class DiscordService {
       console.error('[Discord] Failed to send message:', errorMessage);
       return { success: false, error: errorMessage };
     }
+  }
+
+  async sendAdminMessage(content: string, embeds?: DiscordEmbed[]): Promise<SendNotificationResult> {
+    if (!this.isAdminConfigured) {
+      console.log(`[Discord Admin] Would send: ${content}`);
+      return { success: false, error: 'Admin Discord not configured' };
+    }
+
+    try {
+      await axios.post(this.adminWebhookUrl!, {
+        content,
+        embeds
+      });
+      console.log('[Discord Admin] Message sent successfully');
+      return { success: true };
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message;
+      console.error('[Discord Admin] Failed to send message:', errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  async sendNewCustomerNotification(customerDetails: {
+    orderId: number;
+    customerName: string;
+    email: string;
+    whatsapp: string;
+    totalAmount: string;
+    productName: string;
+  }): Promise<SendNotificationResult> {
+    const embed: DiscordEmbed = {
+      title: 'Novo Cliente',
+      color: 0x5865f2,
+      fields: [
+        { name: 'Pedido', value: `#${customerDetails.orderId}`, inline: true },
+        { name: 'Cliente', value: customerDetails.customerName || 'N/A', inline: true },
+        { name: 'Email', value: customerDetails.email, inline: true },
+        { name: 'WhatsApp', value: customerDetails.whatsapp || 'N/A', inline: true },
+        { name: 'Produto', value: customerDetails.productName, inline: true },
+        { name: 'Valor', value: `R$ ${customerDetails.totalAmount}`, inline: true },
+      ],
+      timestamp: new Date().toISOString(),
+      footer: { text: 'GOLDNET Marketplace' }
+    };
+
+    return this.sendAdminMessage('', [embed]);
   }
 
   async sendSaleNotification(orderDetails: {

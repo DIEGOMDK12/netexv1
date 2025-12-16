@@ -8,6 +8,7 @@ import path from "path";
 import multer from "multer";
 import { Client as ObjectStorageClient } from "@replit/object-storage";
 import { sendDeliveryEmail } from "./email";
+import { discordService } from "./discord-service";
 import {
   generateAuthorizationUrl,
   exchangeCodeForToken,
@@ -1625,6 +1626,19 @@ export async function registerRoutes(
         }
 
         console.log("[POST /api/orders] Order items created");
+
+        // Send Discord notification for new customer
+        const firstProductName = items[0]?.productName || 'Produto';
+        discordService.sendNewCustomerNotification({
+          orderId: order.id,
+          customerName: customerName || '',
+          email: email,
+          whatsapp: whatsapp || '',
+          totalAmount: totalAmount || '0',
+          productName: firstProductName,
+        }).catch((err) => {
+          console.error('[POST /api/orders] Failed to send Discord notification:', err);
+        });
 
         res.json({
           id: order.id,
