@@ -3381,6 +3381,7 @@ export async function registerRoutes(
         pagseguroApiUrl: "https://api.pagseguro.com",
         supportEmail: req.body.supportEmail || null,
         whatsappContact: req.body.whatsappContact || null,
+        whatsappButtonEnabled: req.body.whatsappButtonEnabled ?? true,
       };
 
       // Save to database

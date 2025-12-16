@@ -218,6 +218,7 @@ export const settings = pgTable("settings", {
   resellerPixKey: text("reseller_pix_key").default(""),
   supportEmail: text("support_email").default("suporte@goldnetsteam.shop"),
   whatsappContact: text("whatsapp_contact").default("5585988007000"),
+  whatsappButtonEnabled: boolean("whatsapp_button_enabled").default(true),
   resellerWhatsapp: text("reseller_whatsapp").default(""),
 });
 

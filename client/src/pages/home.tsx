@@ -24,7 +24,8 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { Product, Category } from "@shared/schema";
+import type { Product, Category, Settings } from "@shared/schema";
+import { SiWhatsapp } from "react-icons/si";
 
 type ProductWithSeller = Product & {
   seller: {
@@ -108,6 +109,10 @@ export default function Home() {
       return response.json();
     },
     enabled: uniqueSellerIds.length > 0,
+  });
+
+  const { data: siteSettings } = useQuery<Settings>({
+    queryKey: ["/api/settings"],
   });
 
   const activeProducts = products.filter(p => p.active);
@@ -630,6 +635,19 @@ export default function Home() {
           </p>
         </div>
       </footer>
+
+      {siteSettings?.whatsappButtonEnabled && siteSettings?.whatsappContact && (
+        <a
+          href={`https://wa.me/${siteSettings.whatsappContact}?text=Ola! Preciso de ajuda.`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="fixed bottom-6 right-6 z-50 bg-green-500 hover:bg-green-600 text-white p-4 rounded-full shadow-lg transition-all duration-300 hover:scale-110"
+          data-testid="button-whatsapp-help"
+          title="Precisa de ajuda? Fale conosco!"
+        >
+          <SiWhatsapp className="w-6 h-6" />
+        </a>
+      )}
     </div>
   );
 }

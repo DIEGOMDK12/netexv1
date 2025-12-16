@@ -12,5 +12,6 @@
   "pagseguroApiUrl": "https://api.pagseguro.com",
   "supportEmail": "suporte@goldnetsteam.shop",
   "whatsappContact": "5585988007000",
+  "whatsappButtonEnabled": true,
   "resellerWhatsapp": ""
 }

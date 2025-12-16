@@ -22,6 +22,7 @@ export default function AdminSettings() {
     pagseguroApiUrl: "",
     supportEmail: "",
     whatsappContact: "",
+    whatsappButtonEnabled: true,
   });
 
   const { data: settings, isLoading } = useQuery<Settings>({
@@ -52,6 +53,7 @@ export default function AdminSettings() {
         pagseguroApiUrl: settings.pagseguroApiUrl || "",
         supportEmail: (settings as any).supportEmail || "",
         whatsappContact: (settings as any).whatsappContact || "",
+        whatsappButtonEnabled: (settings as any).whatsappButtonEnabled ?? true,
       });
     }
   }, [settings]);
@@ -136,6 +138,19 @@ export default function AdminSettings() {
               onChange={(e) => setFormData({ ...formData, whatsappContact: e.target.value })}
               placeholder="5585988007000"
               style={{ backgroundColor: "#242424", borderColor: "rgba(255,255,255,0.1)", color: "#fff" }}
+              data-testid="input-whatsapp-contact"
+            />
+          </div>
+
+          <div className="flex items-center justify-between p-3 rounded-lg" style={{ backgroundColor: "#242424" }}>
+            <div>
+              <Label className="text-white">Botão WhatsApp na Página Inicial</Label>
+              <p className="text-gray-400 text-xs mt-1">Exibe um botão flutuante de ajuda via WhatsApp</p>
+            </div>
+            <Switch
+              checked={formData.whatsappButtonEnabled}
+              onCheckedChange={(checked) => setFormData({ ...formData, whatsappButtonEnabled: checked })}
+              data-testid="switch-whatsapp-button"
             />
           </div>
 
