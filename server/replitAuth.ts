@@ -53,13 +53,61 @@ function updateUserSession(
 }
 
 async function upsertUser(claims: any) {
+  const userId = claims["sub"];
+  const email = claims["email"];
+  const firstName = claims["first_name"];
+  const lastName = claims["last_name"];
+  
+  // Check if this is a new customer (doesn't exist yet)
+  const existingUser = await storage.getCustomerUser(userId);
+  const isNewCustomer = !existingUser;
+  
   await storage.upsertCustomerUser({
-    id: claims["sub"],
-    email: claims["email"],
-    firstName: claims["first_name"],
-    lastName: claims["last_name"],
+    id: userId,
+    email: email,
+    firstName: firstName,
+    lastName: lastName,
     profileImageUrl: claims["profile_image_url"],
   });
+  
+  // Send Discord notification for new customer registration
+  if (isNewCustomer && email) {
+    try {
+      const { discordService } = await import('./discord-service');
+      const fs = await import('fs');
+      const path = await import('path');
+      
+      // Read admin settings to check if notifications are enabled
+      const settingsPath = path.join(process.cwd(), 'settings.json');
+      let settings: any = {};
+      try {
+        if (fs.existsSync(settingsPath)) {
+          settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+        }
+      } catch (e) {
+        console.log('[Auth] Could not read settings:', e);
+      }
+      
+      if (settings.adminDiscordNewCustomerEnabled !== false && discordService.isAdminReady()) {
+        const customerName = [firstName, lastName].filter(Boolean).join(' ') || 'Cliente';
+        
+        await discordService.sendAdminMessage('', [{
+          title: 'Novo Cadastro!',
+          color: 0x5865f2,
+          fields: [
+            { name: 'Cliente', value: customerName, inline: true },
+            { name: 'Email', value: email, inline: true },
+          ],
+          timestamp: new Date().toISOString(),
+          footer: { text: 'GOLDNET Marketplace' }
+        }]);
+        
+        console.log('[Auth] New customer registration notification sent for:', email);
+      }
+    } catch (err) {
+      console.error('[Auth] Failed to send new customer notification:', err);
+    }
+  }
 }
 
 export async function setupAuth(app: Express) {
