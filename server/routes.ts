@@ -1135,6 +1135,19 @@ export async function registerRoutes(
       }
 
       console.log(`[POST /api/admin/orders/:id/approve] ✓ Order ${orderId} approved successfully`);
+
+      // Send Discord notification for paid purchase (admin only)
+      const productNames = orderItems.map((item: any) => item.productName || "Produto").join(", ");
+      discordService.sendPaidPurchaseNotification({
+        orderId: order.id,
+        customerName: order.customerName || '',
+        email: order.email,
+        totalAmount: order.totalAmount?.toString() || '0',
+        productName: productNames,
+      }).catch((err) => {
+        console.error('[POST /api/admin/orders/:id/approve] Failed to send Discord notification:', err);
+      });
+
       res.json({
         success: true,
         status: "paid",
