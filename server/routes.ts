@@ -564,6 +564,42 @@ export async function registerRoutes(
         console.error("[/webhook] Erro na notificação Discord (ignorado):", discordError.message);
       }
 
+      // ========== NOTIFICAÇÃO ADMIN DISCORD - NOVO CLIENTE ==========
+      try {
+        const adminSettings = readSettings();
+        if (adminSettings.adminDiscordNewCustomerEnabled !== false) {
+          const allOrders = await storage.getOrders();
+          const previousOrders = allOrders.filter(o => 
+            o.email.toLowerCase() === order.email.toLowerCase() && 
+            o.id !== orderId &&
+            o.status === "paid"
+          );
+          
+          if (previousOrders.length === 0) {
+            // First time paying customer - send Discord notification to admin
+            const orderItems = await storage.getOrderItems(orderId);
+            const firstProductName = orderItems[0]?.productName || 'Produto';
+            const valorVenda = parseFloat(order.totalAmount as string || "0");
+            
+            discordService.sendNewCustomerNotification({
+              orderId: orderId,
+              customerName: order.customerName || '',
+              email: order.email,
+              whatsapp: order.whatsapp || '',
+              totalAmount: valorVenda.toFixed(2),
+              productName: firstProductName,
+            }).catch((err) => {
+              console.error('[/webhook] Failed to send new customer Discord notification:', err);
+            });
+            console.log("[/webhook] ✓ Notificação de novo cliente enviada para admin Discord:", order.email);
+          } else {
+            console.log("[/webhook] Cliente recorrente, pulando notificação de novo cliente:", order.email);
+          }
+        }
+      } catch (newCustomerError: any) {
+        console.error("[/webhook] Erro na notificação de novo cliente (ignorado):", newCustomerError.message);
+      }
+
       // ========== NOTIFICAÇÃO WHATSAPP PARA REVENDEDOR ==========
       try {
         if (order.resellerId) {
@@ -1645,33 +1681,6 @@ export async function registerRoutes(
         }
 
         console.log("[POST /api/orders] Order items created");
-
-        // Check if this is a NEW customer (first order with this email)
-        const adminSettings = readSettings();
-        if (adminSettings.adminDiscordNewCustomerEnabled !== false) {
-          const allOrders = await storage.getOrders();
-          const previousOrders = allOrders.filter(o => 
-            o.email.toLowerCase() === email.toLowerCase() && o.id !== order.id
-          );
-          
-          if (previousOrders.length === 0) {
-            // First time customer - send Discord notification
-            const firstProductName = items[0]?.productName || 'Produto';
-            discordService.sendNewCustomerNotification({
-              orderId: order.id,
-              customerName: customerName || '',
-              email: email,
-              whatsapp: whatsapp || '',
-              totalAmount: totalAmount || '0',
-              productName: firstProductName,
-            }).catch((err) => {
-              console.error('[POST /api/orders] Failed to send Discord notification:', err);
-            });
-            console.log("[POST /api/orders] New customer notification sent for:", email);
-          } else {
-            console.log("[POST /api/orders] Returning customer, skipping notification:", email);
-          }
-        }
 
         res.json({
           id: order.id,
