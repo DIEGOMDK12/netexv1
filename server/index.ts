@@ -141,6 +141,13 @@ async function runStartupMigrations() {
     `);
     console.log("[Migration] Added Discord notification columns to resellers table");
     
+    // Add WhatsApp button toggle column to settings table
+    await client.query(`
+      ALTER TABLE settings 
+      ADD COLUMN IF NOT EXISTS whatsapp_button_enabled BOOLEAN DEFAULT TRUE
+    `);
+    console.log("[Migration] Added whatsapp_button_enabled column to settings table");
+    
     client.release();
     console.log("[Migration] Startup migrations completed successfully");
   } catch (error: any) {
